@@ -35,7 +35,7 @@ steps:
 #      **/*Tests*.csproj
 
 # DotNet Pack needs to be run from a script in order to use --version-suffix
-- script: dotnet pack $(Build.SourcesDirectory)/AmbientContexts/AmbientContexts.csproj --no-restore --configuration Release --version-suffix "preview-$(Build.BuildNumber)" -o $(Build.ArtifactStagingDirectory)
+- script: dotnet pack $(Build.SourcesDirectory)/DomainModeling/DomainModeling.csproj --no-restore --configuration Release --version-suffix "preview-$(Build.BuildNumber)" -o $(Build.ArtifactStagingDirectory)
   displayName: 'DotNet Pack'
 
 - task: NuGetCommand@2
