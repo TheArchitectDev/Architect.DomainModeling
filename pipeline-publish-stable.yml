@@ -32,7 +32,7 @@ steps:
     projects: |
       **/*Tests*.csproj
 
-- script: dotnet pack $(Build.SourcesDirectory)/AmbientContexts/AmbientContexts.csproj /WarnAsError --no-restore --configuration Release -o $(Build.ArtifactStagingDirectory)
+- script: dotnet pack $(Build.SourcesDirectory)/DomainModeling/DomainModeling.csproj /WarnAsError --no-restore --configuration Release -o $(Build.ArtifactStagingDirectory)
   displayName: 'DotNet Pack'
 
 - task: NuGetCommand@2
