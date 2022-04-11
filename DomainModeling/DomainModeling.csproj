@@ -21,6 +21,8 @@
 		<VersionPrefix>1.0.1</VersionPrefix>
 		<Description>
 For Domain-Driven Design (DDD), this package provides tools for implementing domain models, such as base types and source generators.
+
+https://github.com/TheArchitectDev/Architect.DomainModeling
 		</Description>
 		<Copyright>The Architect</Copyright>
 		<Company>The Architect</Company>
