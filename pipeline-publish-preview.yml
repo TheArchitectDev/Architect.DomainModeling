@@ -1,0 +1,46 @@
+trigger:
+- master
+pr: none
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+
+# Explicit restore helps avoid the issue described here:
+# https://developercommunity.visualstudio.com/content/problem/983843/dotnet-build-task-does-not-use-nugetorg-for-one-pr.html
+- task: DotNetCoreCLI@2
+  displayName: 'DotNet Restore'
+  inputs:
+    command: 'restore'
+    includeNugetOrg: true
+    projects: |
+      **/*.csproj
+      !**/*Tests*.csproj
+
+#- task: DotNetCoreCLI@2
+#  displayName: 'DotNet Build'
+#  inputs:
+#    command: 'build'
+#    arguments: '/WarnAsError --no-restore --configuration Release'
+#    projects: |
+#      **/*.csproj
+#
+#- task: DotNetCoreCLI@2
+#  displayName: 'DotNet Test'
+#  inputs:
+#    command: 'test'
+#    arguments: '--no-restore --no-build --configuration Release'
+#    projects: |
+#      **/*Tests*.csproj
+
+# DotNet Pack needs to be run from a script in order to use --version-suffix
+- script: dotnet pack $(Build.SourcesDirectory)/AmbientContexts/AmbientContexts.csproj --no-restore --configuration Release --version-suffix "preview-$(Build.BuildNumber)" -o $(Build.ArtifactStagingDirectory)
+  displayName: 'DotNet Pack'
+
+- task: NuGetCommand@2
+  displayName: 'NuGet Push'
+  inputs:
+    command: 'push'
+    nuGetFeedType: 'external'
+    publishFeedCredentials: 'NuGet'

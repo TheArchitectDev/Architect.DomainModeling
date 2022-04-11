@@ -1,0 +1,27 @@
+trigger: none
+pr:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+
+# Explicit restore helps avoid the issue described here:
+# https://developercommunity.visualstudio.com/content/problem/983843/dotnet-build-task-does-not-use-nugetorg-for-one-pr.html
+- task: DotNetCoreCLI@2
+  displayName: 'DotNet Restore'
+  inputs:
+    command: 'restore'
+    includeNugetOrg: true
+    projects: |
+      **/*.csproj
+      !**/*Tests*.csproj
+
+- task: DotNetCoreCLI@2
+  displayName: 'DotNet Test'
+  inputs:
+    command: 'test'
+    arguments: '/WarnAsError --no-restore --configuration Release'
+    projects: |
+      **/*Tests*.csproj

@@ -1,0 +1,51 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32328.378
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DomainModeling.Example", "DomainModeling.Example\DomainModeling.Example.csproj", "{66195298-4899-4F4E-BE32-0FC7B697C343}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DomainModeling", "DomainModeling\DomainModeling.csproj", "{CEFD6067-C690-4B97-9F52-98EB9220233C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DomainModeling.Tests", "DomainModeling.Tests\DomainModeling.Tests.csproj", "{483B8791-0029-416E-BC3A-C62E3FF22EE3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DomainModeling.Generator", "DomainModeling.Generator\DomainModeling.Generator.csproj", "{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{08DABA83-2014-4A2F-A584-B5FFA6FEA45D}"
+	ProjectSection(SolutionItems) = preProject
+		pipeline-publish-preview.yml = pipeline-publish-preview.yml
+		pipeline-publish-stable.yml = pipeline-publish-stable.yml
+		pipeline-verify.yml = pipeline-verify.yml
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CEFD6067-C690-4B97-9F52-98EB9220233C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CEFD6067-C690-4B97-9F52-98EB9220233C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CEFD6067-C690-4B97-9F52-98EB9220233C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CEFD6067-C690-4B97-9F52-98EB9220233C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{483B8791-0029-416E-BC3A-C62E3FF22EE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{483B8791-0029-416E-BC3A-C62E3FF22EE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{483B8791-0029-416E-BC3A-C62E3FF22EE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{483B8791-0029-416E-BC3A-C62E3FF22EE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {313559F1-D96F-4814-A8DD-5DA7A6E3726F}
+	EndGlobalSection
+EndGlobal
