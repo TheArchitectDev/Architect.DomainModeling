@@ -4,7 +4,6 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Tests</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Tests</RootNamespace>
-		<ImplicitUsings>Enable</ImplicitUsings>
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 
@@ -14,6 +13,7 @@
 		<!-- CS1591: Missing XML comment for publicly visible type -->
 		<NoWarn>CA1822,CS1573,CS1591</NoWarn>
 		<LangVersion>10</LangVersion>
+		<ImplicitUsings>Enable</ImplicitUsings>
 	</PropertyGroup>
 
 	<PropertyGroup>

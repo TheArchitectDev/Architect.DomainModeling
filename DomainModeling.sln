@@ -13,10 +13,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DomainModeling.Generator", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{08DABA83-2014-4A2F-A584-B5FFA6FEA45D}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		pipeline-publish-preview.yml = pipeline-publish-preview.yml
 		pipeline-publish-stable.yml = pipeline-publish-stable.yml
 		pipeline-verify.yml = pipeline-verify.yml
 		README.md = README.md
+		LICENSE = LICENSE
 	EndProjectSection
 EndProject
 Global
@@ -25,6 +27,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66195298-4899-4F4E-BE32-0FC7B697C343}.Release|Any CPU.Build.0 = Release|Any CPU
 		{CEFD6067-C690-4B97-9F52-98EB9220233C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CEFD6067-C690-4B97-9F52-98EB9220233C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CEFD6067-C690-4B97-9F52-98EB9220233C}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -37,10 +43,6 @@ Global
 		{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F4035B17-3F4B-4298-A68E-AD3B730A4DB6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{66195298-4899-4F4E-BE32-0FC7B697C343}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{66195298-4899-4F4E-BE32-0FC7B697C343}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{66195298-4899-4F4E-BE32-0FC7B697C343}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{66195298-4899-4F4E-BE32-0FC7B697C343}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

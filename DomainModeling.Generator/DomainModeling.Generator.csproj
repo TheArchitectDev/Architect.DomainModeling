@@ -4,8 +4,6 @@
 		<TargetFramework>netstandard2.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Generator</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Generator</RootNamespace>
-		<Nullable>Enable</Nullable>
-		<ImplicitUsings>Enable</ImplicitUsings>
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 
@@ -13,6 +11,8 @@
 		<!-- IDE0057: Slice can be simplified -->
 		<NoWarn>IDE0057</NoWarn>
 		<LangVersion>10</LangVersion>
+		<Nullable>Enable</Nullable>
+		<ImplicitUsings>Enable</ImplicitUsings>
 	</PropertyGroup>
 
 	<ItemGroup>
