@@ -1,9 +1,9 @@
 # Architect.DomainModeling
 
-For Domain-Driven Design (DDD), this package provides tools for implementing domain models, such as base types and source generators:
+A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
-- Base types, including: ValueObject, WrapperValueObject, Entity, IIdentity, IApplicationService, IDomainService.
-- Source generators, for types including: ValueObject, WrapperValueObject, DummyBuilder, IIdentity.
+- Base types, including: `ValueObject`, `WrapperValueObject`, `Entity`, `IIdentity`, `IApplicationService`, `IDomainService`.
+- Source generators, for types including: `ValueObject`, `WrapperValueObject`, `DummyBuilder`, `IIdentity`.
 - Structural implementations for hash codes and equality on collections (also used automatically by source-generated value objects containing collections).
 
 ## Source Generators
@@ -240,8 +240,8 @@ To have source generators write a copy to a file for each generated piece of cod
 
 ```xml
 <PropertyGroup>
-  <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-  <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)/GeneratedFiles</CompilerGeneratedFilesOutputPath>
+	<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+	<CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)/GeneratedFiles</CompilerGeneratedFilesOutputPath>
 </PropertyGroup>
 ```
 

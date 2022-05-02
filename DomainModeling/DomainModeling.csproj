@@ -18,19 +18,19 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<VersionPrefix>1.0.1</VersionPrefix>
+		<VersionPrefix>1.0.2</VersionPrefix>
 		<Description>
-For Domain-Driven Design (DDD), this package provides tools for implementing domain models, such as base types and source generators.
+A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
 https://github.com/TheArchitectDev/Architect.DomainModeling
 		</Description>
 		<Copyright>The Architect</Copyright>
 		<Company>The Architect</Company>
 		<Authors>TheArchitectDev, Timovzl</Authors>
-		<RepositoryUrl>https://github.com/TheArchitectDev/Architect.AmbientContexts</RepositoryUrl>
+		<RepositoryUrl>https://github.com/TheArchitectDev/Architect.DomainModeling</RepositoryUrl>
 		<RepositoryType>Git</RepositoryType>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
-		<PackageTags>DDD, Domain-Driven Design, Entity, ValueObject, domain, modeling, source, generator</PackageTags>
+		<PackageTags>DDD, Domain-Driven Design, Entity, ValueObject, value, object, DomainModeling, domain, modeling, SourceGenerator, source, generator</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -41,7 +41,7 @@ https://github.com/TheArchitectDev/Architect.DomainModeling
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
