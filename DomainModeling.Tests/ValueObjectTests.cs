@@ -969,6 +969,11 @@ namespace Architect.DomainModeling.Tests
 	namespace ValueObjectTestTypes
 	{
 		[SourceGenerated]
+		public sealed partial class ValueObjectWithIIdentity : ValueObject, IIdentity<int>
+		{
+		}
+
+		[SourceGenerated]
 		public sealed partial class IntValue : ValueObject
 		{
 			public int One { get; }

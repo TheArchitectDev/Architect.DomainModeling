@@ -436,6 +436,11 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[SourceGenerated]
+		public sealed partial class WrapperValueObjectWithIIdentity : WrapperValueObject<int>, IIdentity<int>
+		{
+		}
+
+		[SourceGenerated]
 		public sealed partial class IntValue : WrapperValueObject<int>
 		{
 			public StringComparison GetStringComparison() => this.StringComparison;
