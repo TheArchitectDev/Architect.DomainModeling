@@ -969,6 +969,11 @@ namespace Architect.DomainModeling.Tests
 	namespace ValueObjectTestTypes
 	{
 		[SourceGenerated]
+		public sealed partial class ValueObjectWithIIdentity : ValueObject, IIdentity<int>
+		{
+		}
+
+		[SourceGenerated]
 		public sealed partial class IntValue : ValueObject
 		{
 			public int One { get; }
@@ -1102,12 +1107,12 @@ namespace Architect.DomainModeling.Tests
 			{
 				return typeof(FullySelfImplementedValueObject).GetHashCode();
 			}
-			
+
 			public sealed override bool Equals([AllowNull] object other)
 			{
 				return other is FullySelfImplementedValueObject otherValue && this.Equals(otherValue);
 			}
-			
+
 			public bool Equals([AllowNull] FullySelfImplementedValueObject other)
 			{
 				if (other is null) return false;

@@ -222,7 +222,7 @@ namespace {containingNamespace}
 	[Newtonsoft.Json.JsonConverter(typeof({typeName}.NewtonsoftJsonConverter))]
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 
-	{type.DeclaredAccessibility.ToCodeString()} sealed partial class {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
+	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial class {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.StringComparison) ? "/*" : "")}
 		{(underlyingType.IsType<string>() ? "" : @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}

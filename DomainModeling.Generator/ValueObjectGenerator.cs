@@ -252,7 +252,7 @@ namespace {containingNamespace}
 	[Serializable]
 	{(existingComponents.HasFlags(ValueObjectTypeComponents.SerializableAttribute) ? "*/" : "")}
 
-	{type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record" : "class")} {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
+	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record" : "class")} {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "/*" : "")}
 		{(dataMembers.Any(member => member.Type.IsType<string>())

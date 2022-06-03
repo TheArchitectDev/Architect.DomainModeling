@@ -309,7 +309,7 @@ namespace {containingNamespace}
 	{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 
 	{(hasSourceGeneratedAttribute ? "" : "[SourceGenerated]")}
-	{accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")} struct {idTypeName} : {Constants.IdentityInterfaceTypeName}<{underlyingTypeFullyQualifiedName}>, IEquatable<{idTypeName}>, IComparable<{idTypeName}>
+	{(entityTypeName is null ? "/* Generated */ " : "")}{accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")} struct {idTypeName} : {Constants.IdentityInterfaceTypeName}<{underlyingTypeFullyQualifiedName}>, IEquatable<{idTypeName}>, IComparable<{idTypeName}>
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
 		{nonNullStringSummary}

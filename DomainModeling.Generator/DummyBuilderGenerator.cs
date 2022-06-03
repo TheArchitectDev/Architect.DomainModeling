@@ -271,7 +271,7 @@ namespace {containingNamespace}
 	/// That way, if the constructor changes, only the builder needs to be adjusted, rather than lots of test methods.
 	/// </para>
 	/// </summary>
-	public partial class {typeName}
+	/* Generated */ public partial class {typeName}
 	{{
 #nullable disable
 

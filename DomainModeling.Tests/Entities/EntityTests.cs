@@ -12,7 +12,7 @@ public class EntityTests
 	public void DefaultId_WithClassId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
 		var instance = new ClassIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		
+
 		Assert.Equal(expectedResult, instance.HasDefaultId());
 	}
 
@@ -176,7 +176,7 @@ public class EntityTests
 	{
 		var one = new InterfaceIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
 		var two = new InterfaceIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		
+
 		Assert.Equal(expectedResult, one.GetHashCode().Equals(two.GetHashCode()));
 	}
 
