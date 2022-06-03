@@ -62,7 +62,7 @@ namespace Architect.DomainModeling.Tests
 			public DateTimeOffset ModificationDateTime { get; }
 			public ushort Count { get; }
 			public Money Amount { get; }
-			
+
 			/// <summary>
 			/// The type's simplest non-default constructor should be used by the builder.
 			/// </summary>

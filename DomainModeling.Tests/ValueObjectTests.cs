@@ -1107,12 +1107,12 @@ namespace Architect.DomainModeling.Tests
 			{
 				return typeof(FullySelfImplementedValueObject).GetHashCode();
 			}
-			
+
 			public sealed override bool Equals([AllowNull] object other)
 			{
 				return other is FullySelfImplementedValueObject otherValue && this.Equals(otherValue);
 			}
-			
+
 			public bool Equals([AllowNull] FullySelfImplementedValueObject other)
 			{
 				if (other is null) return false;

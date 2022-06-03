@@ -133,7 +133,7 @@ public class DictionaryComparerTests
 	{
 		var left = new Dictionary<int, string>() { [1] = leftValue };
 		var right = new Dictionary<int, string>() { [1] = rightValue };
-		
+
 		var result = DictionaryComparer.DictionaryEquals(left, right);
 
 		Assert.Equal(expectedResult, result);

@@ -451,7 +451,7 @@ namespace Architect.DomainModeling.Tests
 			CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
 
 			Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalId?>(json)?.Value);
-			
+
 			if (json != "null")
 				Assert.Equal((decimal)value, System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json).Value);
 		}
