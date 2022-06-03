@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -8,12 +9,17 @@ namespace Architect.DomainModeling.Generator
 	/// <summary>
 	/// The base class for <see cref="ISourceGenerator"/>s implemented in this package.
 	/// </summary>
-	public abstract class SourceGenerator : BaseSourceGenerator
+	public abstract class SourceGenerator : IIncrementalGenerator
 	{
 		/// <summary>
+		/// <para>
 		/// Helps avoid errors caused by duplicate type names.
+		/// </para>
+		/// <para>
+		/// Stores stable string hash codes concatenated with separators: one for each namespace encountered for a { generator, type } pair.
+		/// </para>
 		/// </summary>
-		private static ConcurrentDictionary<string, bool> GeneratedNames { get; } = new ConcurrentDictionary<string, bool>();
+		private static ConcurrentDictionary<string, string> NamespacesByGeneratorAndTypeName { get; } = new ConcurrentDictionary<string, string>();
 
 		static SourceGenerator()
 		{
@@ -25,61 +31,28 @@ namespace Architect.DomainModeling.Generator
 
 		// Note: If we ever want to know the .NET version being compiled for, one way could be Execute()'s GeneratorExecutionContext.Compilation.ReferencedAssemblyNames.FirstOrDefault(name => name.Name == "System.Runtime")?.Version.Major
 
-		public new abstract void Initialize(GeneratorInitializationContext context);
-		public new abstract void Execute(GeneratorExecutionContext context);
-
-		protected sealed override void WillInitialize(GeneratorInitializationContext context)
+		protected static void AddSource(SourceProductionContext context, string sourceText, string typeName, string containingNamespace,
+			[CallerFilePath] string? callerFilePath = null)
 		{
-			// Allow new compilations to use all names again
-			if (GeneratedNames.Count > 0) GeneratedNames.Clear();
-		}
+			var sourceName = $"{typeName}.g.cs";
 
-		protected sealed override void WillExecute(GeneratorExecutionContext context)
-		{
-		}
-
-		protected static void AddSource(GeneratorExecutionContext context, string sourceText, ITypeSymbol type)
-		{
-			var name = $"{type.Name}.Generated";
-
-			if (!GeneratedNames.TryAdd(name, value: default))
-				name = $"{type.Name}-{type.ContainingNamespace.ToString().GetStableStringHashCode32()}";
+			// When type names collide, add a stable hash code based on the namespace
+			// Note that directly including namespaces in the file name would create hard-to-read file names and risk oversized paths
+			var uniqueKey = callerFilePath is null
+				? typeName
+				: $"{Path.GetFileNameWithoutExtension(callerFilePath)}:{typeName}";
+			var stableNamespaceHashCode = containingNamespace.GetStableStringHashCode32();
+			var hashCodesForTypeName = NamespacesByGeneratorAndTypeName.AddOrUpdate(uniqueKey, addValue: stableNamespaceHashCode, (key, namespaceHashCodeConcatenation) => namespaceHashCodeConcatenation.Contains(stableNamespaceHashCode)
+				? namespaceHashCodeConcatenation
+				: $"{namespaceHashCodeConcatenation}-{stableNamespaceHashCode}");
+			if (!hashCodesForTypeName.StartsWith(stableNamespaceHashCode)) // Not the first to want this name
+				sourceName = $"{typeName}-{stableNamespaceHashCode}.g.cs";
 
 			sourceText = sourceText.NormalizeWhitespace();
 
-			context.AddSource(name, SourceText.From(sourceText, Encoding.UTF8));
-		}
-	}
-
-	/// <summary>
-	/// Split off into a deeper base class so that <see cref="SourceGenerator"/> can hide certain methods behind new ones.
-	/// </summary>
-	public abstract class BaseSourceGenerator : ISourceGenerator
-	{
-		public void Initialize(GeneratorInitializationContext context)
-		{
-			this.WillInitialize(context);
-			this.InitializeCore(context);
+			context.AddSource(sourceName, SourceText.From(sourceText, Encoding.UTF8));
 		}
 
-		protected abstract void WillInitialize(GeneratorInitializationContext context);
-
-		private void InitializeCore(GeneratorInitializationContext context)
-		{
-			((SourceGenerator)this).Initialize(context);
-		}
-
-		public void Execute(GeneratorExecutionContext context)
-		{
-			this.WillExecute(context);
-			this.ExecuteCore(context);
-		}
-
-		protected abstract void WillExecute(GeneratorExecutionContext context);
-
-		private void ExecuteCore(GeneratorExecutionContext context)
-		{
-			((SourceGenerator)this).Execute(context);
-		}
+		public abstract void Initialize(IncrementalGeneratorInitializationContext context);
 	}
 }

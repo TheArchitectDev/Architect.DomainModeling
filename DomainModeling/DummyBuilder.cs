@@ -1,4 +1,4 @@
-﻿namespace Architect.DomainModeling
+namespace Architect.DomainModeling
 {
 	/// <summary>
 	/// A base class used to implement the Builder pattern, specifically for use in test methods.

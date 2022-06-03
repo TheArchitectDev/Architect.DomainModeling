@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -10,107 +10,86 @@ namespace Architect.DomainModeling.Generator
 	[Generator]
 	public class SourceGeneratedAttributeAnalyzer : SourceGenerator
 	{
-		private class SyntaxReceiver : ISyntaxReceiver
+		public override void Initialize(IncrementalGeneratorInitializationContext context)
 		{
-			public List<TypeDeclarationSyntax> TypesWithoutPartialKeyword { get; } = new List<TypeDeclarationSyntax>(64);
-			/// <summary>
-			/// Also contains the expected type.
-			/// </summary>
-			public List<(TypeDeclarationSyntax, Type)> TypesWithIncorrectKind { get; } = new List<(TypeDeclarationSyntax, Type)>();
-			public List<TypeDeclarationSyntax> TypesWithUnusableInheritance { get; } = new List<TypeDeclarationSyntax>();
+			var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
+				.Where(generatable => generatable is not null);
 
-			public void OnVisitSyntaxNode(SyntaxNode node)
-			{
-				if (node is TypeDeclarationSyntax tds)
-				{
-					if (!tds.Modifiers.Any(SyntaxKind.PartialKeyword))
-					{
-						this.TypesWithoutPartialKeyword.Add(tds);
-						return;
-					}
-
-					Type? expectedKind = null;
-
-					var baseTypes = tds.BaseList?.Types ?? new SeparatedSyntaxList<BaseTypeSyntax>();
-					for (var i = 0; i < baseTypes.Count; i++)
-					{
-						var baseType = baseTypes[i];
-
-						if (baseType.Type is not SimpleNameSyntax simpleName) continue;
-
-						if (simpleName.Arity == 1 && simpleName.Identifier.ValueText == Constants.IdentityInterfaceTypeName)
-							if (tds is StructDeclarationSyntax) return; // Valid
-							else expectedKind = typeof(StructDeclarationSyntax);
-
-						if (tds is ClassDeclarationSyntax && simpleName.Arity == 1 && simpleName.Identifier.ValueText == Constants.WrapperValueObjectTypeName)
-							if (tds is ClassDeclarationSyntax) return; // Valid
-							else expectedKind = typeof(ClassDeclarationSyntax);
-
-						if (tds is ClassDeclarationSyntax && simpleName.Arity == 0 && simpleName.Identifier.ValueText == Constants.ValueObjectTypeName)
-							if (tds is ClassDeclarationSyntax) return; // Valid
-							else expectedKind = typeof(ClassDeclarationSyntax);
-
-						if (tds is ClassDeclarationSyntax && simpleName.Arity == 2 && simpleName.Identifier.ValueText == Constants.DummyBuilderTypeName)
-							if (tds is ClassDeclarationSyntax) return; // Valid
-							else expectedKind = typeof(ClassDeclarationSyntax);
-					}
-
-					if (expectedKind is null)
-						this.TypesWithUnusableInheritance.Add(tds);
-					else if (tds.GetType() != expectedKind)
-						this.TypesWithIncorrectKind.Add((tds, typeof(StructDeclarationSyntax)));
-				}
-			}
+			context.RegisterSourceOutput(provider, ReportDiagnostics!);
 		}
 
-		public override void Initialize(GeneratorInitializationContext context)
+		private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
 		{
-			context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+			// Type
+			if (node is not TypeDeclarationSyntax tds)
+				return false;
+
+			// With SourceGenerated attribute
+			if (!tds.HasAttributeWithPrefix(Constants.SourceGeneratedAttributeShortName))
+				return false;
+
+			return true;
 		}
 
-		public override void Execute(GeneratorExecutionContext context)
+		private static Analyzable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 		{
-			// Work only with our own syntax receiver
-			if (context.SyntaxReceiver is not SyntaxReceiver receiver)
-				return;
+			cancellationToken.ThrowIfCancellationRequested();
 
-			foreach (var tds in receiver.TypesWithoutPartialKeyword)
+			var model = context.SemanticModel;
+			var tds = (TypeDeclarationSyntax)context.Node;
+			var type = model.GetDeclaredSymbol(tds);
+
+			if (type is null)
+				return null;
+
+			if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
+				return null;
+
+			var hasMissingPartialKeyword = !tds.Modifiers.Any(SyntaxKind.PartialKeyword);
+
+			string? expectedTypeName = null;
+			if (type.IsOrImplementsInterface(type => type.Arity == 1 && type.IsType(Constants.IdentityInterfaceTypeName, Constants.DomainModelingNamespace), out _))
+				expectedTypeName = tds is StructDeclarationSyntax ? null : "struct"; // Expect a struct
+			else if (type.IsOrInheritsClass(type => type.Arity == 1 && type.IsType(Constants.WrapperValueObjectTypeName, Constants.DomainModelingNamespace), out _))
+				expectedTypeName = tds is ClassDeclarationSyntax ? null : "class"; // Expect a class
+			else if (type.IsOrInheritsClass(type => type.Arity == 0 && type.IsType(Constants.ValueObjectTypeName, Constants.DomainModelingNamespace), out _))
+				expectedTypeName = tds is ClassDeclarationSyntax ? null : "class"; // Expect a class
+			else if (type.IsOrInheritsClass(type => type.Arity == 2 && type.IsType(Constants.DummyBuilderTypeName, Constants.DomainModelingNamespace), out _))
+				expectedTypeName = tds is ClassDeclarationSyntax ? null : "class"; // Expect a class
+			else
+				expectedTypeName = "*"; // No suitable inheritance found for source generation
+
+			var result = new Analyzable()
 			{
-				var model = context.Compilation.GetSemanticModel(tds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(tds)!;
+				HasMissingPartialKeyword = hasMissingPartialKeyword,
+				ExpectedTypeName = expectedTypeName,
+			};
 
-				if (type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
-					context.ReportDiagnostic("NonPartialSourceGeneratedType", "Missing partial keyword",
-						"The type was not source-generated because it is not marked as partial. To get source generation, add the partial keyword.", DiagnosticSeverity.Warning, type);
-			}
+			result.SetAssociatedData(type);
 
-			foreach (var (tds, expectedType) in receiver.TypesWithIncorrectKind)
-			{
-				var expectedTypeName = expectedType == typeof(StructDeclarationSyntax)
-					? "struct"
-					: expectedType == typeof(ClassDeclarationSyntax)
-					? "class"
-					: null;
+			return result;
+		}
 
-				if (expectedType is null) return; // No message defined for this expected kind
+		private static void ReportDiagnostics(SourceProductionContext context, Analyzable analyzable)
+		{
+			var type = analyzable.GetAssociatedData<INamedTypeSymbol>();
 
-				var model = context.Compilation.GetSemanticModel(tds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(tds)!;
+			if (analyzable.HasMissingPartialKeyword)
+				context.ReportDiagnostic("NonPartialSourceGeneratedType", "Missing partial keyword",
+					"The type was not source-generated because one of its declarations is not marked as partial. To get source generation, add the partial keyword.", DiagnosticSeverity.Warning, type);
 
-				if (type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
-					context.ReportDiagnostic("UnusedSourceGeneratedAttribute", "Unexpected type",
-						$"The type was not source-generated because it is not a {expectedTypeName}. To get source generation, use a {expectedTypeName} instead.", DiagnosticSeverity.Warning, type);
-			}
+			if (analyzable.ExpectedTypeName == "*")
+				context.ReportDiagnostic("UnusedSourceGeneratedAttribute", "Unexpected inheritance",
+					"The type marked as source-generated has no base class or interface for which a source generator is defined.", DiagnosticSeverity.Warning, type);
+			else if (analyzable.ExpectedTypeName is not null)
+				context.ReportDiagnostic("UnusedSourceGeneratedAttribute", "Unexpected type",
+					$"The type was not source-generated because it is not a {analyzable.ExpectedTypeName}. To get source generation, use a {analyzable.ExpectedTypeName} instead.", DiagnosticSeverity.Warning, type);
+		}
 
-			foreach (var tds in receiver.TypesWithUnusableInheritance)
-			{
-				var model = context.Compilation.GetSemanticModel(tds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(tds)!;
-
-				if (type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
-					context.ReportDiagnostic("UnusedSourceGeneratedAttribute", "Unexpected inheritance",
-						"The type marked as source-generated has no base class or interface for which a source generator is defined.", DiagnosticSeverity.Warning, type);
-			}
+		private sealed record Analyzable : IGeneratable
+		{
+			public bool HasMissingPartialKeyword { get; set; }
+			public string? ExpectedTypeName { get; set; }
 		}
 	}
 }

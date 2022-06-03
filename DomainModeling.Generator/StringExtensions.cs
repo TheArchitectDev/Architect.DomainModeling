@@ -1,10 +1,10 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 
 namespace Architect.DomainModeling.Generator
 {
 	/// <summary>
-	/// Provides extensions on <see cref="string"/>.
+	/// Provides extensions on <see cref="String"/>.
 	/// </summary>
 	public static class StringExtensions
 	{
@@ -16,7 +16,7 @@ namespace Architect.DomainModeling.Generator
 		private static ImmutableArray<char> Base32Alphabet { get; } = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".ToImmutableArray();
 
 		/// <summary>
-		/// Returns the input <see cref="string"/> with the first character made uppercase.
+		/// Returns the input <see cref="String"/> with the first character made uppercase.
 		/// </summary>
 		public static string ToTitleCase(this string source)
 		{
@@ -66,7 +66,7 @@ namespace Architect.DomainModeling.Generator
 
 				var result = fnv32Offset;
 
-				for (int i = 0; i < span.Length; i++)
+				for (var i = 0; i < span.Length; i++)
 					result = (result ^ span[i]) * fnv32Prime;
 
 				return (int)result;
@@ -89,7 +89,29 @@ namespace Architect.DomainModeling.Generator
 
 				var result = fnv64Offset;
 
-				for (int i = 0; i < span.Length; i++)
+				for (var i = 0; i < span.Length; i++)
+					result = (result ^ span[i]) * fnv64Prime;
+
+				return result;
+			}
+		}
+
+		public static ulong GetStableHashCode64(this string source, ulong offset = 14695981039346656037UL)
+		{
+			var span = source.AsSpan();
+
+			// FNV-1a
+			// For its performance, collision resistance, and outstanding distribution:
+			// https://softwareengineering.stackexchange.com/a/145633
+			unchecked
+			{
+				// Inspiration: https://gist.github.com/RobThree/25d764ea6d4849fdd0c79d15cda27d61
+
+				const ulong fnv64Prime = 1099511628211UL;
+
+				var result = offset;
+
+				for (var i = 0; i < span.Length; i++)
 					result = (result ^ span[i]) * fnv64Prime;
 
 				return result;
@@ -100,7 +122,7 @@ namespace Architect.DomainModeling.Generator
 		{
 			var hashCode = source.GetStableHashCode32();
 
-			var bytes = new byte[8];
+			Span<byte> bytes = stackalloc byte[8];
 
 			for (var i = 0; i < 4; i++)
 				bytes[i] = (byte)(hashCode >> 8 * i);
@@ -116,7 +138,7 @@ namespace Architect.DomainModeling.Generator
 		{
 			var hashCode = source.GetStableHashCode64();
 
-			var bytes = new byte[8];
+			Span<byte> bytes = stackalloc byte[8];
 
 			for (var i = 0; i < 8; i++)
 				bytes[i] = (byte)(hashCode >> 8 * i);

@@ -5,7 +5,7 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Example</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Example</RootNamespace>
-		<IsPackable>false</IsPackable>
+		<IsPackable>False</IsPackable>
 	</PropertyGroup>
 
 	<PropertyGroup>

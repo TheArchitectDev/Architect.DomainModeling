@@ -4,7 +4,8 @@
 		<TargetFramework>netstandard2.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Generator</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Generator</RootNamespace>
-		<IsPackable>false</IsPackable>
+		<IsPackable>False</IsPackable>
+		<DevelopmentDependency>True</DevelopmentDependency>
 	</PropertyGroup>
 
 	<PropertyGroup>

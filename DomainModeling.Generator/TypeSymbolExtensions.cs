@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
 namespace Architect.DomainModeling.Generator
@@ -102,10 +102,17 @@ namespace Architect.DomainModeling.Generator
 		/// <summary>
 		/// Returns whether the <see cref="ITypeSymbol"/> is or inherits from a certain class, as determined by the given <paramref name="predicate"/>.
 		/// </summary>
-		public static bool IsOrInheritsClass(this ITypeSymbol typeSymbol, Func<ITypeSymbol, bool> predicate, out ITypeSymbol targetType)
+		public static bool IsOrInheritsClass(this ITypeSymbol typeSymbol, Func<INamedTypeSymbol, bool> predicate, out INamedTypeSymbol targetType)
 		{
-			var baseType = (ITypeSymbol?)typeSymbol;
-			while ((baseType = baseType!.BaseType) is not null)
+			if (typeSymbol is INamedTypeSymbol namedTypeSymbol && predicate(namedTypeSymbol))
+			{
+				targetType = namedTypeSymbol;
+				return true;
+			}
+
+			var baseType = typeSymbol.BaseType;
+
+			while (baseType is not null)
 			{
 				// End of inheritance chain
 				if (baseType.IsType<object>())
@@ -116,6 +123,8 @@ namespace Architect.DomainModeling.Generator
 					targetType = baseType;
 					return true;
 				}
+
+				baseType = baseType.BaseType;
 			}
 
 			targetType = null!;
@@ -125,11 +134,11 @@ namespace Architect.DomainModeling.Generator
 		/// <summary>
 		/// Returns whether the <see cref="ITypeSymbol"/> is or implements a certain interface, as determined by the given <paramref name="predicate"/>.
 		/// </summary>
-		public static bool IsOrImplementsInterface(this ITypeSymbol typeSymbol, Func<ITypeSymbol, bool> predicate, out ITypeSymbol targetType)
+		public static bool IsOrImplementsInterface(this ITypeSymbol typeSymbol, Func<INamedTypeSymbol, bool> predicate, out INamedTypeSymbol targetType)
 		{
-			if (predicate(typeSymbol))
+			if (typeSymbol is INamedTypeSymbol namedTypeSymbol && predicate(namedTypeSymbol))
 			{
-				targetType = typeSymbol;
+				targetType = namedTypeSymbol;
 				return true;
 			}
 
@@ -157,10 +166,10 @@ namespace Architect.DomainModeling.Generator
 		}
 
 		/// <summary>
-		/// Returns whether the <see cref="ITypeSymbol"/> represents an integral type, such as <see cref="int"/> or <see cref="ulong"/>.
+		/// Returns whether the <see cref="ITypeSymbol"/> represents an integral type, such as <see cref="Int32"/> or <see cref="UInt64"/>.
 		/// </summary>
 		/// <param name="seeThroughNullable">Whether to return true for a <see cref="Nullable{T}"/> of a matching underlying type.</param>
-		/// <param name="includeDecimal">Whether to consider <see cref="decimal"/> as an integral type.</param>
+		/// <param name="includeDecimal">Whether to consider <see cref="Decimal"/> as an integral type.</param>
 		public static bool IsIntegral(this ITypeSymbol typeSymbol, bool seeThroughNullable, bool includeDecimal = false)
 		{
 			if (typeSymbol.IsNullable(out var underlyingType) && seeThroughNullable)
@@ -180,13 +189,22 @@ namespace Architect.DomainModeling.Generator
 		}
 
 		/// <summary>
+		/// Returns whether the <see cref="ITypeSymbol"/> is a nested type.
+		/// </summary>
+		public static bool IsNested(this ITypeSymbol typeSymbol)
+		{
+			var result = typeSymbol.ContainingType is not null;
+			return result;
+		}
+
+		/// <summary>
 		/// Returns whether the <see cref="ITypeSymbol"/> is a generic type with the given number of type parameters.
 		/// </summary>
 		public static bool IsGeneric(this ITypeSymbol typeSymbol, int typeParameterCount)
 		{
 			if (typeSymbol is not INamedTypeSymbol namedTypeSymbol) return false;
 
-			var result = namedTypeSymbol.IsGenericType && namedTypeSymbol.TypeParameters.Length == typeParameterCount;
+			var result = namedTypeSymbol.IsGenericType && namedTypeSymbol.Arity == typeParameterCount;
 			return result;
 		}
 
@@ -307,7 +325,7 @@ namespace Architect.DomainModeling.Generator
 		}
 
 		/// <summary>
-		/// Returns whether the <see cref="ITypeSymbol"/> or a base type has an override of <see cref="Object.Equals(object)"/> more specific than <see cref="Object"/>'s implementation.
+		/// Returns whether the <see cref="ITypeSymbol"/> or a base type has an override of <see cref="Object.Equals(Object)"/> more specific than <see cref="Object"/>'s implementation.
 		/// </summary>
 		public static bool HasEqualsOverride(this ITypeSymbol typeSymbol, bool falseForStructs = false)
 		{
@@ -559,7 +577,7 @@ namespace Architect.DomainModeling.Generator
 						if (typeSymbol.IsOrInheritsClass(type => type.IsType(Constants.WrapperValueObjectTypeName, Constants.DomainModelingNamespace), out var wrapperValueObjectType))
 							return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({((INamedTypeSymbol)wrapperValueObjectType).TypeArguments[0].CreateDummyInstantiationExpression(typeSymbol.Name, customizedTypes, createCustomTypeExpression, seenTypeSymbols)})";
 						if (typeSymbol.IsOrImplementsInterface(interf => interf.IsType(Constants.IdentityInterfaceTypeName, Constants.DomainModelingNamespace), out var wrapperValueObjectInterface))
-							return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({((INamedTypeSymbol)wrapperValueObjectType).TypeArguments[0].CreateDummyInstantiationExpression(typeSymbol.Name, customizedTypes, createCustomTypeExpression, seenTypeSymbols)})";
+							return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({((INamedTypeSymbol)wrapperValueObjectInterface).TypeArguments[0].CreateDummyInstantiationExpression(typeSymbol.Name, customizedTypes, createCustomTypeExpression, seenTypeSymbols)})";
 					}
 				}
 

@@ -1,4 +1,5 @@
-﻿using System.Text;
+using System.Collections.Immutable;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -8,147 +9,172 @@ namespace Architect.DomainModeling.Generator
 	[Generator]
 	public class DummyBuilderGenerator : SourceGenerator
 	{
-		private class SyntaxReceiver : ISyntaxReceiver
+		public override void Initialize(IncrementalGeneratorInitializationContext context)
 		{
-			public List<ClassDeclarationSyntax> BuilderClasses { get; } = new List<ClassDeclarationSyntax>();
-			/// <summary>
-			/// Builders applicable for source generation.
-			/// </summary>
-			public List<ClassDeclarationSyntax> CandidateBuilderClasses { get; } = new List<ClassDeclarationSyntax>();
+			var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
+				.Where(builder => builder is not null)
+				.DeduplicatePartials()
+				.Collect();
 
-			public void OnVisitSyntaxNode(SyntaxNode node)
+			context.RegisterSourceOutput(provider, GenerateSource!);
+		}
+
+		private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
+		{
+			// Subclass
+			if (node is not ClassDeclarationSyntax cds || cds.BaseList is null)
+				return false;
+
+			// Consider any type with SOME 2-param generic "DummyBuilder" inheritance/implementation
+			foreach (var baseType in cds.BaseList.Types)
 			{
-				// Subclass
-				if (node is ClassDeclarationSyntax cds && cds.BaseList is not null)
-				{
-					// Consider any type with SOME 2-param generic "DummyBuilder" inheritance/implementation
-					foreach (var baseType in cds.BaseList.Types)
-					{
-						if (baseType.Type is not GenericNameSyntax genericName) continue;
-
-						if (genericName.Arity == 2 && genericName.Identifier.ValueText == Constants.DummyBuilderTypeName)
-						{
-							this.BuilderClasses.Add(cds);
-
-							if (cds.Modifiers.Any(SyntaxKind.PartialKeyword))
-								this.CandidateBuilderClasses.Add(cds);
-							break;
-						}
-					}
-				}
+				if (baseType.Type.HasArityAndName(2, Constants.DummyBuilderTypeName))
+					return true;
 			}
+
+			return false;
 		}
 
-		public override void Initialize(GeneratorInitializationContext context)
+		private static Builder? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 		{
-			context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
-		}
+			cancellationToken.ThrowIfCancellationRequested();
 
-		public override void Execute(GeneratorExecutionContext context)
-		{
-			// Work only with our own syntax receiver
-			if (context.SyntaxReceiver is not SyntaxReceiver receiver)
-				return;
+			var model = context.SemanticModel;
+			var cds = (ClassDeclarationSyntax)context.Node;
+			var type = model.GetDeclaredSymbol((TypeDeclarationSyntax)context.Node);
 
-			var builderTypes = new List<INamedTypeSymbol>();
-			var builderTypesWithSourceGeneration = new List<INamedTypeSymbol>();
+			if (type is null)
+				return null;
 
-			foreach (var cds in receiver.BuilderClasses)
+			var result = new Builder();
+			result.SetAssociatedData(type);
+
+			var isManuallyImplementedBuilder = !cds.Modifiers.Any(SyntaxKind.PartialKeyword);
+
+			if (isManuallyImplementedBuilder) // Do not generate source, but be aware of existence, for potential invocation from newly generated builders
 			{
-				var model = context.Compilation.GetSemanticModel(cds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(cds)!;
-
 				// Only with the intended inheritance
 				if (type.BaseType?.IsType(Constants.DummyBuilderTypeName, Constants.DomainModelingNamespace) != true)
-					continue;
+					return null;
 				// Only if non-abstract
 				if (type.IsAbstract)
-					continue;
+					return null;
 				// Only if non-generic
 				if (type.IsGenericType)
-					continue;
+					return null;
 
-				builderTypes.Add(type);
+				result.TypeFullyQualifiedName = type.ToString();
+				result.IsManuallyImplemented = true;
 			}
-
-			var builderTypesByModel = builderTypes.ToDictionary<INamedTypeSymbol, ITypeSymbol>(builderType => builderType.BaseType!.TypeArguments[0], SymbolEqualityComparer.Default);
-
-			// Complete partial DummyBuilder subtypes
-			foreach (var cds in receiver.CandidateBuilderClasses)
+			else // Prepare to generate source
 			{
-				var model = context.Compilation.GetSemanticModel(cds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(cds)!;
-
 				// Only with the attribute
 				if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
-					continue;
+					return null;
+
+				// Only with a usable model type
+				if (type.BaseType!.TypeArguments[0] is not INamedTypeSymbol modelType)
+					return null;
+
+				result.TypeFullyQualifiedName = type.ToString();
+				result.IsDummyBuilder = type.BaseType?.IsType(Constants.DummyBuilderTypeName, Constants.DomainModelingNamespace) == true;
+				result.IsAbstract = type.IsAbstract;
+				result.IsGeneric = type.IsGenericType;
+				result.IsNested = type.IsNested();
+
+				var members = type.GetMembers();
+
+				result.HasBuildMethod = members.Any(member => member.Name == "Build" && member is IMethodSymbol method && method.Parameters.Length == 0);
+
+				var suitableCtor = GetSuitableConstructor(modelType);
+
+				result.HasSuitableConstructor = suitableCtor is not null;
+				result.Checksum = Convert.ToBase64String(context.Node.GetText().GetChecksum().ToArray()); // Many kinds of changes in the file may warrant changes in the generated source, so rely on the source's checksum
+			}
+
+			return result;
+		}
+
+		private static void GenerateSource(SourceProductionContext context, ImmutableArray<Builder> builders)
+		{
+			context.CancellationToken.ThrowIfCancellationRequested();
+
+			var buildersWithSourceGeneration = builders.Where(builder => !builder.IsManuallyImplemented).ToList();
+			var concreteBuilderTypesByModel = builders
+				.Where(builder => !builder.IsAbstract && !builder.IsGeneric) // Concrete only
+				.Where(builder => builder.IsManuallyImplemented || builder.IsDummyBuilder) // Manually implemented or with the correct inheritance for generation only
+				.GroupBy<Builder, INamedTypeSymbol>(builder => builder.ModelType(), SymbolEqualityComparer.Default) // Deduplicate
+				.ToDictionary<IGrouping<INamedTypeSymbol, Builder>, ITypeSymbol, INamedTypeSymbol>(group => group.Key, group => group.First().TypeSymbol(), SymbolEqualityComparer.Default);
+
+			// Remove models for which multiple builders exist
+			{
+				var buildersWithDuplicateModel = buildersWithSourceGeneration
+					.GroupBy<Builder, ITypeSymbol>(builder => builder.ModelType(), SymbolEqualityComparer.Default)
+					.Where(group => group.Count() > 1);
+
+				// Remove models for which multiple builders exist
+				foreach (var group in buildersWithDuplicateModel)
+				{
+					foreach (var type in group)
+						buildersWithSourceGeneration.Remove(type);
+
+					context.ReportDiagnostic("DummyBuilderGeneratorDuplicateBuilders", "Duplicate builders",
+						$"Multiple dummy builders exist for {group.Key.Name}. Source generation for these builders was skipped.", DiagnosticSeverity.Warning, group.Last().TypeSymbol());
+				}
+			}
+
+			foreach (var builder in buildersWithSourceGeneration)
+			{
+				context.CancellationToken.ThrowIfCancellationRequested();
+
+				var type = builder.TypeSymbol();
+				var modelType = builder.ModelType();
+
+				// Only with a suitable constructor
+				if (!builder.HasSuitableConstructor)
+				{
+					context.ReportDiagnostic("DummyBuilderGeneratorNoSuitableConstructor", "No suitable constructor",
+						$"{type.Name} could not find a suitable constructor on {modelType.Name}.", DiagnosticSeverity.Warning, type);
+				}
 				// Only with the intended inheritance
-				if (type.BaseType?.IsType(Constants.DummyBuilderTypeName, Constants.DomainModelingNamespace) != true)
+				if (!builder.IsDummyBuilder)
 				{
 					context.ReportDiagnostic("DummyBuilderGeneratorUnexpectedInheritance", "Unexpected base class",
 						"The type marked as source-generated has an unexpected base class. Did you mean DummyBuilder<TModel, TModelBuilder>?", DiagnosticSeverity.Warning, type);
 					continue;
 				}
 				// Only if non-abstract
-				if (type.IsAbstract)
+				if (builder.IsAbstract)
 				{
 					context.ReportDiagnostic("DummyBuilderGeneratorAbstractType", "Source-generated abstract type",
 						"The type was not source-generated because it is abstract.", DiagnosticSeverity.Warning, type);
 					continue;
 				}
 				// Only if non-generic
-				if (type.IsGenericType)
+				if (builder.IsGeneric)
 				{
 					context.ReportDiagnostic("DummyBuilderGeneratorGenericType", "Source-generated generic type",
 						"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, type);
 					continue;
 				}
 				// Only if non-nested
-				if (cds.Parent is not NamespaceDeclarationSyntax && cds.Parent is not FileScopedNamespaceDeclarationSyntax)
+				if (builder.IsNested)
 				{
 					context.ReportDiagnostic("DummyBuilderGeneratorNestedType", "Source-generated nested type",
 						"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, type);
 					continue;
 				}
 
-				builderTypesWithSourceGeneration.Add(type);
-			}
-
-			// Remove models for which multiple builders exist
-			{
-				var buildersWithDuplicateModel = builderTypesWithSourceGeneration
-					.GroupBy<INamedTypeSymbol, ITypeSymbol>(builderType => builderType.BaseType!.TypeArguments[0], SymbolEqualityComparer.Default)
-					.Where(group => group.Count() > 1)
-					.ToList();
-
-				foreach (var group in buildersWithDuplicateModel)
-				{
-					foreach (var type in group)
-						builderTypesWithSourceGeneration.Remove(type);
-
-					context.ReportDiagnostic("DummyBuilderGeneratorDuplicateBuilders", "Duplicate builders",
-						$"Multiple dummy builders exist for {group.Key.Name}. Source generation for these builders was skipped.", DiagnosticSeverity.Warning, group.Last());
-				}
-			}
-
-			foreach (var type in builderTypesWithSourceGeneration)
-			{
 				var typeName = type.Name; // Non-generic
 				var containingNamespace = type.ContainingNamespace.ToString();
-				var fullTypeName = $"{containingNamespace}.{typeName}";
 				var membersByName = type.GetMembers().ToLookup(member => member.Name, StringComparer.OrdinalIgnoreCase);
 
-				if (type.BaseType!.TypeArguments[0] is not INamedTypeSymbol modelType || modelType.IsValueType) return;
+				var hasBuildMethod = builder.HasBuildMethod;
 
-				var hasBuildMethod = membersByName["Build"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 0);
+				var suitableCtor = GetSuitableConstructor(modelType);
 
-				var suitableCtor = modelType.Constructors
-					.OrderByDescending(ctor => ctor.DeclaredAccessibility) // Most accessible first
-					.ThenBy(ctor => ctor.Parameters.Length > 0 ? 0 : 1) // Prefer a non-default ctor
-					.ThenBy(ctor => ctor.Parameters.Length) // Shortest first (the most basic non-default option)
-					.FirstOrDefault();
-
-				if (suitableCtor is null) return;
+				if (suitableCtor is null)
+					return;
 
 				var ctorParams = suitableCtor.Parameters;
 
@@ -161,17 +187,17 @@ namespace Architect.DomainModeling.Generator
 
 					var memberName = param.Name.ToTitleCase();
 
-					// Add the property, with a field initializer
+					// Add a property for the ctor param, with a field initializer
 					// The field initializer may use other builders to instantiate objects
-					// Obviously it may not use our own, which could cause infinite recursion (instantly crashing the compiler)
+					// Obviously it may not use our own, which could cause infinite recursion (crashing the compiler)
 					{
-						builderTypesByModel.Remove(modelType);
+						concreteBuilderTypesByModel.Remove(modelType);
 
 						if (membersByName[memberName].Any(member => member is IPropertySymbol || member is IFieldSymbol))
 							componentBuilder.Append("// ");
-						componentBuilder.AppendLine($"		private {param.Type.WithNullableAnnotation(NullableAnnotation.None)} {memberName} {{ get; set; }} = {param.Type.CreateDummyInstantiationExpression(param.Name == "value" ? param.ContainingType.Name : param.Name, builderTypesByModel.Keys, type => $"new {builderTypesByModel[type]}().Build()")};");
+						componentBuilder.AppendLine($"		private {param.Type.WithNullableAnnotation(NullableAnnotation.None)} {memberName} {{ get; set; }} = {param.Type.CreateDummyInstantiationExpression(param.Name == "value" ? param.ContainingType.Name : param.Name, concreteBuilderTypesByModel.Keys, type => $"new {concreteBuilderTypesByModel[type]}().Build()")};");
 
-						builderTypesByModel.Add(modelType, type);
+						concreteBuilderTypesByModel.Add(modelType, type);
 					}
 
 					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.Equals(param.Type, SymbolEqualityComparer.Default)))
@@ -263,7 +289,41 @@ namespace {containingNamespace}
 }}
 ";
 
-				AddSource(context, source, type);
+				AddSource(context, source, typeName, containingNamespace);
+			}
+		}
+
+		private static IMethodSymbol? GetSuitableConstructor(INamedTypeSymbol modelType)
+		{
+			var result = modelType.Constructors
+				.OrderByDescending(ctor => ctor.DeclaredAccessibility) // Most accessible first
+				.ThenBy(ctor => ctor.Parameters.Length > 0 ? 0 : 1) // Prefer a non-default ctor
+				.ThenBy(ctor => ctor.Parameters.Length) // Shortest first (the most basic non-default option)
+				.FirstOrDefault();
+
+			return result;
+		}
+
+		private sealed record Builder : IGeneratable
+		{
+			public string TypeFullyQualifiedName { get; set; } = null!;
+			public bool IsDummyBuilder { get; set; }
+			public bool IsAbstract { get; set; }
+			public bool IsGeneric { get; set; }
+			public bool IsNested { get; set; }
+			public bool IsManuallyImplemented { get; set; }
+			public bool HasBuildMethod { get; set; }
+			public bool HasSuitableConstructor { get; set; }
+			public string? Checksum { get; set; }
+
+			public INamedTypeSymbol TypeSymbol()
+			{
+				return this.GetAssociatedData<INamedTypeSymbol>();
+			}
+
+			public INamedTypeSymbol ModelType()
+			{
+				return (INamedTypeSymbol)this.TypeSymbol().BaseType!.TypeArguments[0];
 			}
 		}
 	}

@@ -18,11 +18,21 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<VersionPrefix>1.0.2</VersionPrefix>
+		<VersionPrefix>1.0.3</VersionPrefix>
 		<Description>
 A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
 https://github.com/TheArchitectDev/Architect.DomainModeling
+
+Release notes:
+
+1.0.3:
+- Improved performance by using incremental generators.
+- Generated source now uses the common .g.cs suffix.
+- Fixed a compile-time bug where the source generator would fail to acknowledge a type with the SourceGeneratedAttribute on one partial and the required base type on another.
+- Fixed a compile-time bug where the source generator would crash if the partial to be extended already consisted of multiple partials.
+- Fixed a compile-time bug where the DummyBuilder source generator would crash if it encountered a constructor taking a parameter that is a source-generated IIdentity.
+- Reduced the need for duplicate type names to require a uniquefier in the generated source name.
 		</Description>
 		<Copyright>The Architect</Copyright>
 		<Company>The Architect</Company>

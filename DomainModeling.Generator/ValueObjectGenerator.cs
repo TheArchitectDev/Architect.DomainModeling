@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -7,203 +7,240 @@ namespace Architect.DomainModeling.Generator
 	[Generator]
 	public class ValueObjectGenerator : SourceGenerator
 	{
-		private class SyntaxReceiver : ISyntaxReceiver
+		public override void Initialize(IncrementalGeneratorInitializationContext context)
 		{
-			public List<TypeDeclarationSyntax> CandidateValueObjectTypes { get; } = new List<TypeDeclarationSyntax>();
+			var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
+				.Where(generatable => generatable is not null)
+				.DeduplicatePartials();
 
-			public void OnVisitSyntaxNode(SyntaxNode node)
+			context.RegisterSourceOutput(provider, GenerateSource!);
+		}
+
+		private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
+		{
+			// Partial subclass
+			if (node is not ClassDeclarationSyntax cds || !cds.Modifiers.Any(SyntaxKind.PartialKeyword) || cds.BaseList is null)
+				return false;
+
+			foreach (var baseType in cds.BaseList.Types)
 			{
-				// Partial subclass
-				if (node is ClassDeclarationSyntax cds && cds.Modifiers.Any(SyntaxKind.PartialKeyword) && cds.BaseList is not null)
-				{
-					foreach (var baseType in cds.BaseList.Types)
-					{
-						if (baseType.Type is not SimpleNameSyntax simpleName) continue;
-
-						// Consider any type with SOME non-generic "ValueObject" inheritance/implementation
-						if (simpleName.Arity == 0 && simpleName.Identifier.ValueText == Constants.ValueObjectTypeName)
-						{
-							this.CandidateValueObjectTypes.Add(cds);
-							return;
-						}
-					}
-				}
-
-				/* Supporting records has the following disadvantages:
-				 * - Allows the use of automatic properties. This generates a constructor and init-properties, stimulating non-validated ValueObjects, an antipattern.
-				 * - Overrides equality without an easy way to specify (or even think of) how to compare strings.
-				 * - Overrides equality without special-casing collections.
-				 * - Omits IComparable<T> and comparison operators.
-				 * - Provides multiple nearly-identical solutions, reducing standardization.
-				// Partial record with some interface/base
-				if (node is RecordDeclarationSyntax rds && rds.Modifiers.Any(SyntaxKind.PartialKeyword) && rds.BaseList is not null)
-				{
-					foreach (var baseType in rds.BaseList.Types)
-					{
-						if (baseType.Type is not SimpleNameSyntax simpleName) continue;
-
-						// Consider any type with SOME non-generic "IValueObject" inheritance/implementation
-						if (simpleName.Identifier.ValueText == ValueObjectInterfaceTypeName && simpleName is not GenericNameSyntax)
-						{
-							this.CandidateValueObjectTypes.Add(rds);
-							return;
-						}
-					}
-				}*/
+				// Consider any type with SOME non-generic "ValueObject" inheritance/implementation
+				if (baseType.Type.HasArityAndName(0, Constants.ValueObjectTypeName))
+					return true;
 			}
-		}
 
-		public override void Initialize(GeneratorInitializationContext context)
-		{
-			context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
-		}
-
-		public override void Execute(GeneratorExecutionContext context)
-		{
-			// Work only with our own syntax receiver
-			if (context.SyntaxReceiver is not SyntaxReceiver receiver)
-				return;
-
-			// Complete partial ValueObject subtypes
-			foreach (var tds in receiver.CandidateValueObjectTypes)
+			/* Supporting records has the following disadvantages:
+			 * - Allows the use of automatic properties. This generates a constructor and init-properties, stimulating non-validated ValueObjects, an antipattern.
+			 * - Overrides equality without an easy way to specify (or even think of) how to compare strings.
+			 * - Overrides equality without special-casing collections.
+			 * - Omits IComparable<T> and comparison operators.
+			 * - Provides multiple nearly-identical solutions, reducing standardization.
+			// Partial record with some interface/base
+			if (node is RecordDeclarationSyntax rds && rds.Modifiers.Any(SyntaxKind.PartialKeyword) && rds.BaseList is not null)
 			{
-				var model = context.Compilation.GetSemanticModel(tds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(tds)!;
-
-				// Only with the attribute
-				if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
-					continue;
-				// Only with the intended inheritance
-				if (tds is ClassDeclarationSyntax && type.BaseType?.IsType(Constants.ValueObjectTypeName, Constants.DomainModelingNamespace) != true)
+				foreach (var baseType in rds.BaseList.Types)
 				{
-					context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Unexpected base class",
-						"The type marked as source-generated has an unexpected base class. Did you mean ValueObject?", DiagnosticSeverity.Warning, type);
-					continue;
+					// Consider any type with SOME non-generic "IValueObject" inheritance/implementation
+					if (baseType.Type.HasArityAndName(0, Constants.ValueObjectInterfaceTypeName))
+					{
+						this.CandidateValueObjectTypes.Add(rds);
+						return;
+					}
 				}
-				if (tds is RecordDeclarationSyntax && !type.AllInterfaces.Any(interf => interf.IsType(Constants.ValueObjectInterfaceTypeName, Constants.DomainModelingNamespace)))
-				{
-					context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Missing interface",
-						"The type marked as source-generated has an unexpected base class or interface. Did you mean IValueObject?", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-abstract
-				if (type.IsAbstract)
-				{
-					context.ReportDiagnostic("ValueObjectGeneratorAbstractType", "Source-generated abstract type",
-						"The type was not source-generated because it is abstract.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-generic
-				if (type.IsGenericType)
-				{
-					context.ReportDiagnostic("ValueObjectGeneratorGenericType", "Source-generated generic type",
-						"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-nested
-				if (tds.Parent is not NamespaceDeclarationSyntax && tds.Parent is not FileScopedNamespaceDeclarationSyntax)
-				{
-					context.ReportDiagnostic("ValueObjectGeneratorNestedType", "Source-generated nested type",
-						"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
+			}*/
 
-				var isRecord = tds is RecordDeclarationSyntax;
+			return false;
+		}
 
-				var typeName = type.Name; // Non-generic
-				var containingNamespace = type.ContainingNamespace.ToString();
-				var fullTypeName = $"{containingNamespace}.{typeName}";
+		private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
 
-				var members = type.GetMembers();
+			var result = new Generatable();
 
-				var existingComponents = ValueObjectTypeComponents.None;
+			var model = context.SemanticModel;
+			var tds = (TypeDeclarationSyntax)context.Node;
+			var type = model.GetDeclaredSymbol(tds);
 
-				existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
-					member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
+			if (type is null)
+				return null;
 
-				existingComponents |= ValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
-					member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
+			// Only with the attribute
+			if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
+				return null;
 
-				existingComponents |= ValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
-					member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.Parameters[0].Type.IsType<object>()));
+			result.SetAssociatedData(type);
+			result.IsClass = tds is ClassDeclarationSyntax;
+			result.IsRecord = tds is RecordDeclarationSyntax;
+			result.IsValueObject = type.BaseType?.IsType(Constants.ValueObjectTypeName, Constants.DomainModelingNamespace) == true;
+			result.IsIValueObject = !type.AllInterfaces.Any(interf => interf.IsType(Constants.ValueObjectInterfaceTypeName, Constants.DomainModelingNamespace));
+			result.IsAbstract = type.IsAbstract;
+			result.IsGeneric = type.IsGenericType;
+			result.IsNested = type.IsNested();
 
-				existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
-					member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
+			result.TypeName = type.Name; // Will be non-generic if we pass the conditions to proceed with generation
+			result.ContainingNamespace = type.ContainingNamespace.ToString();
 
-				existingComponents |= ValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>
-					member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
+			var members = type.GetMembers();
 
-				existingComponents |= ValueObjectTypeComponents.EqualsOperator.If(members.Any(member =>
-					member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+			var existingComponents = ValueObjectTypeComponents.None;
 
-				existingComponents |= ValueObjectTypeComponents.NotEqualsOperator.If(members.Any(member =>
-					member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+			existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
+				member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
 
-				existingComponents |= ValueObjectTypeComponents.GreaterThanOperator.If(members.Any(member =>
-					member.Name == "op_GreaterThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+			existingComponents |= ValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
+				member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
 
-				existingComponents |= ValueObjectTypeComponents.LessThanOperator.If(members.Any(member =>
-					member.Name == "op_LessThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+			existingComponents |= ValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
+				member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+				method.Parameters[0].Type.IsType<object>()));
 
-				existingComponents |= ValueObjectTypeComponents.GreaterEqualsOperator.If(members.Any(member =>
-					member.Name == "op_GreaterThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+			existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
+				member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				existingComponents |= ValueObjectTypeComponents.LessEqualsOperator.If(members.Any(member =>
-					member.Name == "op_LessThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+			existingComponents |= ValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>
+				member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				existingComponents |= ValueObjectTypeComponents.SerializableAttribute.If(type.GetAttributes().Any(attribute =>
-					attribute.AttributeClass?.IsType<SerializableAttribute>() == true));
+			existingComponents |= ValueObjectTypeComponents.EqualsOperator.If(members.Any(member =>
+				member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				existingComponents |= ValueObjectTypeComponents.StringComparison.If(members.Any(member =>
-					member.Name == "StringComparison" && member.IsOverride));
+			existingComponents |= ValueObjectTypeComponents.NotEqualsOperator.If(members.Any(member =>
+				member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				var dataMembers = GetFieldsAndPropertiesWithBackingField(type, out _, out _);
+			existingComponents |= ValueObjectTypeComponents.GreaterThanOperator.If(members.Any(member =>
+				member.Name == "op_GreaterThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				// IComparable is implemented on-demand, if the type implements IComparable against itself and all data members are self-comparable
-				var isComparable = type.AllInterfaces.Any(interf => interf.IsType("IComparable", "System", generic: true) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default));
-				isComparable = isComparable && dataMembers.All(tuple => tuple.Type.IsComparable(seeThroughNullable: true));
+			existingComponents |= ValueObjectTypeComponents.LessThanOperator.If(members.Any(member =>
+				member.Name == "op_LessThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				var toStringExpressions = dataMembers
-					.Select(tuple => $"{tuple.Member.Name}={{this.{tuple.Member.Name}}}")
-					.ToList();
-				var toStringBody = $@"return $""{{{{{{nameof({typeName})}} {String.Join(" ", toStringExpressions)}}}}}"";";
-				if (dataMembers.Count == 0) toStringBody = $@"return $""{{{{{typeName}}}}}"";";
-				
-				var getHashCodeExpressions = dataMembers
-					.Select(tuple => (Type: tuple.Type, MemberName: tuple.Member.Name, Expression: tuple.Type.CreateHashCodeExpression(tuple.Member.Name, stringVariant: "(this.{0} is null ? 0 : String.GetHashCode(this.{0}, this.StringComparison))")))
-					.Select(tuple => tuple.Expression == $"this.{tuple.MemberName}.GetHashCode()" || tuple.Expression == $"(this.{tuple.MemberName}?.GetHashCode() ?? 0)"
-						? $"this.{tuple.MemberName}" // Simplify, since HashCode.Add() will call GetHashCode() for us
-						: tuple.Expression)
-					.Select(expression => $"hashCode.Add({expression});")
-					.ToList();
-				var getHashCodeBody = $"var hashCode = new HashCode();{Environment.NewLine}			{String.Join($"{Environment.NewLine}			", getHashCodeExpressions)}{Environment.NewLine}			return hashCode.ToHashCode();";
-				if (dataMembers.Count == 0) getHashCodeBody = $"return typeof({typeName}).GetHashCode();";
+			existingComponents |= ValueObjectTypeComponents.GreaterEqualsOperator.If(members.Any(member =>
+				member.Name == "op_GreaterThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				var equalityExpressions = dataMembers.Select(tuple => tuple.Type.CreateEqualityExpression(tuple.Member.Name, stringVariant: "String.Equals(this.{0}, other.{0}, this.StringComparison)")).ToList();
-				var equalsBodyIfInstanceNonNull = $"return{Environment.NewLine}				{String.Join($" &&{Environment.NewLine}				", equalityExpressions)}";
-				if (dataMembers.Count == 0) equalsBodyIfInstanceNonNull = "return true;";
+			existingComponents |= ValueObjectTypeComponents.LessEqualsOperator.If(members.Any(member =>
+				member.Name == "op_LessThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-				var comparisonExpressions = dataMembers
-					.Select(tuple => $"comparison = {tuple.Type.CreateComparisonExpression(tuple.Member.Name, stringVariant: "String.Compare(this.{0}, other.{0}, this.StringComparison)")};").ToList();
-				var compareToBodyIfInstanceNonNull = $"int comparison;{Environment.NewLine}			{String.Join($"{Environment.NewLine}			if (comparison != 0) return comparison;{Environment.NewLine}			", comparisonExpressions)}{Environment.NewLine}			return comparison;";
-				if (dataMembers.Count == 0) compareToBodyIfInstanceNonNull = "return 0;";
-				
-				var source = $@"
+			existingComponents |= ValueObjectTypeComponents.SerializableAttribute.If(type.GetAttributes().Any(attribute =>
+				attribute.AttributeClass?.IsType<SerializableAttribute>() == true));
+
+			existingComponents |= ValueObjectTypeComponents.StringComparison.If(members.Any(member =>
+				member.Name == "StringComparison" && member.IsOverride));
+
+			result.ExistingComponents = existingComponents;
+
+			var dataMembers = GetFieldsAndPropertiesWithBackingField(type, out _, out _);
+
+			// We need a fast to way to check whether the member names or types have changed
+			// Technically the solution here is incomplete, since we do not detect changes to the interfaces implemented by the members' types, even though these could affect the generated source
+			// In order to get good performance, we accept that a rebuild is required for this niche scenario
+			var dataMemberHashCode = "".GetStableHashCode64();
+			foreach (var tuple in dataMembers)
+			{
+				dataMemberHashCode = tuple.Member.Name.GetStableHashCode64(dataMemberHashCode);
+				dataMemberHashCode = ":".GetStableHashCode64(dataMemberHashCode);
+				dataMemberHashCode = tuple.Type.ContainingNamespace.ToString().GetStableHashCode64(dataMemberHashCode);
+				dataMemberHashCode = ".".GetStableHashCode64(dataMemberHashCode);
+				dataMemberHashCode = tuple.Type.Name.GetStableHashCode64(dataMemberHashCode);
+				dataMemberHashCode = "&".GetStableHashCode64(dataMemberHashCode);
+			}
+			result.DataMemberHashCode = dataMemberHashCode;
+
+			// IComparable is implemented on-demand, if the type implements IComparable against itself and all data members are self-comparable
+			result.IsComparable = type.AllInterfaces.Any(interf => interf.IsType("IComparable", "System", generic: true) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default));
+			result.IsComparable = result.IsComparable && dataMembers.All(tuple => tuple.Type.IsComparable(seeThroughNullable: true));
+
+			return result;
+		}
+
+		private static void GenerateSource(SourceProductionContext context, Generatable generatable)
+		{
+			context.CancellationToken.ThrowIfCancellationRequested();
+
+			var type = generatable.GetAssociatedData<INamedTypeSymbol>();
+
+			// Only with the intended inheritance
+			if (generatable.IsClass && !generatable.IsValueObject)
+			{
+				context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Unexpected base class",
+					"The type marked as source-generated has an unexpected base class. Did you mean ValueObject?", DiagnosticSeverity.Warning, type);
+				return;
+			}
+			if (generatable.IsRecord && !generatable.IsIValueObject)
+			{
+				context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Missing interface",
+					"The type marked as source-generated has an unexpected base class or interface. Did you mean IValueObject?", DiagnosticSeverity.Warning, type);
+				return;
+			}
+			// Only if non-abstract
+			if (generatable.IsAbstract)
+			{
+				context.ReportDiagnostic("ValueObjectGeneratorAbstractType", "Source-generated abstract type",
+					"The type was not source-generated because it is abstract.", DiagnosticSeverity.Warning, type);
+				return;
+			}
+			// Only if non-generic
+			if (generatable.IsGeneric)
+			{
+				context.ReportDiagnostic("ValueObjectGeneratorGenericType", "Source-generated generic type",
+					"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, type);
+				return;
+			}
+			// Only if non-nested
+			if (generatable.IsNested)
+			{
+				context.ReportDiagnostic("ValueObjectGeneratorNestedType", "Source-generated nested type",
+					"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, type);
+				return;
+			}
+
+			var isRecord = generatable.IsRecord;
+
+			var typeName = type.Name; // Non-generic
+			var containingNamespace = type.ContainingNamespace.ToString();
+			var isComparable = generatable.IsComparable;
+			var existingComponents = generatable.ExistingComponents;
+
+			var dataMembers = GetFieldsAndPropertiesWithBackingField(type, out _, out _);
+
+			var toStringExpressions = dataMembers
+				.Select(tuple => $"{tuple.Member.Name}={{this.{tuple.Member.Name}}}")
+				.ToList();
+			var toStringBody = $@"return $""{{{{{{nameof({typeName})}} {String.Join(" ", toStringExpressions)}}}}}"";";
+			if (dataMembers.Count == 0) toStringBody = $@"return $""{{{{{typeName}}}}}"";";
+
+			var getHashCodeExpressions = dataMembers
+				.Select(tuple => (Type: tuple.Type, MemberName: tuple.Member.Name, Expression: tuple.Type.CreateHashCodeExpression(tuple.Member.Name, stringVariant: "(this.{0} is null ? 0 : String.GetHashCode(this.{0}, this.StringComparison))")))
+				.Select(tuple => tuple.Expression == $"this.{tuple.MemberName}.GetHashCode()" || tuple.Expression == $"(this.{tuple.MemberName}?.GetHashCode() ?? 0)"
+					? $"this.{tuple.MemberName}" // Simplify, since HashCode.Add() will call GetHashCode() for us
+					: tuple.Expression)
+				.Select(expression => $"hashCode.Add({expression});")
+				.ToList();
+			var getHashCodeBody = $"var hashCode = new HashCode();{Environment.NewLine}			{String.Join($"{Environment.NewLine}			", getHashCodeExpressions)}{Environment.NewLine}			return hashCode.ToHashCode();";
+			if (dataMembers.Count == 0) getHashCodeBody = $"return typeof({typeName}).GetHashCode();";
+
+			var equalityExpressions = dataMembers.Select(tuple => tuple.Type.CreateEqualityExpression(tuple.Member.Name, stringVariant: "String.Equals(this.{0}, other.{0}, this.StringComparison)")).ToList();
+			var equalsBodyIfInstanceNonNull = $"return{Environment.NewLine}				{String.Join($" &&{Environment.NewLine}				", equalityExpressions)}";
+			if (dataMembers.Count == 0) equalsBodyIfInstanceNonNull = "return true;";
+
+			var comparisonExpressions = dataMembers
+				.Select(tuple => $"comparison = {tuple.Type.CreateComparisonExpression(tuple.Member.Name, stringVariant: "String.Compare(this.{0}, other.{0}, this.StringComparison)")};").ToList();
+			var compareToBodyIfInstanceNonNull = $"int comparison;{Environment.NewLine}			{String.Join($"{Environment.NewLine}			if (comparison != 0) return comparison;{Environment.NewLine}			", comparisonExpressions)}{Environment.NewLine}			return comparison;";
+			if (dataMembers.Count == 0) compareToBodyIfInstanceNonNull = "return 0;";
+
+			var source = $@"
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -219,8 +256,8 @@ namespace {containingNamespace}
 	{{
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "/*" : "")}
 		{(dataMembers.Any(member => member.Type.IsType<string>())
-			? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"
-			: @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
+		? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"
+		: @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "*/" : "")}
 
 		{(!isRecord && existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
@@ -297,8 +334,7 @@ namespace {containingNamespace}
 }}
 ";
 
-				AddSource(context, source, type);
-			}
+			AddSource(context, source, typeName, containingNamespace);
 		}
 
 		private static IReadOnlyList<(ISymbol Member, ITypeSymbol Type)> GetFieldsAndPropertiesWithBackingField(INamedTypeSymbol type,
@@ -343,6 +379,22 @@ namespace {containingNamespace}
 			LessEqualsOperator = 1 << 12,
 			SerializableAttribute = 1 << 13,
 			StringComparison = 1 << 14,
+		}
+
+		private sealed record Generatable : IGeneratable
+		{
+			public bool IsClass { get; set; }
+			public bool IsRecord { get; set; }
+			public bool IsValueObject { get; set; }
+			public bool IsIValueObject { get; set; }
+			public bool IsAbstract { get; set; }
+			public bool IsGeneric { get; set; }
+			public bool IsNested { get; set; }
+			public bool IsComparable { get; set; }
+			public string TypeName { get; set; } = null!;
+			public string ContainingNamespace { get; set; } = null!;
+			public ValueObjectTypeComponents ExistingComponents { get; set; }
+			public ulong DataMemberHashCode { get; set; }
 		}
 	}
 }

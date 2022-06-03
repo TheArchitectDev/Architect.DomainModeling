@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 
@@ -100,7 +100,7 @@ namespace Architect.DomainModeling.Generator
 		/// Returns the numeric value of the given <paramref name="enumValue"/>.
 		/// </para>
 		/// <para>
-		/// The resulting <see cref="ulong"/> can be cast to the intended integral type, even if it is a signed type.
+		/// The resulting <see cref="UInt64"/> can be cast to the intended integral type, even if it is a signed type.
 		/// </para>
 		/// </summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -108,7 +108,7 @@ namespace Architect.DomainModeling.Generator
 			where T : unmanaged, Enum
 		{
 			Span<ulong> ulongSpan = stackalloc ulong[] { 0UL };
-			Span<T> span = MemoryMarshal.Cast<ulong, T>(ulongSpan);
+			var span = MemoryMarshal.Cast<ulong, T>(ulongSpan);
 
 			span[0] = enumValue;
 
