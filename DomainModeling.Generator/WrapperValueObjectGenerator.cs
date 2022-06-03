@@ -1,188 +1,208 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Architect.DomainModeling.Generator
+namespace Architect.DomainModeling.Generator;
+
+[Generator]
+public class WrapperValueObjectGenerator : SourceGenerator
 {
-	[Generator]
-	public class WrapperValueObjectGenerator : SourceGenerator
+	public override void Initialize(IncrementalGeneratorInitializationContext context)
 	{
-		private class SyntaxReceiver : ISyntaxReceiver
+		var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
+			.Where(generatable => generatable is not null)
+			.DeduplicatePartials();
+
+		context.RegisterSourceOutput(provider, GenerateSource!);
+	}
+
+	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
+	{
+		// Partial subclass
+		if (node is not ClassDeclarationSyntax cds || !cds.Modifiers.Any(SyntaxKind.PartialKeyword) || cds.BaseList is null)
+			return false;
+
+		foreach (var baseType in cds.BaseList.Types)
 		{
-			public List<ClassDeclarationSyntax> CandidateWrapperValueObjectClasses { get; } = new List<ClassDeclarationSyntax>();
-
-			public void OnVisitSyntaxNode(SyntaxNode node)
-			{
-				// Partial subclass
-				if (node is ClassDeclarationSyntax cds && cds.Modifiers.Any(SyntaxKind.PartialKeyword) && cds.BaseList is not null)
-				{
-					foreach (var baseType in cds.BaseList.Types)
-					{
-						if (baseType.Type is not GenericNameSyntax genericName) continue;
-
-						// Consider any type with SOME 1-param generic "WrapperValueObject" inheritance/implementation
-						if (genericName.Arity == 1 && genericName.Identifier.ValueText == Constants.WrapperValueObjectTypeName)
-						{
-							this.CandidateWrapperValueObjectClasses.Add(cds);
-							return;
-						}
-					}
-				}
-			}
+			// Consider any type with SOME 1-param generic "WrapperValueObject" inheritance/implementation
+			if (baseType.Type.HasArityAndName(1, Constants.WrapperValueObjectTypeName))
+				return true;
 		}
 
-		public override void Initialize(GeneratorInitializationContext context)
+		return false;
+	}
+
+	private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+
+		var result = new Generatable();
+
+		var model = context.SemanticModel;
+		var type = model.GetDeclaredSymbol((TypeDeclarationSyntax)context.Node);
+
+		if (type is null)
+			return null;
+
+		// Only with the attribute
+		if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
+			return null;
+
+		result.SetAssociatedData(type);
+		result.IsWrapperValueObject = type.BaseType?.IsType(Constants.WrapperValueObjectTypeName, Constants.DomainModelingNamespace) == true;
+		result.IsAbstract = type.IsAbstract;
+		result.IsGeneric = type.IsGenericType;
+		result.IsNested = type.IsNested();
+
+		result.TypeName = type.Name; // Will be non-generic if we pass the conditions to proceed with generation
+		result.ContainingNamespace = type.ContainingNamespace.ToString();
+
+		var underlyingType = type.BaseType?.TypeArguments[0] ?? type;
+		result.UnderlyingTypeName = underlyingType.ToString();
+
+		// IComparable is implemented on-demand, if the type implements IComparable against itself and the underlying type is self-comparable
+		result.IsComparable = type.AllInterfaces.Any(interf => interf.IsType("IComparable", "System", generic: true) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default));
+		result.IsComparable = result.IsComparable && underlyingType.IsComparable(seeThroughNullable: true);
+
+		var members = type.GetMembers();
+
+		var existingComponents = WrapperValueObjectTypeComponents.None;
+
+		existingComponents |= WrapperValueObjectTypeComponents.Value.If(members.Any(member => member.Name == "Value"));
+
+		existingComponents |= WrapperValueObjectTypeComponents.Constructor.If(type.Constructors.Any(ctor =>
+			!ctor.IsStatic && ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
+			member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
+
+		existingComponents |= WrapperValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
+			member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
+
+		existingComponents |= WrapperValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
+			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			method.Parameters[0].Type.IsType<object>()));
+
+		existingComponents |= WrapperValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
+			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>
+			member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.EqualsOperator.If(members.Any(member =>
+			member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.NotEqualsOperator.If(members.Any(member =>
+			member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.GreaterThanOperator.If(members.Any(member =>
+			member.Name == "op_GreaterThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.LessThanOperator.If(members.Any(member =>
+			member.Name == "op_LessThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.GreaterEqualsOperator.If(members.Any(member =>
+			member.Name == "op_GreaterThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.LessEqualsOperator.If(members.Any(member =>
+			member.Name == "op_LessThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.ConvertToOperator.If(members.Any(member =>
+			(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			method.ReturnType.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.ConvertFromOperator.If(members.Any(member =>
+			(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			method.ReturnType.Equals(underlyingType, SymbolEqualityComparer.Default) &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		// Consider having a reference-typed underlying type as already having the operator (though actually it does not apply at all)
+		existingComponents |= WrapperValueObjectTypeComponents.NullableConvertToOperator.If(!underlyingType.IsValueType || members.Any(member =>
+			(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			method.ReturnType.Equals(type, SymbolEqualityComparer.Default) &&
+			method.Parameters[0].Type.IsType(nameof(Nullable<int>), "System") && method.Parameters[0].Type.HasSingleGenericTypeArgument(underlyingType)));
+
+		// Consider having a reference-typed underlying type as already having the operator (though actually it does not apply at all)
+		existingComponents |= WrapperValueObjectTypeComponents.NullableConvertFromOperator.If(!underlyingType.IsValueType || members.Any(member =>
+			(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			method.ReturnType.IsType(nameof(Nullable<int>), "System") && method.ReturnType.HasSingleGenericTypeArgument(underlyingType) &&
+			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.SerializableAttribute.If(type.GetAttributes().Any(attribute =>
+			attribute.AttributeClass?.IsType<SerializableAttribute>() == true));
+
+		existingComponents |= WrapperValueObjectTypeComponents.SystemTextJsonConverter.If(type.GetAttributes().Any(attribute =>
+			attribute.AttributeClass?.IsType("JsonConverterAttribute", "System.Text.Json.Serialization") == true));
+
+		existingComponents |= WrapperValueObjectTypeComponents.NewtonsoftJsonConverter.If(type.GetAttributes().Any(attribute =>
+			attribute.AttributeClass?.IsType("JsonConverterAttribute", "Newtonsoft.Json") == true));
+
+		existingComponents |= WrapperValueObjectTypeComponents.StringComparison.If(members.Any(member =>
+			member.Name == "StringComparison" && member.IsOverride));
+
+		result.ExistingComponents = existingComponents;
+
+		return result;
+	}
+
+	private static void GenerateSource(SourceProductionContext context, Generatable generatable)
+	{
+		context.CancellationToken.ThrowIfCancellationRequested();
+
+		var type = generatable.GetAssociatedData<INamedTypeSymbol>();
+
+		// Only with the intended inheritance
+		if (!generatable.IsWrapperValueObject)
 		{
-			context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+			context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Unexpected base class",
+				"The type marked as source-generated has an unexpected base class. Did you mean ValueObject<T>?", DiagnosticSeverity.Warning, type);
+			return;
+		}
+		// Only if non-abstract
+		if (generatable.IsAbstract)
+		{
+			context.ReportDiagnostic("WrapperValueObjectGeneratorAbstractType", "Source-generated abstract type",
+				"The type was not source-generated because it is abstract.", DiagnosticSeverity.Warning, type);
+			return;
+		}
+		// Only if non-generic
+		if (generatable.IsGeneric)
+		{
+			context.ReportDiagnostic("WrapperValueObjectGeneratorGenericType", "Source-generated generic type",
+				"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, type);
+			return;
+		}
+		// Only if non-nested
+		if (generatable.IsNested)
+		{
+			context.ReportDiagnostic("WrapperValueObjectGeneratorNestedType", "Source-generated nested type",
+				"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, type);
+			return;
 		}
 
-		public override void Execute(GeneratorExecutionContext context)
-		{
-			// Work only with our own syntax receiver
-			if (context.SyntaxReceiver is not SyntaxReceiver receiver)
-				return;
+		var typeName = generatable.TypeName;
+		var containingNamespace = generatable.ContainingNamespace;
+		var underlyingType = type.BaseType!.TypeArguments[0];
+		var underlyingTypeName = generatable.UnderlyingTypeName;
+		var isComparable = generatable.IsComparable;
+		var existingComponents = generatable.ExistingComponents;
 
-			// Complete partial WrapperValueObject subtypes
-			foreach (var cds in receiver.CandidateWrapperValueObjectClasses)
-			{
-				var model = context.Compilation.GetSemanticModel(cds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(cds)!;
-
-				// Only with the attribute
-				if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
-					continue;
-				// Only with the intended inheritance
-				if (type.BaseType?.IsType(Constants.WrapperValueObjectTypeName, Constants.DomainModelingNamespace) != true)
-				{
-					context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Unexpected base class",
-						"The type marked as source-generated has an unexpected base class. Did you mean ValueObject<T>?", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-abstract
-				if (type.IsAbstract)
-				{
-					context.ReportDiagnostic("WrapperValueObjectGeneratorAbstractType", "Source-generated abstract type",
-						"The type was not source-generated because it is abstract.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-generic
-				if (type.IsGenericType)
-				{
-					context.ReportDiagnostic("WrapperValueObjectGeneratorGenericType", "Source-generated generic type",
-						"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-nested
-				if (cds.Parent is not NamespaceDeclarationSyntax && cds.Parent is not FileScopedNamespaceDeclarationSyntax)
-				{
-					context.ReportDiagnostic("WrapperValueObjectGeneratorNestedType", "Source-generated nested type",
-						"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-
-				var typeName = type.Name; // Non-generic
-				var containingNamespace = type.ContainingNamespace.ToString();
-				var fullTypeName = $"{containingNamespace}.{typeName}";
-
-				var underlyingType = type.BaseType.TypeArguments[0];
-				var underlyingTypeName = underlyingType.ToString();
-
-				// IComparable is implemented on-demand, if the type implements IComparable against itself and the underlying type is self-comparable
-				var isComparable = type.AllInterfaces.Any(interf => interf.IsType("IComparable", "System", generic: true) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default));
-				isComparable = isComparable && underlyingType.IsComparable(seeThroughNullable: true);
-
-				var members = type.GetMembers();
-
-				var existingComponents = WrapperValueObjectTypeComponents.None;
-
-				existingComponents |= WrapperValueObjectTypeComponents.Value.If(members.Any(member => member.Name == "Value"));
-
-				existingComponents |= WrapperValueObjectTypeComponents.Constructor.If(type.Constructors.Any(ctor =>
-					!ctor.IsStatic && ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
-					member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
-
-				existingComponents |= WrapperValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
-					member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
-
-				existingComponents |= WrapperValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
-					member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.Parameters[0].Type.IsType<object>()));
-
-				existingComponents |= WrapperValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
-					member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>
-					member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.EqualsOperator.If(members.Any(member =>
-					member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.NotEqualsOperator.If(members.Any(member =>
-					member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.GreaterThanOperator.If(members.Any(member =>
-					member.Name == "op_GreaterThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.LessThanOperator.If(members.Any(member =>
-					member.Name == "op_LessThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.GreaterEqualsOperator.If(members.Any(member =>
-					member.Name == "op_GreaterThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.LessEqualsOperator.If(members.Any(member =>
-					member.Name == "op_LessThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.ConvertToOperator.If(members.Any(member =>
-					(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.ReturnType.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.ConvertFromOperator.If(members.Any(member =>
-					(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.ReturnType.Equals(underlyingType, SymbolEqualityComparer.Default) &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				// Consider having a reference-typed underlying type as already having the operator (though actually it does not apply at all)
-				existingComponents |= WrapperValueObjectTypeComponents.NullableConvertToOperator.If(!underlyingType.IsValueType || members.Any(member =>
-					(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.ReturnType.Equals(type, SymbolEqualityComparer.Default) &&
-					method.Parameters[0].Type.IsType(nameof(Nullable<int>), "System") && method.Parameters[0].Type.HasSingleGenericTypeArgument(underlyingType)));
-
-				// Consider having a reference-typed underlying type as already having the operator (though actually it does not apply at all)
-				existingComponents |= WrapperValueObjectTypeComponents.NullableConvertFromOperator.If(!underlyingType.IsValueType || members.Any(member =>
-					(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-					method.ReturnType.IsType(nameof(Nullable<int>), "System") && method.ReturnType.HasSingleGenericTypeArgument(underlyingType) &&
-					method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
-
-				existingComponents |= WrapperValueObjectTypeComponents.SerializableAttribute.If(type.GetAttributes().Any(attribute =>
-					attribute.AttributeClass?.IsType<SerializableAttribute>() == true));
-
-				existingComponents |= WrapperValueObjectTypeComponents.SystemTextJsonConverter.If(type.GetAttributes().Any(attribute =>
-					attribute.AttributeClass?.IsType("JsonConverterAttribute", "System.Text.Json.Serialization") == true));
-
-				existingComponents |= WrapperValueObjectTypeComponents.NewtonsoftJsonConverter.If(type.GetAttributes().Any(attribute =>
-					attribute.AttributeClass?.IsType("JsonConverterAttribute", "Newtonsoft.Json") == true));
-
-				existingComponents |= WrapperValueObjectTypeComponents.StringComparison.If(members.Any(member =>
-					member.Name == "StringComparison" && member.IsOverride));
-
-				var source = $@"
+		var source = $@"
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -357,36 +377,47 @@ namespace {containingNamespace}
 }}
 ";
 
-				AddSource(context, source, type);
-			}
-		}
+		AddSource(context, source, typeName, containingNamespace);
+	}
 
-		[Flags]
-		private enum WrapperValueObjectTypeComponents : ulong
-		{
-			None = 0,
+	[Flags]
+	private enum WrapperValueObjectTypeComponents : ulong
+	{
+		None = 0,
 
-			Value = 1 << 0,
-			Constructor = 1 << 1,
-			ToStringOverride = 1 << 2,
-			GetHashCodeOverride = 1 << 3,
-			EqualsOverride = 1 << 4,
-			EqualsMethod = 1 << 5,
-			CompareToMethod = 1 << 6,
-			EqualsOperator = 1 << 7,
-			NotEqualsOperator = 1 << 8,
-			GreaterThanOperator = 1 << 9,
-			LessThanOperator = 1 << 10,
-			GreaterEqualsOperator = 1 << 11,
-			LessEqualsOperator = 1 << 12,
-			ConvertToOperator = 1 << 13,
-			ConvertFromOperator = 1 << 14,
-			NullableConvertToOperator = 1 << 15,
-			NullableConvertFromOperator = 1 << 16,
-			SerializableAttribute = 1 << 17,
-			NewtonsoftJsonConverter = 1 << 18,
-			SystemTextJsonConverter = 1 << 19,
-			StringComparison = 1 << 20,
-		}
+		Value = 1 << 0,
+		Constructor = 1 << 1,
+		ToStringOverride = 1 << 2,
+		GetHashCodeOverride = 1 << 3,
+		EqualsOverride = 1 << 4,
+		EqualsMethod = 1 << 5,
+		CompareToMethod = 1 << 6,
+		EqualsOperator = 1 << 7,
+		NotEqualsOperator = 1 << 8,
+		GreaterThanOperator = 1 << 9,
+		LessThanOperator = 1 << 10,
+		GreaterEqualsOperator = 1 << 11,
+		LessEqualsOperator = 1 << 12,
+		ConvertToOperator = 1 << 13,
+		ConvertFromOperator = 1 << 14,
+		NullableConvertToOperator = 1 << 15,
+		NullableConvertFromOperator = 1 << 16,
+		SerializableAttribute = 1 << 17,
+		NewtonsoftJsonConverter = 1 << 18,
+		SystemTextJsonConverter = 1 << 19,
+		StringComparison = 1 << 20,
+	}
+
+	private sealed record Generatable : IGeneratable
+	{
+		public bool IsWrapperValueObject { get; set; }
+		public bool IsAbstract { get; set; }
+		public bool IsGeneric { get; set; }
+		public bool IsNested { get; set; }
+		public bool IsComparable { get; set; }
+		public string TypeName { get; set; } = null!;
+		public string ContainingNamespace { get; set; } = null!;
+		public string UnderlyingTypeName { get; set; } = null!;
+		public WrapperValueObjectTypeComponents ExistingComponents { get; set; }
 	}
 }

@@ -1,146 +1,119 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Architect.DomainModeling.Generator
+namespace Architect.DomainModeling.Generator;
+
+[Generator]
+public class IdentityGenerator : SourceGenerator
 {
-	[Generator]
-	public class IdentityGenerator : SourceGenerator
+	public override void Initialize(IncrementalGeneratorInitializationContext context)
 	{
-		private class SyntaxReceiver : ISyntaxReceiver
+		var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
+			.Where(generatable => generatable is not null)
+			.DeduplicatePartials();
+
+		context.RegisterSourceOutput(provider, GenerateSource!);
+	}
+
+	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
+	{
+		// Partial struct with some interface
+		if (node is StructDeclarationSyntax sds && sds.Modifiers.Any(SyntaxKind.PartialKeyword) && sds.BaseList is not null)
 		{
-			public List<StructDeclarationSyntax> CandidatePartialIdentityStructs { get; } = new List<StructDeclarationSyntax>();
-			public List<ClassDeclarationSyntax> CandidateEntityClasses { get; } = new List<ClassDeclarationSyntax>();
-
-			public void OnVisitSyntaxNode(SyntaxNode node)
+			// With SourceGenerated attribute
+			if (sds.HasAttributeWithPrefix(Constants.SourceGeneratedAttributeShortName))
 			{
-				// Partial struct with some interface
-				if (node is StructDeclarationSyntax sds && sds.Modifiers.Any(SyntaxKind.PartialKeyword) && sds.BaseList is not null)
+				// Consider any type with SOME 1-param generic "IIdentity" inheritance/implementation
+				foreach (var baseType in sds.BaseList.Types)
 				{
-					// Consider any type with SOME 1-param generic "IIdentity" inheritance/implementation
-					foreach (var baseType in sds.BaseList.Types)
-					{
-						if (baseType.Type is not GenericNameSyntax genericName) continue;
-
-						if (genericName.Arity == 1 && genericName.Identifier.ValueText == Constants.IdentityInterfaceTypeName)
-						{
-							this.CandidatePartialIdentityStructs.Add(sds);
-							return;
-						}
-					}
-				}
-
-				// Concrete, non-generic classes
-				if (node is ClassDeclarationSyntax cds && !cds.Modifiers.Any(SyntaxKind.AbstractKeyword) && cds.TypeParameterList is null && cds.BaseList is not null)
-				{
-					// Consider any type with SOME 2-param generic "Entity" inheritance/implementation
-					foreach (var baseType in cds.BaseList.Types)
-					{
-						if (baseType.Type is not GenericNameSyntax genericName) continue;
-
-						if (genericName.Arity == 2 && genericName.Identifier.ValueText == Constants.EntityTypeName)
-						{
-							this.CandidateEntityClasses.Add(cds);
-							return;
-						}
-					}
+					if (baseType.Type.HasArityAndName(1, Constants.IdentityInterfaceTypeName))
+						return true;
 				}
 			}
 		}
 
-		public override void Initialize(GeneratorInitializationContext context)
+		// Concrete, non-generic class
+		if (node is ClassDeclarationSyntax cds && !cds.Modifiers.Any(SyntaxKind.AbstractKeyword) && cds.Arity == 0 && cds.BaseList is not null)
 		{
-			context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
-		}
-
-		public override void Execute(GeneratorExecutionContext context)
-		{
-			// Work only with our own syntax receiver
-			if (context.SyntaxReceiver is not SyntaxReceiver receiver)
-				return;
-
-			// Complete partial identity structs
-			foreach (var sds in receiver.CandidatePartialIdentityStructs)
+			// Consider any type with SOME 2-param generic "Entity" inheritance/implementation
+			foreach (var baseType in cds.BaseList.Types)
 			{
-				var model = context.Compilation.GetSemanticModel(sds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(sds)!;
-
-				// Only with the attribute
-				if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
-					continue;
-				// Only with the intended inheritance
-				if (!type.Interfaces.Any(interf => interf.Name == Constants.IdentityInterfaceTypeName && interf.ContainingNamespace.HasFullName(Constants.DomainModelingNamespace) && interf.IsGenericType && interf.TypeParameters.Length == 1))
-				{
-					context.ReportDiagnostic("IdentityGeneratorUnexpectedInheritance", "Unexpected interface",
-						"The type marked as source-generated has an unexpected base class or interface. Did you mean IIdentity<T>?", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-generic
-				if (type.IsGenericType)
-				{
-					context.ReportDiagnostic("IdentityGeneratorGenericType", "Source-generated generic type",
-						"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-				// Only if non-nested
-				if (sds.Parent is not NamespaceDeclarationSyntax && sds.Parent is not FileScopedNamespaceDeclarationSyntax)
-				{
-					context.ReportDiagnostic("IdentityGeneratorNestedType", "Source-generated nested type",
-						"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-
-				AddPartialIdentityStructForExisting(context, type: type);
-			}
-
-			// Provide identity structs for entities with source-generated ID types
-			foreach (var cds in receiver.CandidateEntityClasses)
-			{
-				var model = context.Compilation.GetSemanticModel(cds.SyntaxTree);
-				var type = model.GetDeclaredSymbol(cds)!;
-
-				INamedTypeSymbol? entityType = null;
-				var baseType = (INamedTypeSymbol?)type;
-				while ((baseType = baseType!.BaseType) is not null)
-				{
-					// End of inheritance chain
-					if (baseType.IsType<object>())
-						break;
-
-					if (baseType.Arity == 2 &&
-						baseType.IsType(Constants.EntityTypeName, Constants.DomainModelingNamespace) &&
-						baseType.TypeArguments[0] is INamedTypeSymbol)
-					{
-						entityType = baseType;
-						break;
-					}
-				}
-
-				if (entityType is null) continue;
-
-				// The type exists if it is not of TypeKind.Error
-				var idTypeExists = baseType!.TypeArguments[0].TypeKind != TypeKind.Error;
-
-				if (idTypeExists) // No need to generate the ID type
-				{
-					context.ReportDiagnostic("EntityIdentityTypeAlreadyExists", "Entity identity type already exists",
-						"Base class Entity<TId, TIdPrimitive> is intended to generate source for TId, but TId refers to an existing type. To use an existing identity type, inherit from Entity<TId> instead.", DiagnosticSeverity.Warning, type);
-					continue;
-				}
-
-				AddIdentityStruct(context, type.ContainingNamespace, type, baseType.TypeArguments[0], baseType.TypeArguments[1]);
+				if (baseType.Type.HasArityAndName(2, Constants.EntityTypeName))
+					return true;
 			}
 		}
 
-		/// <summary>
-		/// Adds a partial identity struct that completes the given existing one.
-		/// </summary>
-		private static void AddPartialIdentityStructForExisting(GeneratorExecutionContext context, INamedTypeSymbol type)
+		return false;
+	}
+
+	private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+
+		var result = new Generatable();
+
+		var model = context.SemanticModel;
+		var tds = (TypeDeclarationSyntax)context.Node;
+		var type = model.GetDeclaredSymbol(tds);
+
+		if (type is null)
+			return null;
+
+		var isBasedOnEntity = type.IsOrInheritsClass(baseType => baseType.Name == Constants.EntityTypeName, out _);
+
+		// Path A: An Entity subclass that might be an Entity<TId, TUnderlying> for which TId may have to be generated
+		if (isBasedOnEntity)
 		{
-			var interf = type.Interfaces.Single(interf =>
-				interf.ContainingNamespace.HasFullName(Constants.DomainModelingNamespace) && interf.IsGenericType && interf.TypeParameters.Length == 1);
+			// Only an actual Entity<TId, TUnderlying>
+			if (!type.IsOrInheritsClass(baseType => baseType.Arity == 2 && baseType.IsType(Constants.EntityTypeName, Constants.DomainModelingNamespace), out var entityType))
+				return null;
+
+			var idType = entityType.TypeArguments[0];
+			var underlyingType = entityType.TypeArguments[1];
+			result.SetAssociatedData(new Tuple<INamedTypeSymbol?, ITypeSymbol, ITypeSymbol>(type, idType, underlyingType));
+			result.EntityTypeName = type.Name;
+
+			// The ID type exists if it is not of TypeKind.Error
+			result.IdTypeExists = idType.TypeKind != TypeKind.Error;
+
+			if (result.IdTypeExists)
+				return result;
+
+			result.ContainingNamespace = type.ContainingNamespace.ToString();
+			result.IdTypeName = idType.Name;
+			result.UnderlyingTypeFullyQualifiedName = underlyingType.ToString();
+
+			// We do not support combining with a manual definition, so we honor the entity's accessibility
+			// The entity could be a private nested type (for example), and a private non-nested ID type would have insufficient accessibility, so then we need at least "internal"
+			result.Accessibility = type.DeclaredAccessibility.AtLeast(Accessibility.Internal);
+
+			return result;
+		}
+		// Path B: An IIdentity struct for which a partial should be generated
+		else
+		{
+			// Only with the attribute
+			if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
+				return null;
+
+			var interf = type.Interfaces.SingleOrDefault(interf => interf.Arity == 1 && interf.ContainingNamespace.HasFullName(Constants.DomainModelingNamespace) && interf.IsGenericType && interf.Arity == 1);
+
+			// Only an actual IIdentity<T>
+			if (interf is null)
+				return result;
 
 			var underlyingType = interf.TypeArguments[0];
+
+			result.IsIIdentity = true;
+			result.IdTypeExists = true;
+			result.SetAssociatedData(new Tuple<INamedTypeSymbol?, ITypeSymbol, ITypeSymbol>(null, type, underlyingType));
+			result.ContainingNamespace = type.ContainingNamespace.ToString();
+			result.IdTypeName = type.Name;
+			result.UnderlyingTypeFullyQualifiedName = underlyingType.ToString();
+			result.Accessibility = type.DeclaredAccessibility;
+			result.IsGeneric = type.IsGenericType;
+			result.IsNested = type.IsNested();
 
 			var members = type.GetMembers();
 
@@ -235,70 +208,86 @@ namespace Architect.DomainModeling.Generator
 			existingComponents |= IdTypeComponents.StringComparison.If(members.Any(member =>
 				member.Name == "StringComparison"));
 
-			AddIdentityStruct(context, type.ContainingNamespace, entityType: null, type, underlyingType, existingComponents);
+			result.ExistingComponents = existingComponents;
+
+			return result;
+		}
+	}
+
+	private static void GenerateSource(SourceProductionContext context, Generatable generatable)
+	{
+		context.CancellationToken.ThrowIfCancellationRequested();
+
+		var typeTuple = generatable.GetAssociatedData<Tuple<INamedTypeSymbol?, ITypeSymbol, ITypeSymbol>>();
+		var entityType = typeTuple.Item1;
+		var idType = typeTuple.Item2;
+		var underlyingType = typeTuple.Item3;
+		var containingNamespace = generatable.ContainingNamespace;
+		var idTypeName = generatable.IdTypeName;
+		var underlyingTypeFullyQualifiedName = generatable.UnderlyingTypeFullyQualifiedName;
+		var entityTypeName = generatable.EntityTypeName;
+
+		var accessibility = generatable.Accessibility;
+		var existingComponents = generatable.ExistingComponents;
+		var hasSourceGeneratedAttribute = generatable.IdTypeExists;
+
+		if (generatable.IdTypeExists)
+		{
+			// Entity<TId, TUnderlying> was needlessly used, with a preexisting TId
+			if (entityTypeName is not null)
+			{
+				context.ReportDiagnostic("EntityIdentityTypeAlreadyExists", "Entity identity type already exists",
+					"Base class Entity<TId, TIdPrimitive> is intended to generate source for TId, but TId refers to an existing type. To use an existing identity type, inherit from Entity<TId> instead.", DiagnosticSeverity.Warning, entityType);
+				return;
+			}
+
+			// Only with the intended inheritance
+			if (!generatable.IsIIdentity)
+			{
+				context.ReportDiagnostic("IdentityGeneratorUnexpectedInheritance", "Unexpected interface",
+					"The type marked as source-generated has an unexpected base class or interface. Did you mean IIdentity<T>?", DiagnosticSeverity.Warning, idType);
+				return;
+			}
+			// Only if non-generic
+			if (generatable.IsGeneric)
+			{
+				context.ReportDiagnostic("IdentityGeneratorGenericType", "Source-generated generic type",
+					"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, idType);
+				return;
+			}
+			// Only if non-nested
+			if (generatable.IsNested)
+			{
+				context.ReportDiagnostic("IdentityGeneratorNestedType", "Source-generated nested type",
+					"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, idType);
+				return;
+			}
 		}
 
-		/// <summary>
-		/// Adds an identity struct based on the given parameters.
-		/// </summary>
-		private static void AddIdentityStruct(GeneratorExecutionContext context,
-			INamespaceSymbol containingNamespace, ITypeSymbol? entityType, ITypeSymbol idType, ITypeSymbol underlyingType,
-			IdTypeComponents existingComponents = IdTypeComponents.None)
-		{
-			var entityTypeName = entityType?.Name;
-			var idTypeName = idType.Name;
-			var underlyingTypeName = underlyingType.ToString();
+		const string nullInputAnnotation = "[AllowNull] ";
+		const string nullPropertyAnnotation = "[AllowNull, MaybeNull]";
+		const string mayReturnNullAnnotation = "[return: MaybeNull]";
 
-			// If the ID type is manually declared (not from an entity), then we follow its accessibility
-			// Otherwise, we do not support combining with a manual definition, so we honor the entity's accessibility
-			// The entity could be a private nested type (for example), and a private non-nested ID type would have insufficient accessibility, so then we need at least "internal"
-			var accessibility = entityType is null
-				? idType.DeclaredAccessibility
-				: entityType.DeclaredAccessibility.AtLeast(Accessibility.Internal);
-
-			// The outcommented block could be used in the future to follow the developer's nullability specification, if that is considered beneficial
-			//var nullInputAnnotation = "";
-			//var nullPropertyAnnotation = "";
-			//var mayReturnNullAnnotation = "";
-			//switch (underlyingType.NullableAnnotation)
-			//{
-			//	case NullableAnnotation.NotAnnotated: // Not nullable
-			//		nullInputAnnotation = "[DisallowNull] ";
-			//		nullPropertyAnnotation = "[DisallowNull, NotNull]";
-			//		mayReturnNullAnnotation = "[return: NotNull]";
-			//		break;
-			//	case NullableAnnotation.Annotated: // Nullable
-			//		nullInputAnnotation = "[AllowNull] ";
-			//		nullPropertyAnnotation = "[AllowNull, MaybeNull]";
-			//		mayReturnNullAnnotation = "[return: MaybeNull]";
-			//		break;
-			//}
-			var nullInputAnnotation = "[AllowNull] ";
-			var nullPropertyAnnotation = "[AllowNull, MaybeNull]";
-			var mayReturnNullAnnotation = "[return: MaybeNull]";
-
-			var summary = entityTypeName is null ? null : $@"
+		var summary = entityTypeName is null ? null : $@"
 	/// <summary>
 	/// The identity type used for the <see cref=""{entityTypeName}""/> entity.
 	/// </summary>";
 
-			var hasSourceGeneratedAttribute = idType.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace);
-
-			// Special case for strings, unless they are explicitly annotated as nullable
-			// An ID wrapping a null string (such as a default instance) acts as if it contains an empty string instead
-			// This allows strings to be used as a primitive without any null troubles
-			// Conversions are carefree this way, and null inputs simply get converted to empty string equivalents, which tend not to match any valid ID
-			var isNonNullString = underlyingType.IsType<string>() && underlyingType.NullableAnnotation != NullableAnnotation.Annotated;
-			var nonNullStringSummary = !isNonNullString ? null : @"
+		// Special case for strings, unless they are explicitly annotated as nullable
+		// An ID wrapping a null string (such as a default instance) acts as if it contains an empty string instead
+		// This allows strings to be used as a primitive without any null troubles
+		// Conversions are carefree this way, and null inputs simply get converted to empty string equivalents, which tend not to match any valid ID
+		var isNonNullString = underlyingType.IsType<string>() && underlyingType.NullableAnnotation != NullableAnnotation.Annotated;
+		var nonNullStringSummary = !isNonNullString ? null : @"
 		/// <summary>
 		/// If the current object is a default instance or was constructed with a null value, this property produces an empty string.
 		/// </summary>";
 
-			// JavaScript (and arguably, by extent, JSON) have insufficient numeric capacity to properly hold the longer numeric types
-			var underlyingTypeIsNumericUnsuitableForJson = underlyingType.IsType<decimal>() || underlyingType.IsType<ulong>() || underlyingType.IsType<long>() || underlyingType.IsType<System.Numerics.BigInteger>();
-			var longNumericTypeComment = !underlyingTypeIsNumericUnsuitableForJson ? null : "// The longer numeric types are not JavaScript-safe, so treat them as strings";
+		// JavaScript (and arguably, by extent, JSON) have insufficient numeric capacity to properly hold the longer numeric types
+		var underlyingTypeIsNumericUnsuitableForJson = underlyingType.IsType<decimal>() || underlyingType.IsType<ulong>() || underlyingType.IsType<long>() || underlyingType.IsType<System.Numerics.BigInteger>();
+		var longNumericTypeComment = !underlyingTypeIsNumericUnsuitableForJson ? null : "// The longer numeric types are not JavaScript-safe, so treat them as strings";
 
-			var source = $@"
+		var source = $@"
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -320,17 +309,17 @@ namespace {containingNamespace}
 	{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 
 	{(hasSourceGeneratedAttribute ? "" : "[SourceGenerated]")}
-	{accessibility.ToCodeString()} readonly{(entityType is null ? " partial" : "")} struct {idTypeName} : {Constants.IdentityInterfaceTypeName}<{underlyingTypeName}>, IEquatable<{idTypeName}>, IComparable<{idTypeName}>
+	{accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")} struct {idTypeName} : {Constants.IdentityInterfaceTypeName}<{underlyingTypeFullyQualifiedName}>, IEquatable<{idTypeName}>, IComparable<{idTypeName}>
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
 		{nonNullStringSummary}
 		{(underlyingType.IsValueType ? "" : isNonNullString ? "[NotNull]" : nullPropertyAnnotation)}
-		public {underlyingTypeName} Value {(isNonNullString ? @"=> this._value ?? """";" : "{ get; }")}
+		public {underlyingTypeFullyQualifiedName} Value {(isNonNullString ? @"=> this._value ?? """";" : "{ get; }")}
 		{(isNonNullString ? "private readonly string _value;" : "")}
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.Constructor) ? "/*" : "")}
-		public {idTypeName}({(underlyingType.IsValueType ? "" : nullInputAnnotation)}{underlyingTypeName} value)
+		public {idTypeName}({(underlyingType.IsValueType ? "" : nullInputAnnotation)}{underlyingTypeFullyQualifiedName} value)
 		{{
 			{(isNonNullString ? @"this._value = value ?? """";" : "this.Value = value;")}
 		}}
@@ -338,8 +327,8 @@ namespace {containingNamespace}
 
 		{(existingComponents.HasFlags(IdTypeComponents.StringComparison) ? "/*" : "")}
 		{(underlyingType.IsType<string>()
-			? @"private StringComparison StringComparison => StringComparison.Ordinal;"
-			: "")}
+		? @"private StringComparison StringComparison => StringComparison.Ordinal;"
+		: "")}
 		{(existingComponents.HasFlags(IdTypeComponents.StringComparison) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.ToStringOverride) ? "/*" : "")}
@@ -401,20 +390,20 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.LessEqualsOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "/*" : "")}
-		public static implicit operator {idTypeName}({(underlyingType.IsValueType ? "" : nullInputAnnotation)}{underlyingTypeName} value) => new {idTypeName}(value);
+		public static implicit operator {idTypeName}({(underlyingType.IsValueType ? "" : nullInputAnnotation)}{underlyingTypeFullyQualifiedName} value) => new {idTypeName}(value);
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "/*" : "")}
 		{(underlyingType.IsValueType || isNonNullString ? "" : mayReturnNullAnnotation)}
-		public static implicit operator {underlyingTypeName}({idTypeName} id) => id.Value;
+		public static implicit operator {underlyingTypeFullyQualifiedName}({idTypeName} id) => id.Value;
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "/*" : "")}
 		[return: MaybeNull, NotNullIfNotNull(""value"")]
-		public static implicit operator {idTypeName}?({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeName}{(underlyingType.IsValueType ? "?" : "")} value) => value is null ? ({idTypeName}?)null : new {idTypeName}(value{(underlyingType.IsValueType ? ".Value" : "")});
+		public static implicit operator {idTypeName}?({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")} value) => value is null ? ({idTypeName}?)null : new {idTypeName}(value{(underlyingType.IsValueType ? ".Value" : "")});
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "/*" : "")}
 		{(underlyingType.IsValueType || isNonNullString ? @"[return: MaybeNull, NotNullIfNotNull(""id"")]" : "[return: MaybeNull]")}
-		public static implicit operator {underlyingTypeName}{(underlyingType.IsValueType ? "?" : "")}({idTypeName}? id) => id?.Value;
+		public static implicit operator {underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")}({idTypeName}? id) => id?.Value;
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
@@ -425,8 +414,8 @@ namespace {containingNamespace}
 				{longNumericTypeComment}
 				#nullable disable
 				{(underlyingTypeIsNumericUnsuitableForJson
-					? $@"return reader.TokenType == System.Text.Json.JsonTokenType.Number ? reader.Get{underlyingType.Name}() : ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(reader.GetString(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
-					: $@"return ({idTypeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeName}>(ref reader, options);")}
+				? $@"return reader.TokenType == System.Text.Json.JsonTokenType.Number ? reader.Get{underlyingType.Name}() : ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(reader.GetString(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
+				: $@"return ({idTypeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeFullyQualifiedName}>(ref reader, options);")}
 				#nullable enable
 			}}
 
@@ -434,8 +423,8 @@ namespace {containingNamespace}
 			{{
 				{longNumericTypeComment}
 				{(underlyingTypeIsNumericUnsuitableForJson
-					? "writer.WriteStringValue(value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));"
-					: "System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);")}
+				? "writer.WriteStringValue(value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));"
+				: "System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);")}
 			}}
 		}}
 		{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
@@ -453,8 +442,8 @@ namespace {containingNamespace}
 				{longNumericTypeComment}
 				if (value is null) serializer.Serialize(writer, null);
 				else {(underlyingTypeIsNumericUnsuitableForJson
-					? $"serializer.Serialize(writer, (({idTypeName})value).Value.ToString(System.Globalization.CultureInfo.InvariantCulture));"
-					: $"serializer.Serialize(writer, (({idTypeName})value).Value);")}
+				? $"serializer.Serialize(writer, (({idTypeName})value).Value.ToString(System.Globalization.CultureInfo.InvariantCulture));"
+				: $"serializer.Serialize(writer, (({idTypeName})value).Value);")}
 			}}
 
 			[return: MaybeNull]
@@ -464,12 +453,12 @@ namespace {containingNamespace}
 				#nullable disable
 				if (objectType == typeof({idTypeName})) // Non-nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
-						? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.Integer ? ({idTypeName}?)serializer.Deserialize<{underlyingTypeName}?>(reader) : ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
-						: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeName}>(reader);")}
+					? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.Integer ? ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader) : ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
+					: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);")}
 				else // Nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
-						? $@"return reader.Value is null ? null : reader.TokenType == Newtonsoft.Json.JsonToken.Integer ? ({idTypeName}?)serializer.Deserialize<{underlyingTypeName}?>(reader) : ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
-						: $@"return ({idTypeName}?)serializer.Deserialize<{underlyingTypeName}{(underlyingType.IsValueType ? "?" : "")}>(reader);")}
+					? $@"return reader.Value is null ? null : reader.TokenType == Newtonsoft.Json.JsonToken.Integer ? ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader) : ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
+					: $@"return ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")}>(reader);")}
 				#nullable enable
 			}}
 		}}
@@ -478,35 +467,48 @@ namespace {containingNamespace}
 }}
 ";
 
-			AddSource(context, source, idType);
-		}
+		AddSource(context, source, idTypeName, containingNamespace);
+	}
 
-		[Flags]
-		private enum IdTypeComponents : ulong
-		{
-			None = 0,
+	[Flags]
+	private enum IdTypeComponents : ulong
+	{
+		None = 0,
 
-			Value = 1 << 0,
-			Constructor = 1 << 1,
-			ToStringOverride = 1 << 2,
-			GetHashCodeOverride = 1 << 3,
-			EqualsOverride = 1 << 4,
-			EqualsMethod = 1 << 5,
-			CompareToMethod = 1 << 6,
-			EqualsOperator = 1 << 7,
-			NotEqualsOperator = 1 << 8,
-			GreaterThanOperator = 1 << 9,
-			LessThanOperator = 1 << 10,
-			GreaterEqualsOperator = 1 << 11,
-			LessEqualsOperator = 1 << 12,
-			ConvertToOperator = 1 << 13,
-			ConvertFromOperator = 1 << 14,
-			NullableConvertToOperator = 1 << 15,
-			NullableConvertFromOperator = 1 << 16,
-			SerializableAttribute = 1 << 17,
-			NewtonsoftJsonConverter = 1 << 18,
-			SystemTextJsonConverter = 1 << 19,
-			StringComparison = 1 << 20,
-		}
+		Value = 1 << 0,
+		Constructor = 1 << 1,
+		ToStringOverride = 1 << 2,
+		GetHashCodeOverride = 1 << 3,
+		EqualsOverride = 1 << 4,
+		EqualsMethod = 1 << 5,
+		CompareToMethod = 1 << 6,
+		EqualsOperator = 1 << 7,
+		NotEqualsOperator = 1 << 8,
+		GreaterThanOperator = 1 << 9,
+		LessThanOperator = 1 << 10,
+		GreaterEqualsOperator = 1 << 11,
+		LessEqualsOperator = 1 << 12,
+		ConvertToOperator = 1 << 13,
+		ConvertFromOperator = 1 << 14,
+		NullableConvertToOperator = 1 << 15,
+		NullableConvertFromOperator = 1 << 16,
+		SerializableAttribute = 1 << 17,
+		NewtonsoftJsonConverter = 1 << 18,
+		SystemTextJsonConverter = 1 << 19,
+		StringComparison = 1 << 20,
+	}
+
+	private sealed record Generatable : IGeneratable
+	{
+		public bool IdTypeExists { get; set; }
+		public string EntityTypeName { get; set; } = null!;
+		public bool IsIIdentity { get; set; }
+		public string ContainingNamespace { get; set; } = null!;
+		public string IdTypeName { get; set; } = null!;
+		public string UnderlyingTypeFullyQualifiedName { get; set; } = null!;
+		public Accessibility Accessibility { get; set; }
+		public bool IsGeneric { get; set; }
+		public bool IsNested { get; set; }
+		public IdTypeComponents ExistingComponents { get; set; }
 	}
 }

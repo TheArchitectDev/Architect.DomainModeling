@@ -1,4 +1,4 @@
-﻿using Architect.DomainModeling.Tests.DummyBuilderTestTypes;
+using Architect.DomainModeling.Tests.DummyBuilderTestTypes;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests

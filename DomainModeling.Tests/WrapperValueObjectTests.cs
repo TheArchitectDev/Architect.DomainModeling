@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
@@ -413,6 +413,28 @@ namespace Architect.DomainModeling.Tests
 	// Use a namespace, since our source generators dislike nested types
 	namespace WrapperValueObjectTestTypes
 	{
+		// Should compile in spite of already consisting of two partials
+		[SourceGenerated]
+		public sealed partial class AlreadyPartial : WrapperValueObject<int>
+		{
+		}
+
+		// Should compile in spite of already consisting of two partials
+		public sealed partial class AlreadyPartial : WrapperValueObject<int>
+		{
+		}
+
+		// Should be recognized in spite of the SourceGeneratedAttribute and the base class to be defined on different partials
+		[SourceGenerated]
+		public sealed partial class OtherAlreadyPartial
+		{
+		}
+
+		// Should be recognized in spite of the SourceGeneratedAttribute and the base class to be defined on different partials
+		public sealed partial class OtherAlreadyPartial : WrapperValueObject<int>
+		{
+		}
+
 		[SourceGenerated]
 		public sealed partial class IntValue : WrapperValueObject<int>
 		{
