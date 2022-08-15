@@ -18,13 +18,16 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<VersionPrefix>1.0.3</VersionPrefix>
+		<VersionPrefix>1.1.0</VersionPrefix>
 		<Description>
 A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
 https://github.com/TheArchitectDev/Architect.DomainModeling
 
 Release notes:
+
+1.1.0:
+- Semi-breaking: Generated types no longer add [Serializable] attribute, since there would be no way to remove it.
 
 1.0.3:
 - Improved performance by using incremental generators.

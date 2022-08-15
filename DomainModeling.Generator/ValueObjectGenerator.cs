@@ -133,9 +133,6 @@ public class ValueObjectGenerator : SourceGenerator
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-		existingComponents |= ValueObjectTypeComponents.SerializableAttribute.If(type.GetAttributes().Any(attribute =>
-			attribute.AttributeClass?.IsType<SerializableAttribute>() == true));
-
 		existingComponents |= ValueObjectTypeComponents.StringComparison.If(members.Any(member =>
 			member.Name == "StringComparison" && member.IsOverride));
 
@@ -248,10 +245,6 @@ using {Constants.DomainModelingNamespace};
 
 namespace {containingNamespace}
 {{
-	{(existingComponents.HasFlags(ValueObjectTypeComponents.SerializableAttribute) ? "/*" : "")}
-	[Serializable]
-	{(existingComponents.HasFlags(ValueObjectTypeComponents.SerializableAttribute) ? "*/" : "")}
-
 	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record" : "class")} {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "/*" : "")}
@@ -377,8 +370,7 @@ namespace {containingNamespace}
 		LessThanOperator = 1 << 10,
 		GreaterEqualsOperator = 1 << 11,
 		LessEqualsOperator = 1 << 12,
-		SerializableAttribute = 1 << 13,
-		StringComparison = 1 << 14,
+		StringComparison = 1 << 13,
 	}
 
 	private sealed record Generatable : IGeneratable
