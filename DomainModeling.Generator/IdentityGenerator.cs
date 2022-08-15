@@ -196,9 +196,6 @@ public class IdentityGenerator : SourceGenerator
 					: method.ReturnType.IsType(nameof(Nullable<int>), "System") && method.ReturnType.HasSingleGenericTypeArgument(underlyingType)) &&
 				method.Parameters[0].Type.IsType(nameof(Nullable<int>), "System") && method.Parameters[0].Type.HasSingleGenericTypeArgument(type)));
 
-			existingComponents |= IdTypeComponents.SerializableAttribute.If(type.GetAttributes().Any(attribute =>
-				attribute.AttributeClass?.IsType<SerializableAttribute>() == true));
-
 			existingComponents |= IdTypeComponents.SystemTextJsonConverter.If(type.GetAttributes().Any(attribute =>
 				attribute.AttributeClass?.IsType("JsonConverterAttribute", "System.Text.Json.Serialization") == true));
 
@@ -295,11 +292,6 @@ using {Constants.DomainModelingNamespace};
 
 namespace {containingNamespace}
 {{
-	{summary}
-	{(existingComponents.HasFlags(IdTypeComponents.SerializableAttribute) ? "/*" : "")}
-	[Serializable]
-	{(existingComponents.HasFlags(IdTypeComponents.SerializableAttribute) ? "*/" : "")}
-
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
 	[System.Text.Json.Serialization.JsonConverter(typeof({idTypeName}.JsonConverter))]
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
@@ -492,10 +484,9 @@ namespace {containingNamespace}
 		ConvertFromOperator = 1 << 14,
 		NullableConvertToOperator = 1 << 15,
 		NullableConvertFromOperator = 1 << 16,
-		SerializableAttribute = 1 << 17,
-		NewtonsoftJsonConverter = 1 << 18,
-		SystemTextJsonConverter = 1 << 19,
-		StringComparison = 1 << 20,
+		NewtonsoftJsonConverter = 1 << 17,
+		SystemTextJsonConverter = 1 << 18,
+		StringComparison = 1 << 19,
 	}
 
 	private sealed record Generatable : IGeneratable
