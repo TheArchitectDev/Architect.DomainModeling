@@ -474,6 +474,9 @@ internal static class TypeSymbolExtensions
 	{
 		// DO NOT REORDER
 
+		// Not yet source-generated
+		if (typeSymbol.TypeKind == TypeKind.Error) return $"Equals(this.{memberName}, other.{memberName})";
+
 		if (typeSymbol.IsType<string>()) return String.Format(stringVariant, memberName);
 
 		if (typeSymbol.IsType("Memory", "System", generic: true)) return $"MemoryExtensions.SequenceEqual(this.{memberName}.Span, other.{memberName}.Span)";
@@ -523,6 +526,9 @@ internal static class TypeSymbolExtensions
 	public static string CreateComparisonExpression(this ITypeSymbol typeSymbol, string memberName, string stringVariant = "String.Compare(this.{0}, other.{0}, StringComparison.Ordinal)")
 	{
 		// DO NOT REORDER
+
+		// Not yet source-generated
+		if (typeSymbol.TypeKind == TypeKind.Error) return $"Compare(this.{memberName}, other.{memberName})";
 
 		// Collections have not been implemented, as we do not generate CompareTo() if any data member is not IComparable (as is the case for collections)
 
