@@ -28,6 +28,7 @@ Release notes:
 
 1.1.0:
 - Semi-breaking: Generated types no longer add [Serializable] attribute, since there would be no way to remove it.
+- Fixed a compile-time bug where the source generator for ValueObjects would create non-compiling equality/comparisons for properties of types created solely by source generators.
 
 1.0.3:
 - Improved performance by using incremental generators.

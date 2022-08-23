@@ -286,6 +286,15 @@ namespace {containingNamespace}
 		}}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsMethod) ? " */" : "")}
 
+		/// <summary>
+		/// Provides type inference when comparing types that are completed source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
+		/// </summary>
+		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+		private static bool Equals<T>(T left, T right)
+		{{
+			return EqualityComparer<T>.Default.Equals(left, right);
+		}}
+
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "/*" : "")}
 		{(isComparable ? "" : "/*")}
 		// This method is generated only if the ValueObject implements IComparable<T> against its own type and each data member implements IComparable<T> against its own type
@@ -294,6 +303,15 @@ namespace {containingNamespace}
 			if (other is null) return +1;
 
 			{compareToBodyIfInstanceNonNull}
+		}}
+
+		/// <summary>
+		/// Provides type inference when comparing types that are completed source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
+		/// </summary>
+		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+		private static int Compare<T>(T left, T right)
+		{{
+			return Comparer<T>.Default.Compare(left, right);
 		}}
 		{(isComparable ? "" : "*/")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "*/" : "")}
