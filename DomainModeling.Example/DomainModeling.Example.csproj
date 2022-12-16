@@ -5,17 +5,10 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Example</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Example</RootNamespace>
-		<IsPackable>False</IsPackable>
-	</PropertyGroup>
-
-	<PropertyGroup>
-		<!-- CA1822: Instance member does not access instance data and can be marked as static -->
-		<!-- CS1573: Undocumented public symbol while -doc compiler option is used -->
-		<!-- CS1591: Missing XML comment for publicly visible type -->
-		<NoWarn>CA1822,CS1573,CS1591</NoWarn>
-		<LangVersion>10</LangVersion>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
+		<IsPackable>False</IsPackable>
+		<IsTrimmable>True</IsTrimmable>
 	</PropertyGroup>
 
 	<ItemGroup>

@@ -1,4 +1,4 @@
-﻿using Xunit;
+using Xunit;
 
 namespace Architect.DomainModeling.Tests.Entities;
 
@@ -116,6 +116,15 @@ public class EntityTests
 		Assert.Equal(one, one);
 		Assert.Equal(two, two);
 		Assert.Equal(expectedResult, one.Equals(two));
+	}
+
+	[Fact]
+	public void Equals_WithSameIdTypeAndValueButDifferentEntityType_ShouldEquateAsExpected()
+	{
+		var one = new StringIdEntity("1");
+		var two = new OtherStringIdEntity("1");
+
+		Assert.NotEqual((Entity<string>)one, two);
 	}
 
 	[Theory]
@@ -263,6 +272,14 @@ public class EntityTests
 		}
 
 		public bool HasDefaultId() => Equals(this.Id, DefaultId);
+	}
+
+	private sealed class OtherStringIdEntity : Entity<string>
+	{
+		public OtherStringIdEntity(string id)
+			: base(id)
+		{
+		}
 	}
 
 	private sealed class StringWrappingIdEntity : Entity<StringBasedId, string>

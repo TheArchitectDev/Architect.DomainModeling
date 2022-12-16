@@ -88,8 +88,9 @@ public abstract class Entity<TId> : Entity, IEquatable<Entity<TId>?>
 
 		// Either we must be the same reference
 		// Or we must have non-null, non-default, equal IDs (i.e. two entities with a default ID are not automatically considered the same entity)
+		// We must also be of the same type, to avoid different subtypes using the same TId (an antipattern) from providing false positives
 		return ReferenceEquals(this, other) ||
-			(this.Id is not null && !this.Id.Equals(DefaultId) && this.Id.Equals(other.Id));
+			(this.Id is not null && !this.Id.Equals(DefaultId) && this.Id.Equals(other.Id) && this.GetType() == other.GetType());
 	}
 }
 

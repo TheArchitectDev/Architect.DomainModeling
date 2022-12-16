@@ -4,27 +4,25 @@
 		<TargetFrameworks>net6.0;net5.0</TargetFrameworks>
 		<AssemblyName>Architect.DomainModeling</AssemblyName>
 		<RootNamespace>Architect.DomainModeling</RootNamespace>
-	</PropertyGroup>
-
-	<PropertyGroup>
-		<!-- CA1822: Instance member does not access instance data and can be marked as static -->
-		<!-- CS1573: Undocumented public symbol while -doc compiler option is used -->
-		<!-- CS1591: Missing XML comment for publicly visible type -->
-		<NoWarn>CA1822,CS1573,CS1591</NoWarn>
-		<LangVersion>10</LangVersion>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<LangVersion>10</LangVersion>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<IsTrimmable>True</IsTrimmable>
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<VersionPrefix>1.0.3</VersionPrefix>
+		<VersionPrefix>1.1.0</VersionPrefix>
 		<Description>
 A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
 https://github.com/TheArchitectDev/Architect.DomainModeling
 
 Release notes:
+
+1.1.0:
+- Added support for trimming.
+- Fixed a potential bug in Entity&lt;TId&gt;, where entities of different types could be considered equal if they used the same TId (which they should not).
 
 1.0.3:
 - Improved performance by using incremental generators.
