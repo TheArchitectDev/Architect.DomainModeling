@@ -261,9 +261,7 @@ public class IdentityGenerator : SourceGenerator
 			}
 		}
 
-		const string nullInputAnnotation = "[AllowNull] ";
-		const string nullPropertyAnnotation = "[AllowNull, MaybeNull]";
-		const string mayReturnNullAnnotation = "[return: MaybeNull]";
+		var isToStringNullable = underlyingType.IsToStringNullable();
 
 		var summary = entityTypeName is null ? null : $@"
 	/// <summary>
@@ -275,9 +273,9 @@ public class IdentityGenerator : SourceGenerator
 		// This allows strings to be used as a primitive without any null troubles
 		// Conversions are carefree this way, and null inputs simply get converted to empty string equivalents, which tend not to match any valid ID
 		var isNonNullString = underlyingType.IsType<string>() && underlyingType.NullableAnnotation != NullableAnnotation.Annotated;
-		var nonNullStringSummary = !isNonNullString ? null : @"
+		var nonNullStringSummary = !isNonNullString ? null : $@"
 		/// <summary>
-		/// If the current object is a default instance or was constructed with a null value, this property produces an empty string.
+		/// A default <see cref=""{idTypeName}""/> instance always produces an empty string, not null.
 		/// </summary>";
 
 		// JavaScript (and arguably, by extent, JSON) have insufficient numeric capacity to properly hold the longer numeric types
@@ -292,6 +290,8 @@ using {Constants.DomainModelingNamespace};
 
 namespace {containingNamespace}
 {{
+	{summary}
+
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
 	[System.Text.Json.Serialization.JsonConverter(typeof({idTypeName}.JsonConverter))]
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
@@ -305,13 +305,13 @@ namespace {containingNamespace}
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
 		{nonNullStringSummary}
-		{(underlyingType.IsValueType ? "" : isNonNullString ? "[NotNull]" : nullPropertyAnnotation)}
+		{(underlyingType.IsValueType ? "" : isNonNullString ? "[NotNull]" : "[AllowNull, MaybeNull]")}
 		public {underlyingTypeFullyQualifiedName} Value {(isNonNullString ? @"=> this._value ?? """";" : "{ get; }")}
 		{(isNonNullString ? "private readonly string _value;" : "")}
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.Constructor) ? "/*" : "")}
-		public {idTypeName}({(underlyingType.IsValueType ? "" : nullInputAnnotation)}{underlyingTypeFullyQualifiedName} value)
+		public {idTypeName}({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeFullyQualifiedName} value)
 		{{
 			{(isNonNullString ? @"this._value = value ?? """";" : "this.Value = value;")}
 		}}
@@ -323,8 +323,8 @@ namespace {containingNamespace}
 		: "")}
 		{(existingComponents.HasFlags(IdTypeComponents.StringComparison) ? "*/" : "")}
 
-		{(existingComponents.HasFlags(IdTypeComponents.ToStringOverride) ? "/*" : "")}
-		{(isNonNullString ? "" : "[return: MaybeNull]")}
+		{(existingComponents.HasFlags(IdTypeComponents.ToStringOverride) ? "/*" : "")}{nonNullStringSummary}
+		{(isNonNullString || !isToStringNullable ? "[return: NotNull]" : "[return: MaybeNull]")}
 		public override string ToString()
 		{{
 			return {underlyingType.CreateStringExpression("Value")};
@@ -382,10 +382,11 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.LessEqualsOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "/*" : "")}
-		public static implicit operator {idTypeName}({(underlyingType.IsValueType ? "" : nullInputAnnotation)}{underlyingTypeFullyQualifiedName} value) => new {idTypeName}(value);
+		public static implicit operator {idTypeName}({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeFullyQualifiedName} value) => new {idTypeName}(value);
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "/*" : "")}
-		{(underlyingType.IsValueType || isNonNullString ? "" : mayReturnNullAnnotation)}
+
+		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "/*" : "")}{nonNullStringSummary}
+		{(underlyingType.IsValueType ? "" : isNonNullString ? "[return: NotNull]" : "[return: MaybeNull]")}
 		public static implicit operator {underlyingTypeFullyQualifiedName}({idTypeName} id) => id.Value;
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "*/" : "")}
 
@@ -393,7 +394,8 @@ namespace {containingNamespace}
 		[return: MaybeNull, NotNullIfNotNull(""value"")]
 		public static implicit operator {idTypeName}?({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")} value) => value is null ? ({idTypeName}?)null : new {idTypeName}(value{(underlyingType.IsValueType ? ".Value" : "")});
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "/*" : "")}
+
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "/*" : "")}{nonNullStringSummary}
 		{(underlyingType.IsValueType || isNonNullString ? @"[return: MaybeNull, NotNullIfNotNull(""id"")]" : "[return: MaybeNull]")}
 		public static implicit operator {underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")}({idTypeName}? id) => id?.Value;
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "*/" : "")}

@@ -24,6 +24,10 @@ Release notes:
 - Semi-breaking: Generated types no longer add [Serializable] attribute, since there would be no way to remove it.
 - Fixed a compile-time bug where the source generator for ValueObjects would create non-compiling equality/comparisons for properties of types created solely by source generators.
 - Fixed a potential bug in Entity&lt;TId&gt;, where entities of different types could be considered equal if they used the same TId (which they should not).
+- Identity and WrapperValueObject&lt;TValue&gt; types now honor the underlying type's nullability in ToString().
+- Added some missing nullability attributes.
+- Identity types generated for Entity&lt;TId, TIdPrimitive&gt; now have a summary.
+- Identity types wrapping a non-nullable string now explain the non-nullness for default struct instances, in summaries for ToString(), Value, and convert-to-string operators.
 - Added support for trimming.
 
 1.0.3:

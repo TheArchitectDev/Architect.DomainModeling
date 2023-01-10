@@ -421,6 +421,21 @@ internal static class TypeSymbolExtensions
 	}
 
 	/// <summary>
+	/// Returns whether the sensible code for <see cref="Object.ToString"/> might return null for the given type, according to its annotations or lack thereof.
+	/// </summary>
+	public static bool IsToStringNullable(this ITypeSymbol typeSymbol)
+	{
+		if (typeSymbol.IsNullable()) return true;
+
+		var nullableAnnotation = typeSymbol.IsType<string>()
+			? typeSymbol.NullableAnnotation
+			: typeSymbol.GetMembers(nameof(Object.ToString)).OfType<IMethodSymbol>().SingleOrDefault(method => !method.IsGenericMethod && method.Parameters.Length == 0)?.ReturnType.NullableAnnotation
+				?? NullableAnnotation.None; // Could inspect base members, but that is going a bit far
+
+		return nullableAnnotation != NullableAnnotation.NotAnnotated;
+	}
+
+	/// <summary>
 	/// Returns the code for a hash code expression of the given <paramref name="memberName"/> of "this".
 	/// </summary>
 	/// <param name="memberName">The member name. For example, "Value" leads to a hash code of "this.Value".</param>
