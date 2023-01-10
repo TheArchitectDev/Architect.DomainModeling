@@ -30,6 +30,7 @@ Release notes:
 - Identity types generated for Entity&lt;TId, TIdPrimitive&gt; now have a summary.
 - Identity types wrapping a non-nullable string now explain the non-nullness for default struct instances, in summaries for ToString(), Value, and convert-to-string operators.
 - Added support for trimming.
+- Minor performance optimizations.
 
 1.0.3:
 - Improved performance by using incremental generators.
