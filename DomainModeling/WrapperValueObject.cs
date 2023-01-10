@@ -1,4 +1,4 @@
-﻿namespace Architect.DomainModeling;
+namespace Architect.DomainModeling;
 
 /// <summary>
 /// <para>

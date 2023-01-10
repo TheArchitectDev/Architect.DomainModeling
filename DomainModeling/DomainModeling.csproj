@@ -21,8 +21,10 @@ https://github.com/TheArchitectDev/Architect.DomainModeling
 Release notes:
 
 1.1.0:
-- Added support for trimming.
+- Semi-breaking: Generated types no longer add [Serializable] attribute, since there would be no way to remove it.
+- Fixed a compile-time bug where the source generator for ValueObjects would create non-compiling equality/comparisons for properties of types created solely by source generators.
 - Fixed a potential bug in Entity&lt;TId&gt;, where entities of different types could be considered equal if they used the same TId (which they should not).
+- Added support for trimming.
 
 1.0.3:
 - Improved performance by using incremental generators.

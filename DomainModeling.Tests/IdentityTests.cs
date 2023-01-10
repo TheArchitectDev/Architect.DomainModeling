@@ -486,7 +486,6 @@ namespace Architect.DomainModeling.Tests
 		/// </summary>
 		[Obsolete("Should merely compile.", error: true)]
 		[SourceGenerated]
-		[Serializable]
 		[System.Text.Json.Serialization.JsonConverter(typeof(JsonConverter))]
 		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftJsonConverter))]
 		internal readonly partial struct FullySelfImplementedIdentity : IIdentity<int>, IEquatable<FullySelfImplementedIdentity>, IComparable<FullySelfImplementedIdentity>

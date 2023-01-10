@@ -133,9 +133,6 @@ public class ValueObjectGenerator : SourceGenerator
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-		existingComponents |= ValueObjectTypeComponents.SerializableAttribute.If(type.GetAttributes().Any(attribute =>
-			attribute.AttributeClass?.IsType<SerializableAttribute>() == true));
-
 		existingComponents |= ValueObjectTypeComponents.StringComparison.If(members.Any(member =>
 			member.Name == "StringComparison" && member.IsOverride));
 
@@ -248,10 +245,6 @@ using {Constants.DomainModelingNamespace};
 
 namespace {containingNamespace}
 {{
-	{(existingComponents.HasFlags(ValueObjectTypeComponents.SerializableAttribute) ? "/*" : "")}
-	[Serializable]
-	{(existingComponents.HasFlags(ValueObjectTypeComponents.SerializableAttribute) ? "*/" : "")}
-
 	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record" : "class")} {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "/*" : "")}
@@ -293,6 +286,15 @@ namespace {containingNamespace}
 		}}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsMethod) ? " */" : "")}
 
+		/// <summary>
+		/// Provides type inference when comparing types that are completed source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
+		/// </summary>
+		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+		private static bool Equals<T>(T left, T right)
+		{{
+			return EqualityComparer<T>.Default.Equals(left, right);
+		}}
+
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "/*" : "")}
 		{(isComparable ? "" : "/*")}
 		// This method is generated only if the ValueObject implements IComparable<T> against its own type and each data member implements IComparable<T> against its own type
@@ -301,6 +303,15 @@ namespace {containingNamespace}
 			if (other is null) return +1;
 
 			{compareToBodyIfInstanceNonNull}
+		}}
+
+		/// <summary>
+		/// Provides type inference when comparing types that are completed source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
+		/// </summary>
+		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+		private static int Compare<T>(T left, T right)
+		{{
+			return Comparer<T>.Default.Compare(left, right);
 		}}
 		{(isComparable ? "" : "*/")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "*/" : "")}
@@ -377,8 +388,7 @@ namespace {containingNamespace}
 		LessThanOperator = 1 << 10,
 		GreaterEqualsOperator = 1 << 11,
 		LessEqualsOperator = 1 << 12,
-		SerializableAttribute = 1 << 13,
-		StringComparison = 1 << 14,
+		StringComparison = 1 << 13,
 	}
 
 	private sealed record Generatable : IGeneratable

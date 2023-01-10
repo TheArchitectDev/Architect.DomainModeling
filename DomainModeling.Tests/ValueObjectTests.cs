@@ -973,6 +973,32 @@ namespace Architect.DomainModeling.Tests
 		{
 		}
 
+		/// <summary>
+		/// This once caused build errors, before a bug fix handled properties of fully source-generated types.
+		/// </summary>
+		[SourceGenerated]
+		public sealed partial class ValueObjectWithGeneratedIdentity : ValueObject // Unfortunately we cannot get IComparable<T>, since the source generator will only implement it if all properties are KNOWN to be IComparable<T> to themselves
+		{
+			/// <summary>
+			/// This type is only fleshed out AFTER source generators have run.
+			/// During source generation, its properties are unknown, and thus our own source generator cannot know whether it is a value type or a reference type.
+			/// </summary>
+			public FullyGeneratedId SomeValue { get; }
+
+			public ValueObjectWithGeneratedIdentity(FullyGeneratedId someValue)
+			{
+				this.SomeValue = someValue;
+			}
+
+			public sealed class Entity : Entity<FullyGeneratedId, ulong>
+			{
+				public Entity()
+					: base(default)
+				{
+				}
+			}
+		}
+
 		[SourceGenerated]
 		public sealed partial class IntValue : ValueObject
 		{
