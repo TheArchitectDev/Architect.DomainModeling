@@ -604,8 +604,8 @@ internal static class TypeSymbolExtensions
 
 			if (typeSymbol.IsType<string>()) return $@"""{symbolName.ToTitleCase()}""";
 			if (typeSymbol.IsType<decimal>() || (typeSymbol.IsNullable(out var underlyingType) && underlyingType.IsType<decimal>())) return $"1m";
-			if (typeSymbol.IsType<DateTime>() || (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType<DateTime>())) return $"new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Local)";
-			if (typeSymbol.IsType<DateTimeOffset>() || (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType<DateTimeOffset>())) return $"new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Local)";
+			if (typeSymbol.IsType<DateTime>() || (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType<DateTime>())) return $"new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Utc)";
+			if (typeSymbol.IsType<DateTimeOffset>() || (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType<DateTimeOffset>())) return $"new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Utc)";
 			if (typeSymbol.IsType("DateOnly", "System") || (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType("DateOnly", "System"))) return $"new DateOnly(2000, 01, 01)";
 			if (typeSymbol.IsType("TimeOnly", "System") || (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType("TimeOnly", "System"))) return $"new TimeOnly(01, 00, 00)";
 			if (typeSymbol.TypeKind == TypeKind.Enum) return typeSymbol.GetMembers().OfType<IFieldSymbol>().Any() ? $"{typeSymbol}.{typeSymbol.GetMembers().OfType<IFieldSymbol>().FirstOrDefault()!.Name}" : $"default({typeSymbol})";

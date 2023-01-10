@@ -10,7 +10,7 @@ namespace Architect.DomainModeling.Tests
 		{
 			var result = new TestEntityDummyBuilder().Build();
 
-			Assert.Equal(new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Local), result.CreationDateTime);
+			Assert.Equal(new DateTime(2000, 01, 01, 01, 00, 00, DateTimeKind.Local), result.CreationDateTime);
 			Assert.Equal(1, result.Count);
 			Assert.Equal("Currency", result.Amount.Currency);
 			Assert.Equal(1m, result.Amount.Amount.Value);
@@ -32,11 +32,11 @@ namespace Architect.DomainModeling.Tests
 				.WithNotAProperty("Whatever")
 				.Build();
 
-			Assert.Equal(new DateTime(3000, 01, 01, 00, 00, 00, DateTimeKind.Local), result.CreationDateTime);
+			Assert.Equal(new DateTime(3000, 01, 01, 01, 00, 00, DateTimeKind.Local), result.CreationDateTime);
 			Assert.Equal(DateTimeKind.Local, result.CreationDateTime.Kind);
 			Assert.Equal(new DateOnly(1970, 01, 01), result.CreationDate);
 			Assert.Equal(new TimeOnly(02, 03, 04), result.CreationTime);
-			Assert.Equal(new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Local), result.ModificationDateTime); // Generated default
+			Assert.Equal(new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Utc), result.ModificationDateTime); // Generated default
 			Assert.Equal(7, result.Count);
 			Assert.Equal("OtherCurrency", result.Amount.Currency);
 			Assert.Equal(1.23m, result.Amount.Amount.Value);
