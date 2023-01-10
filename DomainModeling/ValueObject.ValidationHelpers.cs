@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -93,7 +93,7 @@ public abstract partial class ValueObject
 			uint chr = text[i];
 
 			if (CharIsOutsideRange(chr, '0', '9') & // Not 0-9
-				CharIsOutsideRange(chr | 0b100000U, 'a', 'z')) // Not A-Z in any casing (setting the 6th bits changes uppercase into lowercase)
+				CharIsOutsideRange(chr | 0b100000U, 'a', 'z')) // Not A-Z in any casing (setting the 6th bit changes uppercase into lowercase)
 			{
 				return true;
 			}
@@ -154,7 +154,7 @@ public abstract partial class ValueObject
 			uint chr = text[i];
 
 			if (CharIsOutsideRange(chr, '0', '9') & // Not 0-9
-				CharIsOutsideRange(chr | 0b100000U, 'a', 'z') & // Not A-Z in any casing (setting the 6th bits changes uppercase into lowercase)
+				CharIsOutsideRange(chr | 0b100000U, 'a', 'z') & // Not A-Z in any casing (setting the 6th bit changes uppercase into lowercase)
 				chr != '_') // Not the underscore
 			{
 				return true;
