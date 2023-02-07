@@ -36,6 +36,7 @@ Release notes:
 - Improved performance by using incremental generators.
 - Made it easier to navigate into the right file, thanks to a comment just before the generated type definition.
 - Generated source now uses the common .g.cs suffix.
+- DummyBuilderGenerator: WrapperValueObject&lt;string&gt; and IIdentity&lt;string&gt; constructor params now get a string value equal to the param name instead of the type name (e.g. "FirstName" and "LastName" instead of "ProperName" and "ProperName").
 - Fixed a compile-time bug where [Wrapper]ValueObject inheritance combined with the IIdentity interface would cause an unwarranted warning.
 - Fixed a compile-time bug where the source generator would fail to acknowledge a type with the SourceGeneratedAttribute on one partial and the required base type on another.
 - Fixed a compile-time bug where the source generator would crash if the partial to be extended already consisted of multiple partials.

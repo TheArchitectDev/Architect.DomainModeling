@@ -41,6 +41,15 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("OtherCurrency", result.Amount.Currency);
 			Assert.Equal(1.23m, result.Amount.Amount.Value);
 		}
+
+		[Fact]
+		public void Build_WithStringWrapperValueObject_ShouldUseEntityConstructorParameterName()
+		{
+			var result = new StringWrapperTestingDummyBuilder().Build();
+
+			Assert.Equal("FirstName", result.FirstName.Value); // Generated wrapper
+			Assert.Equal("LastName", result.LastName.Value); // Manual wrapper
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -143,6 +152,44 @@ namespace Architect.DomainModeling.Tests
 		[Obsolete("Should merely compile.", error: true)]
 		[SourceGenerated]
 		public sealed partial class EmptyTypeDummyBuilder : DummyBuilder<EmptyType, EmptyTypeDummyBuilder>
+		{
+		}
+
+		[SourceGenerated]
+		public sealed partial class StringWrapper : WrapperValueObject<string>
+		{
+			protected override StringComparison StringComparison => StringComparison.Ordinal;
+		}
+
+		public sealed class ManualStringWrapper : WrapperValueObject<string>
+		{
+			protected override StringComparison StringComparison => StringComparison.Ordinal;
+			public override string ToString() =>  this.Value;
+
+			public string Value { get; }
+
+			public ManualStringWrapper(string value)
+			{
+				this.Value = value ?? throw new ArgumentNullException(nameof(value));
+			}
+		}
+
+		[SourceGenerated]
+		public sealed partial class StringWrapperTestingEntity : Entity<int>
+		{
+			public StringWrapper FirstName { get; }
+			public ManualStringWrapper LastName { get; }
+
+			public StringWrapperTestingEntity(StringWrapper firstName, ManualStringWrapper lastName)
+				: base(default)
+			{
+				this.FirstName = firstName;
+				this.LastName = lastName;
+			}
+		}
+
+		[SourceGenerated]
+		public sealed partial class StringWrapperTestingDummyBuilder : DummyBuilder<StringWrapperTestingEntity, StringWrapperTestingDummyBuilder>
 		{
 		}
 	}
