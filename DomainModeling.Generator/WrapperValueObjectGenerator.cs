@@ -197,6 +197,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		var underlyingType = type.BaseType!.TypeArguments[0];
 		var underlyingTypeName = generatable.UnderlyingTypeName;
 		var isComparable = generatable.IsComparable;
+		var isToStringNullable = underlyingType.IsToStringNullable();
 		var existingComponents = generatable.ExistingComponents;
 
 		var source = $@"
@@ -234,7 +235,7 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.Constructor) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
-		[return: MaybeNull]
+		{(!isToStringNullable ? "[return: NotNull]" : "[return: MaybeNull]")}
 		public sealed override string ToString()
 		{{
 			// Null-safety protects instances from FormatterServices.GetUninitializedObject()
@@ -306,20 +307,23 @@ namespace {containingNamespace}
 		#nullable enable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
 
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "/*" : "")}
-		{(underlyingType.IsValueType ? "" : @"[return: MaybeNull, NotNullIfNotNull(""value"")]")}
+		{(underlyingType.IsValueType ? "[return: NotNull]" : @"[return: MaybeNull, NotNullIfNotNull(""value"")]")}
 		public static explicit operator {typeName}({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeName} value) => {(underlyingType.IsValueType ? "" : "value is null ? null : ")}new {typeName}(value);
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "*/" : "")}
+
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "/*" : "")}
 		{(underlyingType.IsValueType ? "" : @"[return: MaybeNull, NotNullIfNotNull(""instance"")]")}
-		public static implicit operator {underlyingTypeName}({(underlyingType.IsValueType ? "[DisallowNull]" : "[AllowNull] ")}{typeName} instance) => instance{(underlyingType.IsValueType ? "" : "?")}.Value;
+		public static implicit operator {underlyingTypeName}({(underlyingType.IsValueType ? "[DisallowNull] " : "[AllowNull] ")}{typeName} instance) => instance{(underlyingType.IsValueType ? "" : "?")}.Value;
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "*/" : "")}
 
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "/*" : "")}
 		{(underlyingType.IsValueType ? @"[return: MaybeNull, NotNullIfNotNull(""value"")]" : "")}
 		{(underlyingType.IsValueType ? $"public static explicit operator {typeName}({underlyingTypeName}? value) => value is null ? null : new {typeName}(value.Value);" : "")}
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "*/" : "")}
+
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "/*" : "")}
-		{(underlyingType.IsValueType ? $"public static implicit operator {underlyingTypeName}?([AllowNull] {typeName} id) => id?.Value;" : "")}
+		{(underlyingType.IsValueType ? @"[return: MaybeNull, NotNullIfNotNull(""instance"")]" : "")}
+		{(underlyingType.IsValueType ? $"public static implicit operator {underlyingTypeName}?([AllowNull] {typeName} instance) => instance?.Value;" : "")}
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "/*" : "")}

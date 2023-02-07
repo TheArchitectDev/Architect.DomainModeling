@@ -535,7 +535,7 @@ namespace Architect.DomainModeling.Tests
 			public static implicit operator int(FullySelfImplementedIdentity id) => id.Value;
 
 			[return: NotNullIfNotNull("value")]
-			public static implicit operator FullySelfImplementedIdentity?(int? value) => value is null ? (FullySelfImplementedIdentity?)null : new FullySelfImplementedIdentity(value.Value);
+			public static implicit operator FullySelfImplementedIdentity?(int? value) => value is null ? null : new FullySelfImplementedIdentity(value.Value);
 			[return: NotNullIfNotNull("id")]
 			public static implicit operator int?(FullySelfImplementedIdentity? id) => id?.Value;
 

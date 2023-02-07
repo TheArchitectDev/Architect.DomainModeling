@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Architect.DomainModeling.Comparisons;
@@ -111,10 +111,12 @@ public static class EnumerableComparer
 		// Local function that compares indexable collections
 		static bool IndexableEquals(IList<TElement> leftIndexable, IList<TElement> rightIndexable)
 		{
-			if (leftIndexable.Count != rightIndexable.Count) return false;
+			var leftIndexableCount = leftIndexable.Count;
+
+			if (leftIndexableCount != rightIndexable.Count) return false;
 
 			// EqualityComparer<T>.Default helps avoid an IEquatable<T> constraint yet still gets optimized: https://github.com/dotnet/coreclr/pull/14125
-			for (var i = 0; i < leftIndexable.Count; i++)
+			for (var i = 0; i < leftIndexableCount; i++)
 				if (!EqualityComparer<TElement>.Default.Equals(leftIndexable[i], rightIndexable[i]))
 					return false;
 

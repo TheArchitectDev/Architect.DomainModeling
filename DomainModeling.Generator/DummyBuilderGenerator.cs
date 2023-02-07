@@ -215,13 +215,13 @@ public class DummyBuilderGenerator : SourceGenerator
 				{
 					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
 						componentBuilder.Append("// ");
-					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal));");
+					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));");
 				}
 				if (param.Type.IsNullable(out var underlyingType) && (underlyingType.IsType<DateTime>() || underlyingType.IsType<DateTimeOffset>()))
 				{
 					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
 						componentBuilder.Append("// ");
-					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal));");
+					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));");
 				}
 
 				if (param.Type.IsType("DateOnly", "System"))

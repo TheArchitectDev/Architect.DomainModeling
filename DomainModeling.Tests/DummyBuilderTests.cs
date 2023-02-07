@@ -10,7 +10,7 @@ namespace Architect.DomainModeling.Tests
 		{
 			var result = new TestEntityDummyBuilder().Build();
 
-			Assert.Equal(new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Local), result.CreationDateTime);
+			Assert.Equal(new DateTime(2000, 01, 01, 01, 00, 00, DateTimeKind.Local), result.CreationDateTime);
 			Assert.Equal(1, result.Count);
 			Assert.Equal("Currency", result.Amount.Currency);
 			Assert.Equal(1m, result.Amount.Amount.Value);
@@ -32,14 +32,23 @@ namespace Architect.DomainModeling.Tests
 				.WithNotAProperty("Whatever")
 				.Build();
 
-			Assert.Equal(new DateTime(3000, 01, 01, 00, 00, 00, DateTimeKind.Local), result.CreationDateTime);
+			Assert.Equal(new DateTime(3000, 01, 01, 01, 00, 00, DateTimeKind.Local), result.CreationDateTime);
 			Assert.Equal(DateTimeKind.Local, result.CreationDateTime.Kind);
 			Assert.Equal(new DateOnly(1970, 01, 01), result.CreationDate);
 			Assert.Equal(new TimeOnly(02, 03, 04), result.CreationTime);
-			Assert.Equal(new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Local), result.ModificationDateTime); // Generated default
+			Assert.Equal(new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Utc), result.ModificationDateTime); // Generated default
 			Assert.Equal(7, result.Count);
 			Assert.Equal("OtherCurrency", result.Amount.Currency);
 			Assert.Equal(1.23m, result.Amount.Amount.Value);
+		}
+
+		[Fact]
+		public void Build_WithStringWrapperValueObject_ShouldUseEntityConstructorParameterName()
+		{
+			var result = new StringWrapperTestingDummyBuilder().Build();
+
+			Assert.Equal("FirstName", result.FirstName.Value); // Generated wrapper
+			Assert.Equal("LastName", result.LastName.Value); // Manual wrapper
 		}
 	}
 
@@ -143,6 +152,44 @@ namespace Architect.DomainModeling.Tests
 		[Obsolete("Should merely compile.", error: true)]
 		[SourceGenerated]
 		public sealed partial class EmptyTypeDummyBuilder : DummyBuilder<EmptyType, EmptyTypeDummyBuilder>
+		{
+		}
+
+		[SourceGenerated]
+		public sealed partial class StringWrapper : WrapperValueObject<string>
+		{
+			protected override StringComparison StringComparison => StringComparison.Ordinal;
+		}
+
+		public sealed class ManualStringWrapper : WrapperValueObject<string>
+		{
+			protected override StringComparison StringComparison => StringComparison.Ordinal;
+			public override string ToString() =>  this.Value;
+
+			public string Value { get; }
+
+			public ManualStringWrapper(string value)
+			{
+				this.Value = value ?? throw new ArgumentNullException(nameof(value));
+			}
+		}
+
+		[SourceGenerated]
+		public sealed partial class StringWrapperTestingEntity : Entity<int>
+		{
+			public StringWrapper FirstName { get; }
+			public ManualStringWrapper LastName { get; }
+
+			public StringWrapperTestingEntity(StringWrapper firstName, ManualStringWrapper lastName)
+				: base(default)
+			{
+				this.FirstName = firstName;
+				this.LastName = lastName;
+			}
+		}
+
+		[SourceGenerated]
+		public sealed partial class StringWrapperTestingDummyBuilder : DummyBuilder<StringWrapperTestingEntity, StringWrapperTestingDummyBuilder>
 		{
 		}
 	}

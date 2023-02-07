@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Architect.DomainModeling.Comparisons;
 
@@ -54,10 +54,12 @@ public static class LookupComparer
 				// Fast path
 				if (leftGroup is IList<TElement> leftList && rightGroup is IList<TElement> rightList)
 				{
-					if (leftList.Count != rightList.Count) return false;
+					var leftListCount = leftList.Count;
+
+					if (leftListCount != rightList.Count) return false;
 
 					// EqualityComparer<T>.Default helps avoid an IEquatable<T> constraint yet still gets optimized: https://github.com/dotnet/coreclr/pull/14125
-					for (var i = 0; i < leftList.Count; i++)
+					for (var i = 0; i < leftListCount; i++)
 						if (!EqualityComparer<TElement>.Default.Equals(leftList[i], rightList[i]))
 							return false;
 				}
