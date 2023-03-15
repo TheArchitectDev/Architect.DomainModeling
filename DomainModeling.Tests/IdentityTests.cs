@@ -534,9 +534,9 @@ namespace Architect.DomainModeling.Tests
 			public static implicit operator FullySelfImplementedIdentity(int value) => new FullySelfImplementedIdentity(value);
 			public static implicit operator int(FullySelfImplementedIdentity id) => id.Value;
 
-			[return: NotNullIfNotNull("value")]
+			[return: NotNullIfNotNull(nameof(value))]
 			public static implicit operator FullySelfImplementedIdentity?(int? value) => value is null ? null : new FullySelfImplementedIdentity(value.Value);
-			[return: NotNullIfNotNull("id")]
+			[return: NotNullIfNotNull(nameof(id))]
 			public static implicit operator int?(FullySelfImplementedIdentity? id) => id?.Value;
 
 			private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<FullySelfImplementedIdentity>
