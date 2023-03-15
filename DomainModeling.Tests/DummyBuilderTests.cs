@@ -174,7 +174,6 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
 		public sealed partial class StringWrapperTestingEntity : Entity<int>
 		{
 			public StringWrapper FirstName { get; }

@@ -541,7 +541,7 @@ namespace Architect.DomainModeling.Tests
 			public static explicit operator FullySelfImplementedWrapperValueObject(int value) => new FullySelfImplementedWrapperValueObject(value);
 			public static implicit operator int([DisallowNull] FullySelfImplementedWrapperValueObject instance) => instance.Value;
 
-			[return: MaybeNull, NotNullIfNotNull("value")]
+			[return: MaybeNull, NotNullIfNotNull(nameof(value))]
 			public static explicit operator FullySelfImplementedWrapperValueObject(int? value) => value is null ? null : new FullySelfImplementedWrapperValueObject(value.Value);
 			public static implicit operator int?([AllowNull] FullySelfImplementedWrapperValueObject id) => id?.Value;
 
