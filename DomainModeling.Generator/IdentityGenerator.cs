@@ -186,13 +186,13 @@ public class IdentityGenerator : SourceGenerator
 				(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 				method.ReturnType.IsType(nameof(Nullable<int>), "System") && method.ReturnType.HasSingleGenericTypeArgument(type) &&
 				(underlyingType.IsReferenceType
-					? method.Parameters[0].Type.IsType(underlyingType.Name, underlyingType.ContainingNamespace.Name)
+					? method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)
 					: method.Parameters[0].Type.IsType(nameof(Nullable<int>), "System") && method.Parameters[0].Type.HasSingleGenericTypeArgument(underlyingType))));
 
 			existingComponents |= IdTypeComponents.NullableConvertFromOperator.If(members.Any(member =>
 				(member.Name == "op_Implicit" || member.Name == "op_Explicit") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 				(underlyingType.IsReferenceType
-					? method.ReturnType.IsType(underlyingType.Name, underlyingType.ContainingNamespace.Name)
+					? method.ReturnType.Equals(underlyingType, SymbolEqualityComparer.Default)
 					: method.ReturnType.IsType(nameof(Nullable<int>), "System") && method.ReturnType.HasSingleGenericTypeArgument(underlyingType)) &&
 				method.Parameters[0].Type.IsType(nameof(Nullable<int>), "System") && method.Parameters[0].Type.HasSingleGenericTypeArgument(type)));
 
@@ -279,14 +279,65 @@ public class IdentityGenerator : SourceGenerator
 		/// </summary>";
 
 		// JavaScript (and arguably, by extent, JSON) have insufficient numeric capacity to properly hold the longer numeric types
-		var underlyingTypeIsNumericUnsuitableForJson = underlyingType.IsType<decimal>() || underlyingType.IsType<ulong>() || underlyingType.IsType<long>() || underlyingType.IsType<System.Numerics.BigInteger>();
+		var underlyingTypeIsNumericUnsuitableForJson = underlyingType.IsType<decimal>() || underlyingType.IsType<ulong>() || underlyingType.IsType<long>() || underlyingType.IsType<System.Numerics.BigInteger>() ||
+			underlyingType.IsType("UInt128", "System") || underlyingType.IsType("In128", "System");
+		var stringFormatSpecifier = !underlyingTypeIsNumericUnsuitableForJson ? "default" : @"""0.#""";
 		var longNumericTypeComment = !underlyingTypeIsNumericUnsuitableForJson ? null : "// The longer numeric types are not JavaScript-safe, so treat them as strings";
+		var longNumericTypeParseStatement = !underlyingTypeIsNumericUnsuitableForJson ? null : $@"
+#if NET7_0_OR_GREATER
+				return reader.TokenType == System.Text.Json.JsonTokenType.String ? ({idTypeName})reader.GetParsedString<{underlyingType.ContainingNamespace}.{underlyingType.Name}>(System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})reader.Get{underlyingType.Name}();
+#else
+				return reader.TokenType == System.Text.Json.JsonTokenType.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(reader.GetString(), System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})reader.Get{underlyingType.Name}();
+#endif
+";
+		var longNumericTypeFormatStatement = !underlyingTypeIsNumericUnsuitableForJson ? null : $@"
+#if NET7_0_OR_GREATER
+				writer.WriteStringValue(value.Value.Format(stackalloc char[64], {stringFormatSpecifier}, System.Globalization.CultureInfo.InvariantCulture));
+#else
+				writer.WriteStringValue(value.Value.ToString({stringFormatSpecifier}, System.Globalization.CultureInfo.InvariantCulture));
+#endif
+";
+
+		string ? propertyNameParseStatement = null;
+		if (idType.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(idType, SymbolEqualityComparer.Default), out _))
+			propertyNameParseStatement = $"return reader.GetParsedString<{idTypeName}>(System.Globalization.CultureInfo.InvariantCulture);";
+		else if (underlyingType.IsType<string>())
+			propertyNameParseStatement = $"return new {idTypeName}(reader.GetString());";
+		else if (!underlyingType.IsGeneric() && underlyingType.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(underlyingType, SymbolEqualityComparer.Default), out _))
+			propertyNameParseStatement = $"return new {idTypeName}(reader.GetParsedString<{underlyingType.ContainingNamespace}.{underlyingType.Name}>(System.Globalization.CultureInfo.InvariantCulture));";
+
+		var propertyNameFormatStatement = "writer.WritePropertyName(value.ToString());";
+		if (idType.IsOrImplementsInterface(interf => interf.Name == "ISpanFormattable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 0, out _))
+			propertyNameFormatStatement = $"writer.WritePropertyName(value.Format(stackalloc char[64], {stringFormatSpecifier}, System.Globalization.CultureInfo.InvariantCulture));";
+		else if (underlyingType.IsType<string>())
+			propertyNameFormatStatement = "writer.WritePropertyName(value.Value);";
+		else if (!underlyingType.IsGeneric() && underlyingType.IsOrImplementsInterface(interf => interf.Name == "ISpanFormattable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 0, out _))
+			propertyNameFormatStatement = $"writer.WritePropertyName(value.Value.Format(stackalloc char[64], {stringFormatSpecifier}, System.Globalization.CultureInfo.InvariantCulture));";
+		else if (underlyingTypeIsNumericUnsuitableForJson)
+			propertyNameFormatStatement = $"""writer.WritePropertyName(value.ToString({stringFormatSpecifier}));""";
+
+		var readAndWriteAsPropertyNameMethods = propertyNameParseStatement is null || propertyNameFormatStatement is null
+			? ""
+			: $@"
+#if NET7_0_OR_GREATER
+			public override {idTypeName} ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+			{{
+				{propertyNameParseStatement}
+			}}
+
+			public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, {idTypeName} value, System.Text.Json.JsonSerializerOptions options)
+			{{
+				{propertyNameFormatStatement}
+			}}
+#endif
+";
 
 		var source = $@"
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using {Constants.DomainModelingNamespace};
+using {Constants.DomainModelingNamespace}.Conversions;
 
 namespace {containingNamespace}
 {{
@@ -327,7 +378,10 @@ namespace {containingNamespace}
 		{(isNonNullString || !isToStringNullable ? "[return: NotNull]" : "[return: MaybeNull]")}
 		public override string ToString()
 		{{
-			return {underlyingType.CreateStringExpression("Value")};
+
+			return {(underlyingType.IsOrImplementsInterface(interf => interf.Name == "INumber" && interf.ContainingNamespace.HasFullName("System.Numerics") && interf.Arity == 1, out _)
+				? """this.Value.ToString("0.#")"""
+				: underlyingType.CreateStringExpression("Value"))};
 		}}
 		{(existingComponents.HasFlags(IdTypeComponents.ToStringOverride) ? "*/" : "")}
 
@@ -408,7 +462,7 @@ namespace {containingNamespace}
 				{longNumericTypeComment}
 				#nullable disable
 				{(underlyingTypeIsNumericUnsuitableForJson
-				? $@"return reader.TokenType == System.Text.Json.JsonTokenType.Number ? reader.Get{underlyingType.Name}() : ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(reader.GetString(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
+				? longNumericTypeParseStatement
 				: $@"return ({idTypeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeFullyQualifiedName}>(ref reader, options);")}
 				#nullable enable
 			}}
@@ -417,9 +471,11 @@ namespace {containingNamespace}
 			{{
 				{longNumericTypeComment}
 				{(underlyingTypeIsNumericUnsuitableForJson
-				? "writer.WriteStringValue(value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));"
+				? longNumericTypeFormatStatement
 				: "System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);")}
 			}}
+
+			{readAndWriteAsPropertyNameMethods}
 		}}
 		{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
 
@@ -434,10 +490,12 @@ namespace {containingNamespace}
 			public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
 			{{
 				{longNumericTypeComment}
-				if (value is null) serializer.Serialize(writer, null);
-				else {(underlyingTypeIsNumericUnsuitableForJson
-				? $"serializer.Serialize(writer, (({idTypeName})value).Value.ToString(System.Globalization.CultureInfo.InvariantCulture));"
-				: $"serializer.Serialize(writer, (({idTypeName})value).Value);")}
+				if (value is null)
+					serializer.Serialize(writer, null);
+				else
+					{(underlyingTypeIsNumericUnsuitableForJson
+						? $"""serializer.Serialize(writer, (({idTypeName})value).Value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));"""
+						: $"serializer.Serialize(writer, (({idTypeName})value).Value);")}
 			}}
 
 			[return: MaybeNull]
@@ -447,11 +505,11 @@ namespace {containingNamespace}
 				#nullable disable
 				if (objectType == typeof({idTypeName})) // Non-nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
-					? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.Integer ? ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader) : ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
+					? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);"
 					: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);")}
 				else // Nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
-					? $@"return reader.Value is null ? null : reader.TokenType == Newtonsoft.Json.JsonToken.Integer ? ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader) : ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);"
+					? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader);"
 					: $@"return ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")}>(reader);")}
 				#nullable enable
 			}}

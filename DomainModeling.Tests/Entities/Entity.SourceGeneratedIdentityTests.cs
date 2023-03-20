@@ -346,6 +346,10 @@ public class SourceGeneratedIdentityTests
 	public void DeserializeWithSystemTextJson_Regularly_ShouldReturnExpectedResult(string json, int? value)
 	{
 		Assert.Equal(value, System.Text.Json.JsonSerializer.Deserialize<IntId?>(json)?.Value);
+		if (value is null)
+			Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<IntId>(json));
+		else
+			Assert.Equal(value, System.Text.Json.JsonSerializer.Deserialize<IntId>(json).Value);
 
 		json = json == "null" ? json : $@"""{json}""";
 		Assert.Equal(value?.ToString(), System.Text.Json.JsonSerializer.Deserialize<StringId?>(json)?.Value);
@@ -359,6 +363,10 @@ public class SourceGeneratedIdentityTests
 	public void DeserializeWithNewtonsoftJson_Regularly_ShouldReturnExpectedResult(string json, int? value)
 	{
 		Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<IntId?>(json)?.Value);
+		if (value is null)
+			Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() => Newtonsoft.Json.JsonConvert.DeserializeObject<IntId>(json));
+		else
+			Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<IntId>(json).Value);
 
 		json = json == "null" ? json : $@"""{json}""";
 		Assert.Equal(value?.ToString(), Newtonsoft.Json.JsonConvert.DeserializeObject<StringId?>(json)?.Value);
@@ -382,7 +390,7 @@ public class SourceGeneratedIdentityTests
 		CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
 
 		if (value is null)
-			Assert.Throws<ArgumentNullException>(() => System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json));
+			Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json));
 		else
 			Assert.Equal(value.Value, System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json).Value);
 	}
@@ -404,7 +412,7 @@ public class SourceGeneratedIdentityTests
 		CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
 
 		if (value is null)
-			Assert.Throws<ArgumentNullException>(() => Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalId>(json));
+			Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() => Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalId>(json));
 		else
 			Assert.Equal(value.Value, Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalId>(json).Value);
 	}
