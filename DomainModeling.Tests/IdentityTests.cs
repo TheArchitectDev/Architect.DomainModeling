@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
+using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Xunit;
 
@@ -455,6 +456,34 @@ namespace Architect.DomainModeling.Tests
 			if (json != "null")
 				Assert.Equal((decimal)value, System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json).Value);
 		}
+
+		[Theory]
+		[InlineData("0", 0)]
+		[InlineData("1", 1)]
+		public void ReadAsPropertyNameWithSystemTextJson_Regularly_ShouldReturnExpectedResult(string json, int value)
+		{
+			json = $$"""{ "{{json}}": true }""";
+
+			Assert.Equal(KeyValuePair.Create((IntId)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<IntId, bool>>(json).Single());
+
+			Assert.Equal(KeyValuePair.Create((StringId)value.ToString(), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<StringId, bool>>(json).Single());
+
+			Assert.Equal(KeyValuePair.Create((DecimalId)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<DecimalId, bool>>(json).Single());
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void WriteAsPropertyNameWithSystemTextJson_Regularly_ShouldReturnExpectedResult(int value)
+		{
+			var expectedResult = $$"""{"{{value}}":true}""";
+
+			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<IntId, bool>() { [value] = true }));
+
+			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<StringId, bool>() { [value.ToString()] = true }));
+
+			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<DecimalId, bool>() { [value] = true }));
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -543,13 +572,25 @@ namespace Architect.DomainModeling.Tests
 			{
 				public override FullySelfImplementedIdentity Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
 				{
-					return System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options);
+					return (FullySelfImplementedIdentity)System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options);
 				}
 
 				public override void Write(System.Text.Json.Utf8JsonWriter writer, [AllowNull] FullySelfImplementedIdentity value, System.Text.Json.JsonSerializerOptions options)
 				{
 					System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
 				}
+
+#if NET7_0_OR_GREATER
+				public override FullySelfImplementedIdentity ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+				{
+					return new FullySelfImplementedIdentity(reader.GetParsedString<int>(CultureInfo.InvariantCulture));
+				}
+
+				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedIdentity value, System.Text.Json.JsonSerializerOptions options)
+				{
+					writer.WritePropertyName(value.Value.Format(stackalloc char[64], default, CultureInfo.InvariantCulture));
+				}
+#endif
 			}
 
 			private sealed class NewtonsoftJsonConverter : Newtonsoft.Json.JsonConverter
@@ -561,8 +602,10 @@ namespace Architect.DomainModeling.Tests
 
 				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
 				{
-					if (value is null) serializer.Serialize(writer, null);
-					else serializer.Serialize(writer, ((FullySelfImplementedIdentity)value).Value);
+					if (value is null)
+						serializer.Serialize(writer, null);
+					else
+						serializer.Serialize(writer, ((FullySelfImplementedIdentity)value).Value);
 				}
 
 				[return: MaybeNull]

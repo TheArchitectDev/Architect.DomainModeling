@@ -2,6 +2,7 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
+using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 using Xunit;
 
@@ -408,6 +409,34 @@ namespace Architect.DomainModeling.Tests
 
 			Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalValue>(json)?.Value);
 		}
+
+		[Theory]
+		[InlineData("0", 0)]
+		[InlineData("1", 1)]
+		public void ReadAsPropertyNameWithSystemTextJson_Regularly_ShouldReturnExpectedResult(string json, int value)
+		{
+			json = $$"""{ "{{json}}": true }""";
+
+			Assert.Equal(KeyValuePair.Create((IntValue)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<IntValue, bool>>(json).Single());
+
+			Assert.Equal(KeyValuePair.Create((StringValue)value.ToString(), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<StringValue, bool>>(json).Single());
+
+			Assert.Equal(KeyValuePair.Create((DecimalValue)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<DecimalValue, bool>>(json).Single());
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void WriteAsPropertyNameWithSystemTextJson_Regularly_ShouldReturnExpectedResult(int value)
+		{
+			var expectedResult = $$"""{"{{value}}":true}""";
+
+			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<IntValue, bool>() { [(IntValue)value] = true }));
+
+			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<StringValue, bool>() { [(StringValue)value.ToString()] = true }));
+
+			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<DecimalValue, bool>() { [(DecimalValue)value] = true }));
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -535,7 +564,6 @@ namespace Architect.DomainModeling.Tests
 			public static bool operator <([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => left is null ? right is not null : left.CompareTo(right) < 0;
 			public static bool operator >=([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => !(left < right);
 			public static bool operator <=([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => !(left > right);
-
 #nullable enable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
 
 			public static explicit operator FullySelfImplementedWrapperValueObject(int value) => new FullySelfImplementedWrapperValueObject(value);
@@ -557,9 +585,23 @@ namespace Architect.DomainModeling.Tests
 
 				public override void Write(System.Text.Json.Utf8JsonWriter writer, [AllowNull] FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options)
 				{
-					if (value is null) writer.WriteNullValue();
-					else System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
+					if (value is null)
+						writer.WriteNullValue();
+					else
+						System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
 				}
+
+#if NET7_0_OR_GREATER
+				public override FullySelfImplementedWrapperValueObject ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+				{
+					return new FullySelfImplementedWrapperValueObject(reader.GetParsedString<int>(CultureInfo.InvariantCulture));
+				}
+
+				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options)
+				{
+					writer.WritePropertyName(value.Value.Format(stackalloc char[64], default, CultureInfo.InvariantCulture));
+				}
+#endif
 			}
 
 			private sealed class NewtonsoftJsonConverter : Newtonsoft.Json.JsonConverter
@@ -571,8 +613,10 @@ namespace Architect.DomainModeling.Tests
 
 				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
 				{
-					if (value is null) serializer.Serialize(writer, null);
-					else serializer.Serialize(writer, ((FullySelfImplementedWrapperValueObject)value).Value);
+					if (value is null)
+						serializer.Serialize(writer, null);
+					else
+						serializer.Serialize(writer, ((FullySelfImplementedWrapperValueObject)value).Value);
 				}
 
 				[return: MaybeNull]
@@ -580,9 +624,7 @@ namespace Architect.DomainModeling.Tests
 				{
 					var value = serializer.Deserialize<int?>(reader);
 
-#nullable disable
-					return (FullySelfImplementedWrapperValueObject)value;
-#nullable enable
+					return (FullySelfImplementedWrapperValueObject?)value;
 				}
 			}
 		}

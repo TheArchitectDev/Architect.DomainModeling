@@ -6,7 +6,7 @@
 		<RootNamespace>Architect.DomainModeling.Generator</RootNamespace>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
-		<LangVersion>10</LangVersion>
+		<LangVersion>11</LangVersion>
 		<IsPackable>False</IsPackable>
 		<DevelopmentDependency>True</DevelopmentDependency>
 	</PropertyGroup>

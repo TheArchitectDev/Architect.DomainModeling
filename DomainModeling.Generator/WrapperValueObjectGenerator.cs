@@ -200,11 +200,44 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		var isToStringNullable = underlyingType.IsToStringNullable();
 		var existingComponents = generatable.ExistingComponents;
 
+		string? propertyNameParseStatement = null;
+		if (type.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default), out _))
+			propertyNameParseStatement = $"return reader.GetParsedString<{typeName}>(System.Globalization.CultureInfo.InvariantCulture);";
+		else if (underlyingType.IsType<string>())
+			propertyNameParseStatement = $"return new {typeName}(reader.GetString()!);";
+		else if (!underlyingType.IsGeneric() && underlyingType.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(underlyingType, SymbolEqualityComparer.Default), out _))
+			propertyNameParseStatement = $"return new {typeName}(reader.GetParsedString<{underlyingType.ContainingNamespace}.{underlyingType.Name}>(System.Globalization.CultureInfo.InvariantCulture));";
+
+		var propertyNameFormatStatement = "writer.WritePropertyName(value.ToString());";
+		if (type.IsOrImplementsInterface(interf => interf.Name == "ISpanFormattable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 0, out _))
+			propertyNameFormatStatement = $"writer.WritePropertyName(value.Format(stackalloc char[64], default, System.Globalization.CultureInfo.InvariantCulture));";
+		else if (underlyingType.IsType<string>())
+			propertyNameFormatStatement = "writer.WritePropertyName(value.Value);";
+		else if (!underlyingType.IsGeneric() && underlyingType.IsOrImplementsInterface(interf => interf.Name == "ISpanFormattable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 0, out _))
+			propertyNameFormatStatement = $"writer.WritePropertyName(value.Value.Format(stackalloc char[64], default, System.Globalization.CultureInfo.InvariantCulture));";
+
+		var readAndWriteAsPropertyNameMethods = propertyNameParseStatement is null || propertyNameFormatStatement is null
+			? ""
+			: $@"
+#if NET7_0_OR_GREATER
+			public override {typeName} ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+			{{
+				{propertyNameParseStatement}
+			}}
+
+			public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, {typeName} value, System.Text.Json.JsonSerializerOptions options)
+			{{
+				{propertyNameFormatStatement}
+			}}
+#endif
+";
+
 		var source = $@"
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using {Constants.DomainModelingNamespace};
+using {Constants.DomainModelingNamespace}.Conversions;
 
 namespace {containingNamespace}
 {{
@@ -339,9 +372,13 @@ namespace {containingNamespace}
 
 			public override void Write(System.Text.Json.Utf8JsonWriter writer, [AllowNull] {typeName} value, System.Text.Json.JsonSerializerOptions options)
 			{{
-				if (value is null) writer.WriteNullValue();
-				else System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
+				if (value is null)
+					writer.WriteNullValue();
+				else
+					System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
 			}}
+
+			{readAndWriteAsPropertyNameMethods}
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
 

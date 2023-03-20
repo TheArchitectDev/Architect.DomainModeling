@@ -24,6 +24,39 @@ internal static class TypeSymbolExtensions
 	}
 
 	/// <summary>
+	/// Returns whether the <see cref="ITypeSymbol"/> is of type <paramref name="comparand"/>.
+	/// </summary>
+	[Obsolete("Use ITypeSymbol.Equals(ITypeSymbol, SymbolEqualityComparer) instead.")]
+	public static bool IsType(this ITypeSymbol typeSymbol, ITypeSymbol comparand)
+	{
+		var containingNamespace = comparand.ContainingNamespace;
+
+		Span<char> freeBuffer = stackalloc char[128];
+		ReadOnlySpan<char> chars = freeBuffer;
+
+		while (containingNamespace?.IsGlobalNamespace == false && freeBuffer.Length >= containingNamespace.Name.Length)
+		{
+			containingNamespace.Name.AsSpan().CopyTo(freeBuffer);
+			freeBuffer = freeBuffer.Slice(containingNamespace.Name.Length);
+			containingNamespace = containingNamespace.ContainingNamespace;
+		}
+
+		chars = chars.Slice(0, chars.Length - freeBuffer.Length);
+		if (containingNamespace?.IsGlobalNamespace != false)
+			chars = typeSymbol.ContainingNamespace.ToString().AsSpan();
+
+		if (!typeSymbol.IsType(typeSymbol.Name.AsSpan(), chars))
+			return false;
+
+		var namedTypeSymbol = typeSymbol as INamedTypeSymbol;
+		var namedComparand = comparand as INamedTypeSymbol;
+		if (namedTypeSymbol?.Arity > 0 && namedComparand?.Arity > 0)
+			return namedTypeSymbol.TypeArguments.SequenceEqual(namedComparand.TypeArguments, (left, right) => left.IsType(right));
+
+		return (namedTypeSymbol?.Arity ?? -1) == (namedComparand?.Arity ?? -1);
+	}
+
+	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> is of the given type.
 	/// </summary>
 	public static bool IsType(this ITypeSymbol typeSymbol, Type type)
@@ -90,6 +123,10 @@ internal static class TypeSymbolExtensions
 	/// <param name="generic">If not null, the being-generic of the type must match this value.</param>
 	private static bool IsType(this ITypeSymbol typeSymbol, ReadOnlySpan<char> typeName, ReadOnlySpan<char> containingNamespace, bool? generic = null)
 	{
+		var backtickIndex = typeName.IndexOf('`');
+		if (backtickIndex >= 0)
+			typeName = typeName.Slice(0, backtickIndex);
+
 		var result = typeSymbol.Name.AsSpan().Equals(typeName, StringComparison.Ordinal) &&
 			typeSymbol.ContainingNamespace.HasFullName(containingNamespace);
 
@@ -194,6 +231,17 @@ internal static class TypeSymbolExtensions
 	public static bool IsNested(this ITypeSymbol typeSymbol)
 	{
 		var result = typeSymbol.ContainingType is not null;
+		return result;
+	}
+
+	/// <summary>
+	/// Returns whether the <see cref="ITypeSymbol"/> is a generic type.
+	/// </summary>
+	public static bool IsGeneric(this ITypeSymbol typeSymbol)
+	{
+		if (typeSymbol is not INamedTypeSymbol namedTypeSymbol) return false;
+
+		var result = namedTypeSymbol.IsGenericType;
 		return result;
 	}
 
@@ -391,7 +439,7 @@ internal static class TypeSymbolExtensions
 	/// <param name="skipForSystemTypes">If true, if the given type is directly under the System namespace, this method yields nothing.</param>
 	public static IEnumerable<Type> GetAvailableConversionsFromPrimitives(this ITypeSymbol typeSymbol, bool skipForSystemTypes)
 	{
-		if (skipForSystemTypes && typeSymbol.ContainingNamespace.Name == "System" && (typeSymbol.ContainingNamespace.ContainingNamespace?.IsGlobalNamespace ?? true))
+		if (skipForSystemTypes && typeSymbol.ContainingNamespace.HasFullName("System") && (typeSymbol.ContainingNamespace.ContainingNamespace?.IsGlobalNamespace ?? true))
 			yield break;
 
 		if (typeSymbol.HasConversionFrom("String", "System")) yield return typeof(string);
