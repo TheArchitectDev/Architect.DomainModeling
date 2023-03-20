@@ -392,8 +392,10 @@ namespace {containingNamespace}
 
 			public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
 			{{
-				if (value is null) serializer.Serialize(writer, null);
-				else serializer.Serialize(writer, (({typeName})value).Value);
+				if (value is null)
+					serializer.Serialize(writer, null);
+				else
+					serializer.Serialize(writer, (({typeName})value).Value);
 			}}
 
 			[return: MaybeNull]
