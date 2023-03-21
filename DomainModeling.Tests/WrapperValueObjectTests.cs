@@ -585,7 +585,7 @@ namespace Architect.DomainModeling.Tests
 #if NET7_0_OR_GREATER
 				public override FullySelfImplementedWrapperValueObject ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
 				{
-					return new FullySelfImplementedWrapperValueObject(reader.GetParsedString<int>(CultureInfo.InvariantCulture));
+					return (FullySelfImplementedWrapperValueObject)reader.GetParsedString<int>(CultureInfo.InvariantCulture);
 				}
 
 				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options)

@@ -204,9 +204,9 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		if (type.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default), out _))
 			propertyNameParseStatement = $"return reader.GetParsedString<{typeName}>(System.Globalization.CultureInfo.InvariantCulture);";
 		else if (underlyingType.IsType<string>())
-			propertyNameParseStatement = $"return new {typeName}(reader.GetString()!);";
+			propertyNameParseStatement = $"return ({typeName})reader.GetString()!;";
 		else if (!underlyingType.IsGeneric() && underlyingType.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(underlyingType, SymbolEqualityComparer.Default), out _))
-			propertyNameParseStatement = $"return new {typeName}(reader.GetParsedString<{underlyingType.ContainingNamespace}.{underlyingType.Name}>(System.Globalization.CultureInfo.InvariantCulture));";
+			propertyNameParseStatement = $"return ({typeName})reader.GetParsedString<{underlyingType.ContainingNamespace}.{underlyingType.Name}>(System.Globalization.CultureInfo.InvariantCulture);";
 
 		var propertyNameFormatStatement = "writer.WritePropertyName(value.ToString());";
 		if (type.IsOrImplementsInterface(interf => interf.Name == "ISpanFormattable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 0, out _))
