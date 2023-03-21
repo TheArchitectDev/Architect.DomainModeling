@@ -287,7 +287,7 @@ public class IdentityGenerator : SourceGenerator
 #if NET7_0_OR_GREATER
 				return reader.TokenType == System.Text.Json.JsonTokenType.String ? ({idTypeName})reader.GetParsedString<{underlyingType.ContainingNamespace}.{underlyingType.Name}>(System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})reader.Get{underlyingType.Name}();
 #else
-				return reader.TokenType == System.Text.Json.JsonTokenType.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(reader.GetString(), System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})reader.Get{underlyingType.Name}();
+				return reader.TokenType == System.Text.Json.JsonTokenType.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(reader.GetString()!, System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})reader.Get{underlyingType.Name}();
 #endif
 ";
 		var longNumericTypeFormatStatement = !underlyingTypeIsNumericUnsuitableForJson ? null : $@"
@@ -302,7 +302,7 @@ public class IdentityGenerator : SourceGenerator
 		if (idType.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(idType, SymbolEqualityComparer.Default), out _))
 			propertyNameParseStatement = $"return reader.GetParsedString<{idTypeName}>(System.Globalization.CultureInfo.InvariantCulture);";
 		else if (underlyingType.IsType<string>())
-			propertyNameParseStatement = $"return new {idTypeName}(reader.GetString());";
+			propertyNameParseStatement = $"return new {idTypeName}(reader.GetString()!);";
 		else if (!underlyingType.IsGeneric() && underlyingType.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(underlyingType, SymbolEqualityComparer.Default), out _))
 			propertyNameParseStatement = $"return new {idTypeName}(reader.GetParsedString<{underlyingType.ContainingNamespace}.{underlyingType.Name}>(System.Globalization.CultureInfo.InvariantCulture));";
 
@@ -461,7 +461,7 @@ namespace {containingNamespace}
 				{longNumericTypeComment}
 				{(underlyingTypeIsNumericUnsuitableForJson
 					? longNumericTypeParseStatement
-					: $@"return ({idTypeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeFullyQualifiedName}>(ref reader, options);")}
+					: $@"return ({idTypeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeFullyQualifiedName}>(ref reader, options)!;")}
 			}}
 
 			public override void Write(System.Text.Json.Utf8JsonWriter writer, {idTypeName} value, System.Text.Json.JsonSerializerOptions options)
@@ -501,7 +501,7 @@ namespace {containingNamespace}
 				if (objectType == typeof({idTypeName})) // Non-nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
 						? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader)!, System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);"
-						: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);")}
+						: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader)!;")}
 				else // Nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
 						? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader)!, System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader);"
