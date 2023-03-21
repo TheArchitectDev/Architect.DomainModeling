@@ -360,7 +360,7 @@ namespace {containingNamespace}
 		{{
 			public override {typeName} Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
 			{{
-				return ({typeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeName}>(ref reader, options){(underlyingType.IsValueType ? "" : "!")};
+				return ({typeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeName}>(ref reader, options)!;
 			}}
 
 			public override void Write(System.Text.Json.Utf8JsonWriter writer, {typeName} value, System.Text.Json.JsonSerializerOptions options)
