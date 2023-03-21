@@ -260,6 +260,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
+#nullable disable
+
 namespace {containingNamespace}
 {{
 	/// <summary>
@@ -273,8 +275,6 @@ namespace {containingNamespace}
 	/// </summary>
 	/* Generated */ public partial class {typeName}
 	{{
-#nullable disable
-
 {joinedComponents}
 
 		{(hasBuildMethod ? "/*" : "")}

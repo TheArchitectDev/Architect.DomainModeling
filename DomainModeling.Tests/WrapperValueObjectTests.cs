@@ -29,7 +29,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void Construct_WithNull_ShouldThrow()
 		{
-			Assert.Throws<ArgumentNullException>(() => new StringValue(null));
+			Assert.Throws<ArgumentNullException>(() => new StringValue(null!));
 		}
 
 		[Fact]
@@ -254,9 +254,9 @@ namespace Architect.DomainModeling.Tests
 			var instance = value is null ? null : new IntValue(value.Value);
 
 			if (expectedResult is null)
-				Assert.Throws<NullReferenceException>(() => (int)instance);
+				Assert.Throws<NullReferenceException>(() => (int)instance!);
 			else
-				Assert.Equal(expectedResult, (int)instance);
+				Assert.Equal(expectedResult, (int)instance!);
 		}
 
 		[Theory]
@@ -286,7 +286,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData(1, 1)]
 		public void CastFromNullableUnderlyingType_Regularly_ShouldReturnExpectedResult(int? value, int? expectedResult)
 		{
-			var result = (IntValue)value;
+			var result = (IntValue?)value;
 
 			Assert.Equal(expectedResult, result?.Value);
 		}
@@ -297,10 +297,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData(1)]
 		public void SerializeWithSystemTextJson_Regularly_ShouldReturnExpectedResult(int? value)
 		{
-			var intInstance = (IntValue)value;
+			var intInstance = (IntValue?)value;
 			Assert.Equal(value?.ToString() ?? "null", System.Text.Json.JsonSerializer.Serialize(intInstance));
 
-			var stringInstance = (StringValue)value?.ToString();
+			var stringInstance = (StringValue?)value?.ToString();
 			Assert.Equal(value is null ? "null" : $@"""{value}""", System.Text.Json.JsonSerializer.Serialize(stringInstance));
 		}
 
@@ -310,10 +310,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData(1)]
 		public void SerializeWithNewtonsoftJson_Regularly_ShouldReturnExpectedResult(int? value)
 		{
-			var intInstance = (IntValue)value;
+			var intInstance = (IntValue?)value;
 			Assert.Equal(value?.ToString() ?? "null", Newtonsoft.Json.JsonConvert.SerializeObject(intInstance));
 
-			var stringInstance = (StringValue)value?.ToString();
+			var stringInstance = (StringValue?)value?.ToString();
 			Assert.Equal(value is null ? "null" : $@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject(stringInstance));
 		}
 
@@ -330,7 +330,7 @@ namespace Architect.DomainModeling.Tests
 			// Attempt to mess with the stringification, which should have no effect
 			CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
 
-			var instance = (DecimalValue)value;
+			var instance = (DecimalValue?)value;
 
 			Assert.Equal(value?.ToString() ?? "null", System.Text.Json.JsonSerializer.Serialize(instance));
 		}
@@ -348,7 +348,7 @@ namespace Architect.DomainModeling.Tests
 			// Attempt to mess with the stringification, which should have no effect
 			CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
 
-			var instance = (DecimalValue)value;
+			var instance = (DecimalValue?)value;
 
 			// Newtonsoft appends ".0" for some reason
 			Assert.Equal(value is null ? "null" : $"{value}.0", Newtonsoft.Json.JsonConvert.SerializeObject(instance));
@@ -417,11 +417,11 @@ namespace Architect.DomainModeling.Tests
 		{
 			json = $$"""{ "{{json}}": true }""";
 
-			Assert.Equal(KeyValuePair.Create((IntValue)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<IntValue, bool>>(json).Single());
+			Assert.Equal(KeyValuePair.Create((IntValue)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<IntValue, bool>>(json)?.Single());
 
-			Assert.Equal(KeyValuePair.Create((StringValue)value.ToString(), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<StringValue, bool>>(json).Single());
+			Assert.Equal(KeyValuePair.Create((StringValue)value.ToString(), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<StringValue, bool>>(json)?.Single());
 
-			Assert.Equal(KeyValuePair.Create((DecimalValue)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<DecimalValue, bool>>(json).Single());
+			Assert.Equal(KeyValuePair.Create((DecimalValue)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<DecimalValue, bool>>(json)?.Single());
 		}
 
 		[Theory]
@@ -494,7 +494,7 @@ namespace Architect.DomainModeling.Tests
 			public class CustomCollection : IReadOnlyCollection<int>
 			{
 				public override int GetHashCode() => 1;
-				public override bool Equals(object other) => true;
+				public override bool Equals(object? other) => true;
 				public int Count => throw new NotSupportedException();
 				public IEnumerator<int> GetEnumerator() => throw new NotSupportedException();
 				IEnumerator IEnumerable.GetEnumerator() => throw new NotSupportedException();
@@ -526,10 +526,8 @@ namespace Architect.DomainModeling.Tests
 				this.Value = value;
 			}
 
-			[return: MaybeNull]
 			public sealed override string ToString()
 			{
-				// Null-safety protects instances from FormatterServices.GetUninitializedObject()
 				return this.Value.ToString();
 			}
 
@@ -539,56 +537,49 @@ namespace Architect.DomainModeling.Tests
 				return this.Value.GetHashCode();
 			}
 
-			public sealed override bool Equals([AllowNull] object other)
+			public sealed override bool Equals(object? other)
 			{
 				return other is FullySelfImplementedWrapperValueObject otherValue && this.Equals(otherValue);
 			}
 
-			public bool Equals([AllowNull] FullySelfImplementedWrapperValueObject other)
+			public bool Equals(FullySelfImplementedWrapperValueObject? other)
 			{
 				return other is not null && this.Value.Equals(other.Value);
 			}
 
-			public int CompareTo([AllowNull] FullySelfImplementedWrapperValueObject other)
+			public int CompareTo(FullySelfImplementedWrapperValueObject? other)
 			{
 				return other is null
 					? +1
 					: this.Value.CompareTo(other.Value);
 			}
 
-#nullable disable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
-			public static bool operator ==([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => left is null ? right is null : left.Equals(right);
-			public static bool operator !=([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => !(left == right);
+			public static bool operator ==(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => left is null ? right is null : left.Equals(right);
+			public static bool operator !=(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => !(left == right);
 
-			public static bool operator >([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => left is not null && left.CompareTo(right) > 0;
-			public static bool operator <([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => left is null ? right is not null : left.CompareTo(right) < 0;
-			public static bool operator >=([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => !(left < right);
-			public static bool operator <=([AllowNull] FullySelfImplementedWrapperValueObject left, [AllowNull] FullySelfImplementedWrapperValueObject right) => !(left > right);
-#nullable enable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
+			public static bool operator >(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => left is not null && left.CompareTo(right) > 0;
+			public static bool operator <(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => left is null ? right is not null : left.CompareTo(right) < 0;
+			public static bool operator >=(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => !(left < right);
+			public static bool operator <=(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => !(left > right);
 
 			public static explicit operator FullySelfImplementedWrapperValueObject(int value) => new FullySelfImplementedWrapperValueObject(value);
-			public static implicit operator int([DisallowNull] FullySelfImplementedWrapperValueObject instance) => instance.Value;
+			public static implicit operator int(FullySelfImplementedWrapperValueObject instance) => instance.Value;
 
-			[return: MaybeNull, NotNullIfNotNull(nameof(value))]
-			public static explicit operator FullySelfImplementedWrapperValueObject(int? value) => value is null ? null : new FullySelfImplementedWrapperValueObject(value.Value);
-			public static implicit operator int?([AllowNull] FullySelfImplementedWrapperValueObject id) => id?.Value;
+			[return: NotNullIfNotNull(nameof(value))]
+			public static explicit operator FullySelfImplementedWrapperValueObject?(int? value) => value is null ? null : new FullySelfImplementedWrapperValueObject(value.Value);
+			[return: NotNullIfNotNull(nameof(instance))]
+			public static implicit operator int?(FullySelfImplementedWrapperValueObject? instance) => instance?.Value;
 
 			private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<FullySelfImplementedWrapperValueObject>
 			{
-				[return: MaybeNull]
 				public override FullySelfImplementedWrapperValueObject Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
 				{
-#nullable disable
-					return (FullySelfImplementedWrapperValueObject)System.Text.Json.JsonSerializer.Deserialize<int?>(ref reader, options);
-#nullable enable
+					return (FullySelfImplementedWrapperValueObject)System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options);
 				}
 
-				public override void Write(System.Text.Json.Utf8JsonWriter writer, [AllowNull] FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options)
+				public override void Write(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options)
 				{
-					if (value is null)
-						writer.WriteNullValue();
-					else
-						System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
+					System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
 				}
 
 #if NET7_0_OR_GREATER
@@ -611,7 +602,7 @@ namespace Architect.DomainModeling.Tests
 					return objectType == typeof(FullySelfImplementedWrapperValueObject);
 				}
 
-				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
+				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer)
 				{
 					if (value is null)
 						serializer.Serialize(writer, null);
@@ -619,12 +610,9 @@ namespace Architect.DomainModeling.Tests
 						serializer.Serialize(writer, ((FullySelfImplementedWrapperValueObject)value).Value);
 				}
 
-				[return: MaybeNull]
-				public override object ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, [AllowNull] object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+				public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer)
 				{
-					var value = serializer.Deserialize<int?>(reader);
-
-					return (FullySelfImplementedWrapperValueObject?)value;
+					return (FullySelfImplementedWrapperValueObject?)serializer.Deserialize<int?>(reader);
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Immutable;
 using Architect.DomainModeling.Comparisons;
 using Architect.DomainModeling.Tests.Comparisons.EnumerableComparerTestTypes;
@@ -127,7 +127,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 			return this.CreateCollectionCore(new[] { singleElement });
 		}
 
-		protected virtual IEnumerable<T> CreateCollectionWithEqualityComparer<T>(IEnumerable<T> elements, IComparer<T> comparer)
+		protected virtual IEnumerable<T>? CreateCollectionWithEqualityComparer<T>(IEnumerable<T> elements, IComparer<T> comparer)
 		{
 			return null;
 		}

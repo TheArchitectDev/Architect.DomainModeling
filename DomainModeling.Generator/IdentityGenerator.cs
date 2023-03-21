@@ -339,6 +339,8 @@ using System.Diagnostics.CodeAnalysis;
 using {Constants.DomainModelingNamespace};
 using {Constants.DomainModelingNamespace}.Conversions;
 
+#nullable enable
+
 namespace {containingNamespace}
 {{
 	{summary}
@@ -356,13 +358,12 @@ namespace {containingNamespace}
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
 		{nonNullStringSummary}
-		{(underlyingType.IsValueType ? "" : isNonNullString ? "[NotNull]" : "[AllowNull, MaybeNull]")}
-		public {underlyingTypeFullyQualifiedName} Value {(isNonNullString ? @"=> this._value ?? """";" : "{ get; }")}
+		public {underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType || isNonNullString ? "" : "?")} Value {(isNonNullString ? @"=> this._value ?? """";" : "{ get; }")}
 		{(isNonNullString ? "private readonly string _value;" : "")}
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.Constructor) ? "/*" : "")}
-		public {idTypeName}({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeFullyQualifiedName} value)
+		public {idTypeName}({underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "" : "?")} value)
 		{{
 			{(isNonNullString ? @"this._value = value ?? """";" : "this.Value = value;")}
 		}}
@@ -375,8 +376,7 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.StringComparison) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.ToStringOverride) ? "/*" : "")}{nonNullStringSummary}
-		{(isNonNullString || !isToStringNullable ? "[return: NotNull]" : "[return: MaybeNull]")}
-		public override string ToString()
+		public override string{(isNonNullString || !isToStringNullable ? "" : "?")} ToString()
 		{{
 
 			return {(underlyingType.IsOrImplementsInterface(interf => interf.Name == "INumber" && interf.ContainingNamespace.HasFullName("System.Numerics") && interf.Arity == 1, out _)
@@ -395,7 +395,7 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.GetHashCodeOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.EqualsOverride) ? "/*" : "")}
-		public override bool Equals([AllowNull] object other)
+		public override bool Equals(object? other)
 		{{
 			return other is {idTypeName} otherId && this.Equals(otherId);
 		}}
@@ -436,22 +436,21 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.LessEqualsOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "/*" : "")}
-		public static implicit operator {idTypeName}({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeFullyQualifiedName} value) => new {idTypeName}(value);
+		public static implicit operator {idTypeName}({underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "" : "?")} value) => new {idTypeName}(value);
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "/*" : "")}{nonNullStringSummary}
-		{(underlyingType.IsValueType ? "" : isNonNullString ? "[return: NotNull]" : "[return: MaybeNull]")}
-		public static implicit operator {underlyingTypeFullyQualifiedName}({idTypeName} id) => id.Value;
+		public static implicit operator {underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType || isNonNullString ? "" : "?")}({idTypeName} id) => id.Value;
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "/*" : "")}
-		[return: MaybeNull, NotNullIfNotNull(""value"")]
-		public static implicit operator {idTypeName}?({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")} value) => value is null ? ({idTypeName}?)null : new {idTypeName}(value{(underlyingType.IsValueType ? ".Value" : "")});
+		[return: NotNullIfNotNull(""value"")]
+		public static implicit operator {idTypeName}?({underlyingTypeFullyQualifiedName}? value) => value is null ? ({idTypeName}?)null : new {idTypeName}(value{(underlyingType.IsValueType ? ".Value" : "")});
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "/*" : "")}{nonNullStringSummary}
-		{(underlyingType.IsValueType || isNonNullString ? @"[return: MaybeNull, NotNullIfNotNull(""id"")]" : "[return: MaybeNull]")}
-		public static implicit operator {underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")}({idTypeName}? id) => id?.Value;
+		{(underlyingType.IsValueType || isNonNullString ? @"[return: NotNullIfNotNull(""id"")]" : "")}
+		public static implicit operator {underlyingTypeFullyQualifiedName}?({idTypeName}? id) => id?.Value;
 		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
@@ -460,19 +459,17 @@ namespace {containingNamespace}
 			public override {idTypeName} Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
 			{{
 				{longNumericTypeComment}
-				#nullable disable
 				{(underlyingTypeIsNumericUnsuitableForJson
-				? longNumericTypeParseStatement
-				: $@"return ({idTypeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeFullyQualifiedName}>(ref reader, options);")}
-				#nullable enable
+					? longNumericTypeParseStatement
+					: $@"return ({idTypeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeFullyQualifiedName}>(ref reader, options);")}
 			}}
 
-			public override void Write(System.Text.Json.Utf8JsonWriter writer, [AllowNull] {idTypeName} value, System.Text.Json.JsonSerializerOptions options)
+			public override void Write(System.Text.Json.Utf8JsonWriter writer, {idTypeName} value, System.Text.Json.JsonSerializerOptions options)
 			{{
 				{longNumericTypeComment}
 				{(underlyingTypeIsNumericUnsuitableForJson
-				? longNumericTypeFormatStatement
-				: "System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);")}
+					? longNumericTypeFormatStatement
+					: "System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);")}
 			}}
 
 			{readAndWriteAsPropertyNameMethods}
@@ -487,7 +484,7 @@ namespace {containingNamespace}
 				return objectType == typeof({idTypeName}) || objectType == typeof({idTypeName}?);
 			}}
 
-			public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
+			public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer)
 			{{
 				{longNumericTypeComment}
 				if (value is null)
@@ -498,20 +495,17 @@ namespace {containingNamespace}
 						: $"serializer.Serialize(writer, (({idTypeName})value).Value);")}
 			}}
 
-			[return: MaybeNull]
-			public override object ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, [AllowNull] object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+			public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer)
 			{{
 				{longNumericTypeComment}
-				#nullable disable
 				if (objectType == typeof({idTypeName})) // Non-nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
-					? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);"
-					: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);")}
+						? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader)!, System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);"
+						: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);")}
 				else // Nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
-					? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader), System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader);"
-					: $@"return ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "?" : "")}>(reader);")}
-				#nullable enable
+						? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader)!, System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader);"
+						: $@"return ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader);")}
 			}}
 		}}
 		{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}

@@ -11,7 +11,7 @@ public class EntityTests
 	[InlineData(-1, false)]
 	public void DefaultId_WithClassId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var instance = new ClassIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var instance = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(expectedResult, instance.HasDefaultId());
 	}
@@ -23,8 +23,8 @@ public class EntityTests
 	[InlineData(-1, true)]
 	public void GetHashCode_WithClassId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var one = new ClassIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		var two = new ClassIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var one = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(expectedResult, one.GetHashCode().Equals(two.GetHashCode()));
 	}
@@ -36,8 +36,8 @@ public class EntityTests
 	[InlineData(-1, true)]
 	public void Equals_WithClassId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var one = new ClassIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		var two = new ClassIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var one = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(one, one);
 		Assert.Equal(two, two);
@@ -171,7 +171,7 @@ public class EntityTests
 	[InlineData(-1, false)]
 	public void DefaultId_WithInterfaceId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var instance = new InterfaceIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var instance = new InterfaceIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(expectedResult, instance.HasDefaultId());
 	}
@@ -183,8 +183,8 @@ public class EntityTests
 	[InlineData(-1, true)]
 	public void GetHashCode_WithInterfaceId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var one = new InterfaceIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		var two = new InterfaceIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var one = new InterfaceIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new InterfaceIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(expectedResult, one.GetHashCode().Equals(two.GetHashCode()));
 	}
@@ -196,8 +196,8 @@ public class EntityTests
 	[InlineData(-1, true)]
 	public void Equals_WithInterfaceId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var one = new InterfaceIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		var two = new InterfaceIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var one = new InterfaceIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new InterfaceIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(one, one);
 		Assert.Equal(two, two);
@@ -211,7 +211,7 @@ public class EntityTests
 	[InlineData(-1, false)]
 	public void DefaultId_WithAbstractId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var instance = new AbstractIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var instance = new AbstractIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(expectedResult, instance.HasDefaultId());
 	}
@@ -223,8 +223,8 @@ public class EntityTests
 	[InlineData(-1, true)]
 	public void GetHashCode_WithAbstractId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var one = new AbstractIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		var two = new AbstractIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var one = new AbstractIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new AbstractIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(expectedResult, one.GetHashCode().Equals(two.GetHashCode()));
 	}
@@ -236,8 +236,8 @@ public class EntityTests
 	[InlineData(-1, true)]
 	public void Equals_WithAbstractId_ShouldEquateAsExpected(int? value, bool expectedResult)
 	{
-		var one = new AbstractIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
-		var two = new AbstractIdEntity(value is null ? null : new ConcreteId() { Value = value.Value, });
+		var one = new AbstractIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new AbstractIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
 
 		Assert.Equal(one, one);
 		Assert.Equal(two, two);
@@ -319,16 +319,16 @@ public class EntityTests
 	private abstract class AbstractId : IEquatable<AbstractId>, IId
 	{
 		public abstract override int GetHashCode();
-		public abstract override bool Equals(object obj);
-		public bool Equals(AbstractId other) => this.Equals((object)other);
-		public bool Equals(IId other) => this.Equals((object)other);
+		public abstract override bool Equals(object? obj);
+		public bool Equals(AbstractId? other) => this.Equals((object?)other);
+		public bool Equals(IId? other) => this.Equals((object?)other);
 	}
 
 	private sealed class ConcreteId : AbstractId, IEquatable<ConcreteId>
 	{
 		public override int GetHashCode() => this.Value.GetHashCode();
-		public override bool Equals(object obj) => obj is ConcreteId other && Equals(this.Value, other.Value);
-		public bool Equals(ConcreteId other) => this.Equals((object)other);
+		public override bool Equals(object? obj) => obj is ConcreteId other && Equals(this.Value, other.Value);
+		public bool Equals(ConcreteId? other) => this.Equals((object?)other);
 
 		public int Value { get; set; }
 	}

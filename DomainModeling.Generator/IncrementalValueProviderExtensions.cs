@@ -7,7 +7,7 @@ namespace Architect.DomainModeling.Generator;
 /// </summary>
 internal static class IncrementalValueProviderExtensions
 {
-#nullable disable
+#nullable disable // LINQ-assisted null filtering is not yet detected by the compiler
 	/// <summary>
 	/// <para>
 	/// Deduplicates partials, preventing duplicate source generation.
