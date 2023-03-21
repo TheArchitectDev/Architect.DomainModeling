@@ -239,6 +239,8 @@ using System.Diagnostics.CodeAnalysis;
 using {Constants.DomainModelingNamespace};
 using {Constants.DomainModelingNamespace}.Conversions;
 
+#nullable enable
+
 namespace {containingNamespace}
 {{
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
@@ -256,22 +258,20 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.StringComparison) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.Value) ? "/*" : "")}
-		{(underlyingType.IsValueType ? "" : "[DisallowNull, NotNull]")}
 		public {underlyingTypeName} Value {{ get; }}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.Value) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.Constructor) ? "/*" : "")}
-		public {typeName}({(underlyingType.IsValueType ? "" : "[DisallowNull] ")}{underlyingTypeName} value)
+		public {typeName}({underlyingTypeName} value)
 		{{
 			this.Value = value{(underlyingType.IsValueType ? "" : " ?? throw new ArgumentNullException(nameof(value))")};
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.Constructor) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
-		{(!isToStringNullable ? "[return: NotNull]" : "[return: MaybeNull]")}
-		public sealed override string ToString()
+		public sealed override string{(isToStringNullable ? "?" : "")} ToString()
 		{{
-			// Null-safety protects instances from FormatterServices.GetUninitializedObject()
+			{(underlyingType.CreateStringExpression("Value").Contains('?') ? "// Null-safety protects instances from FormatterServices.GetUninitializedObject()" : "")}
 			return {underlyingType.CreateStringExpression("Value")};
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.ToStringOverride) ? "*/" : "")}
@@ -287,14 +287,14 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GetHashCodeOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOverride) ? "/*" : "")}
-		public sealed override bool Equals([AllowNull] object other)
+		public sealed override bool Equals(object? other)
 		{{
 			return other is {typeName} otherValue && this.Equals(otherValue);
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsMethod) ? "/*" : "")}
-		public bool Equals([AllowNull] {typeName} other)
+		public bool Equals({typeName}? other)
 		{{
 			return other is null
 				? false
@@ -304,7 +304,7 @@ namespace {containingNamespace}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.CompareToMethod) ? "/*" : "")}
 		{(isComparable ? "" : "/*")}
-		public int CompareTo([AllowNull] {typeName} other)
+		public int CompareTo({typeName}? other)
 		{{
 			return other is null
 				? +1
@@ -313,69 +313,59 @@ namespace {containingNamespace}
 		{(isComparable ? "" : "*/")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.CompareToMethod) ? "*/" : "")}
 
-		#nullable disable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
-
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOperator) ? "/*" : "")}
-		public static bool operator ==([AllowNull] {typeName} left, [AllowNull] {typeName} right) => left is null ? right is null : left.Equals(right);
+		public static bool operator ==({typeName}? left, {typeName}? right) => left is null ? right is null : left.Equals(right);
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NotEqualsOperator) ? "/*" : "")}
-		public static bool operator !=([AllowNull] {typeName} left, [AllowNull] {typeName} right) => !(left == right);
+		public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NotEqualsOperator) ? "*/" : "")}
 
 		{(isComparable ? "" : "/*")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterThanOperator) ? "/*" : "")}
-		public static bool operator >([AllowNull] {typeName} left, [AllowNull] {typeName} right) => left is null ? false : left.CompareTo(right) > 0;
+		public static bool operator >({typeName}? left, {typeName}? right) => left is null ? false : left.CompareTo(right) > 0;
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterThanOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessThanOperator) ? "/*" : "")}
-		public static bool operator <([AllowNull] {typeName} left, [AllowNull] {typeName} right) => left is null ? right is not null : left.CompareTo(right) < 0;
+		public static bool operator <({typeName}? left, {typeName}? right) => left is null ? right is not null : left.CompareTo(right) < 0;
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessThanOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterEqualsOperator) ? "/*" : "")}
-		public static bool operator >=([AllowNull] {typeName} left, [AllowNull] {typeName} right) => !(left < right);
+		public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterEqualsOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessEqualsOperator) ? "/*" : "")}
-		public static bool operator <=([AllowNull] {typeName} left, [AllowNull] {typeName} right) => !(left > right);
+		public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessEqualsOperator) ? "*/" : "")}
 		{(isComparable ? "" : "*/")}
 
-		#nullable enable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
-
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "/*" : "")}
-		{(underlyingType.IsValueType ? "[return: NotNull]" : @"[return: MaybeNull, NotNullIfNotNull(""value"")]")}
-		public static explicit operator {typeName}({(underlyingType.IsValueType ? "" : "[AllowNull] ")}{underlyingTypeName} value) => {(underlyingType.IsValueType ? "" : "value is null ? null : ")}new {typeName}(value);
+		{(underlyingType.IsValueType ? "" : @"[return: NotNullIfNotNull(""value"")]")}
+		public static explicit operator {typeName}{(underlyingType.IsValueType ? "" : "?")}({underlyingTypeName}{(underlyingType.IsValueType ? "" : "?")} value) => {(underlyingType.IsValueType ? "" : "value is null ? null : ")}new {typeName}(value);
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "*/" : "")}
 
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "/*" : "")}
-		{(underlyingType.IsValueType ? "" : @"[return: MaybeNull, NotNullIfNotNull(""instance"")]")}
-		public static implicit operator {underlyingTypeName}({(underlyingType.IsValueType ? "[DisallowNull] " : "[AllowNull] ")}{typeName} instance) => instance{(underlyingType.IsValueType ? "" : "?")}.Value;
+		{(underlyingType.IsValueType ? "" : @"[return: NotNullIfNotNull(""instance"")]")}
+		public static implicit operator {underlyingTypeName}{(underlyingType.IsValueType ? "" : "?")}({typeName}{(underlyingType.IsValueType ? "" : "?")} instance) => instance{(underlyingType.IsValueType ? "" : "?")}.Value;
 		{(underlyingType.TypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "*/" : "")}
 
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "/*" : "")}
-		{(underlyingType.IsValueType ? @"[return: MaybeNull, NotNullIfNotNull(""value"")]" : "")}
-		{(underlyingType.IsValueType ? $"public static explicit operator {typeName}({underlyingTypeName}? value) => value is null ? null : new {typeName}(value.Value);" : "")}
+		{(underlyingType.IsValueType ? @"[return: NotNullIfNotNull(""value"")]" : "")}
+		{(underlyingType.IsValueType ? $"public static explicit operator {typeName}?({underlyingTypeName}? value) => value is null ? null : new {typeName}(value.Value);" : "")}
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "*/" : "")}
 
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "/*" : "")}
-		{(underlyingType.IsValueType ? @"[return: MaybeNull, NotNullIfNotNull(""instance"")]" : "")}
-		{(underlyingType.IsValueType ? $"public static implicit operator {underlyingTypeName}?([AllowNull] {typeName} instance) => instance?.Value;" : "")}
+		{(underlyingType.IsValueType ? @"[return: NotNullIfNotNull(""instance"")]" : "")}
+		{(underlyingType.IsValueType ? $"public static implicit operator {underlyingTypeName}?({typeName}? instance) => instance?.Value;" : "")}
 		{(underlyingType.IsNullable() || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
 		private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<{typeName}>
 		{{
-			[return: MaybeNull]
 			public override {typeName} Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
 			{{
-				#nullable disable
-				return ({typeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeName}{(underlyingType.IsValueType ? "?" : "")}>(ref reader, options);
-				#nullable enable
+				return ({typeName})System.Text.Json.JsonSerializer.Deserialize<{underlyingTypeName}>(ref reader, options){(underlyingType.IsValueType ? "" : "!")};
 			}}
 
-			public override void Write(System.Text.Json.Utf8JsonWriter writer, [AllowNull] {typeName} value, System.Text.Json.JsonSerializerOptions options)
+			public override void Write(System.Text.Json.Utf8JsonWriter writer, {typeName} value, System.Text.Json.JsonSerializerOptions options)
 			{{
-				if (value is null)
-					writer.WriteNullValue();
-				else
-					System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
+				System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
 			}}
 
 			{readAndWriteAsPropertyNameMethods}
@@ -390,7 +380,7 @@ namespace {containingNamespace}
 				return objectType == typeof({typeName});
 			}}
 
-			public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
+			public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer)
 			{{
 				if (value is null)
 					serializer.Serialize(writer, null);
@@ -398,14 +388,9 @@ namespace {containingNamespace}
 					serializer.Serialize(writer, (({typeName})value).Value);
 			}}
 
-			[return: MaybeNull]
-			public override object ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, [AllowNull] object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+			public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer)
 			{{
-				var value = serializer.Deserialize<{underlyingTypeName}{(underlyingType.IsValueType ? "?" : "")}>(reader);
-
-				#nullable disable
-				return ({typeName})value;
-				#nullable enable
+				return ({typeName}?)serializer.Deserialize<{underlyingTypeName}?>(reader);
 			}}
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}

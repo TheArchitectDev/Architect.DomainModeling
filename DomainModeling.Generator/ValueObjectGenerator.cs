@@ -243,6 +243,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using {Constants.DomainModelingNamespace};
 
+#nullable enable
+
 namespace {containingNamespace}
 {{
 	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record" : "class")} {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
@@ -254,7 +256,6 @@ namespace {containingNamespace}
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "*/" : "")}
 
 		{(!isRecord && existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
-		[return: NotNull]
 		public sealed override string ToString()
 		{{
 			{toStringBody}
@@ -271,14 +272,14 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GetHashCodeOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOverride) ? "/*" : "")}
-		public sealed override bool Equals([AllowNull] object other)
+		public sealed override bool Equals(object? other)
 		{{
 			return other is {typeName} otherValue && this.Equals(otherValue);
 		}}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsMethod) ? "/*" : "")}
-		public bool Equals([AllowNull] {typeName} other)
+		public bool Equals({typeName}? other)
 		{{
 			if (other is null) return false;
 
@@ -298,7 +299,7 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "/*" : "")}
 		{(isComparable ? "" : "/*")}
 		// This method is generated only if the ValueObject implements IComparable<T> against its own type and each data member implements IComparable<T> against its own type
-		public int CompareTo([AllowNull] {typeName} other)
+		public int CompareTo({typeName}? other)
 		{{
 			if (other is null) return +1;
 
@@ -316,31 +317,27 @@ namespace {containingNamespace}
 		{(isComparable ? "" : "*/")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "*/" : "")}
 
-		#nullable disable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
-
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOperator) ? "/*" : "")}
-		public static bool operator ==([AllowNull] {typeName} left, [AllowNull] {typeName} right) => left is null ? right is null : left.Equals(right);
+		public static bool operator ==({typeName}? left, {typeName}? right) => left is null ? right is null : left.Equals(right);
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "/*" : "")}
-		public static bool operator !=([AllowNull] {typeName} left, [AllowNull] {typeName} right) => !(left == right);
+		public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "*/" : "")}
 
 		{(isComparable ? "" : "/*")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "/*" : "")}
-		public static bool operator >([AllowNull] {typeName} left, [AllowNull] {typeName} right) => left is null ? false : left.CompareTo(right) > 0;
+		public static bool operator >({typeName}? left, {typeName}? right) => left is null ? false : left.CompareTo(right) > 0;
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessThanOperator) ? "/*" : "")}
-		public static bool operator <([AllowNull] {typeName} left, [AllowNull] {typeName} right) => left is null ? right is not null : left.CompareTo(right) < 0;
+		public static bool operator <({typeName}? left, {typeName}? right) => left is null ? right is not null : left.CompareTo(right) < 0;
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessThanOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterEqualsOperator) ? "/*" : "")}
-		public static bool operator >=([AllowNull] {typeName} left, [AllowNull] {typeName} right) => !(left < right);
+		public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterEqualsOperator) ? "*/" : "")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessEqualsOperator) ? "/*" : "")}
-		public static bool operator <=([AllowNull] {typeName} left, [AllowNull] {typeName} right) => !(left > right);
+		public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessEqualsOperator) ? "*/" : "")}
 		{(isComparable ? "" : "*/")}
-
-		#nullable enable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
 	}}
 }}
 ";

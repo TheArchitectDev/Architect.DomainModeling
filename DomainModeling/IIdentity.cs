@@ -9,6 +9,6 @@ namespace Architect.DomainModeling;
 /// </para>
 /// </summary>
 public interface IIdentity<T> : IValueObject
-	where T : IEquatable<T>, IComparable<T>
+	where T : notnull, IEquatable<T>, IComparable<T>
 {
 }

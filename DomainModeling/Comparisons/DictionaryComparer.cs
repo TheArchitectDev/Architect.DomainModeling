@@ -14,7 +14,7 @@ public static class DictionaryComparer
 	/// Returns a hash code over some of the content of the given <paramref name="instance"/>.
 	/// </para>
 	/// </summary>
-	public static int GetDictionaryHashCode<TKey, TValue>([AllowNull] IReadOnlyDictionary<TKey, TValue> instance)
+	public static int GetDictionaryHashCode<TKey, TValue>(IReadOnlyDictionary<TKey, TValue>? instance)
 	{
 		// Unfortunately, we can do no better than distinguish between null, empty, and non-empty
 		// Example:
@@ -36,7 +36,7 @@ public static class DictionaryComparer
 	/// Returns a hash code over some of the content of the given <paramref name="instance"/>.
 	/// </para>
 	/// </summary>
-	public static int GetDictionaryHashCode<TKey, TValue>([AllowNull] IDictionary<TKey, TValue> instance)
+	public static int GetDictionaryHashCode<TKey, TValue>(IDictionary<TKey, TValue>? instance)
 	{
 		// Unfortunately, we can do no better than distinguish between null, empty, and non-empty
 		// Example:
@@ -58,7 +58,7 @@ public static class DictionaryComparer
 	/// Returns a hash code over some of the content of the given <paramref name="instance"/>.
 	/// </para>
 	/// </summary>
-	public static int GetDictionaryHashCode<TKey, TValue>([AllowNull] Dictionary<TKey, TValue> instance)
+	public static int GetDictionaryHashCode<TKey, TValue>(Dictionary<TKey, TValue>? instance)
 		where TKey : notnull
 	{
 		return GetDictionaryHashCode((IReadOnlyDictionary<TKey, TValue>?)instance);
@@ -73,7 +73,7 @@ public static class DictionaryComparer
 	/// It is not recursive. To support nested collections, use custom collections that override their equality checks accordingly.
 	/// </para>
 	/// </summary>
-	public static bool DictionaryEquals<TKey, TValue>([AllowNull] IReadOnlyDictionary<TKey, TValue> left, [AllowNull] IReadOnlyDictionary<TKey, TValue> right)
+	public static bool DictionaryEquals<TKey, TValue>(IReadOnlyDictionary<TKey, TValue>? left, IReadOnlyDictionary<TKey, TValue>? right)
 	{
 		// Devirtualized path for practically all dictionaries
 #pragma warning disable CS8714 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'notnull' constraint. -- Was type-checked
@@ -84,7 +84,7 @@ public static class DictionaryComparer
 		return GetResult(left, right);
 
 		// Local function that performs the work
-		static bool GetResult([AllowNull] IReadOnlyDictionary<TKey, TValue> left, [AllowNull] IReadOnlyDictionary<TKey, TValue> right)
+		static bool GetResult(IReadOnlyDictionary<TKey, TValue>? left, IReadOnlyDictionary<TKey, TValue>? right)
 		{
 			if (ReferenceEquals(left, right)) return true;
 			if (left is null || right is null) return false; // Double nulls are already handled above
@@ -112,7 +112,7 @@ public static class DictionaryComparer
 	/// It is not recursive. To support nested collections, use custom collections that override their equality checks accordingly.
 	/// </para>
 	/// </summary>
-	public static bool DictionaryEquals<TKey, TValue>([AllowNull] IDictionary<TKey, TValue> left, [AllowNull] IDictionary<TKey, TValue> right)
+	public static bool DictionaryEquals<TKey, TValue>(IDictionary<TKey, TValue>? left, IDictionary<TKey, TValue>? right)
 	{
 		// Devirtualized path for practically all dictionaries
 #pragma warning disable CS8714 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'notnull' constraint. -- Was type-checked
@@ -123,7 +123,7 @@ public static class DictionaryComparer
 		return GetResult(left, right);
 
 		// Local function that performs the work
-		static bool GetResult([AllowNull] IDictionary<TKey, TValue> left, [AllowNull] IDictionary<TKey, TValue> right)
+		static bool GetResult(IDictionary<TKey, TValue>? left, IDictionary<TKey, TValue>? right)
 		{
 			if (ReferenceEquals(left, right)) return true;
 			if (left is null || right is null) return false; // Double nulls are already handled above
@@ -151,7 +151,7 @@ public static class DictionaryComparer
 	/// It is not recursive. To support nested collections, use custom collections that override their equality checks accordingly.
 	/// </para>
 	/// </summary>
-	public static bool DictionaryEquals<TKey, TValue>([AllowNull] Dictionary<TKey, TValue> left, [AllowNull] Dictionary<TKey, TValue> right)
+	public static bool DictionaryEquals<TKey, TValue>(Dictionary<TKey, TValue>? left, Dictionary<TKey, TValue>? right)
 		where TKey : notnull
 	{
 		if (ReferenceEquals(left, right)) return true;

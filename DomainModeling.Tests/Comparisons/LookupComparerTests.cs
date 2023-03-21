@@ -1,11 +1,13 @@
-﻿using Architect.DomainModeling.Comparisons;
+using System.Diagnostics.CodeAnalysis;
+using Architect.DomainModeling.Comparisons;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests.Comparisons;
 
 public class LookupComparerTests
 {
-	private static ILookup<TKey, string> CreateLookupWithEqualityComparer<TKey>(IEnumerable<TKey> keys, IEqualityComparer<TKey> comparer)
+	[return: NotNullIfNotNull(nameof(keys))]
+	private static ILookup<TKey, string>? CreateLookupWithEqualityComparer<TKey>(IEnumerable<TKey>? keys, IEqualityComparer<TKey>? comparer)
 	{
 		if (keys is null) return null;
 
@@ -18,7 +20,7 @@ public class LookupComparerTests
 		return result;
 	}
 
-	private static void AssertGetHashCodesEqual<TKey, TValue>(bool expectedResult, ILookup<TKey, TValue> left, ILookup<TKey, TValue> right)
+	private static void AssertGetHashCodesEqual<TKey, TValue>(bool expectedResult, ILookup<TKey, TValue>? left, ILookup<TKey, TValue>? right)
 	{
 		var leftHashCode = LookupComparer.GetLookupHashCode(left);
 		var rightHashCode = LookupComparer.GetLookupHashCode(right);

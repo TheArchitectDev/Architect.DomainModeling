@@ -23,10 +23,12 @@ Release notes:
 2.0.0:
 - BREAKING: Generated DummyBuilders now use UTC datetimes for generated defaults and for interpreting datetime strings.
 - Semi-breaking: Generated types no longer add [Serializable] attribute, since there would be no way to remove it.
+- Generated types are now easier to read, using ?-based nullables instead of attributes.
 - Identity and WrapperValueObject&lt;TValue&gt; types now honor the underlying type's nullability in ToString().
 - Identity and WrapperValueObject&lt;TValue&gt; types' generated System.Text.Json serializers now implement ReadAsPropertyName() and WriteAsPropertyName(), enabling serialization of such types when they are used as dictionary keys (only in .NET 7 and up).
 - DummyBuilderGenerator: WrapperValueObject&lt;string&gt; and IIdentity&lt;string&gt; constructor params now get a string value equal to the param name instead of the type name (e.g. "FirstName" and "LastName" instead of "ProperName" and "ProperName").
 - Added some missing nullable annotations.
+- IIdentity&lt;T&gt; now has an explicit notnull constraint (whereas before this was only indirectly enforced by its IEquatable&lt;T&gt; interface).
 - Identity types now serialize additional large numeric types as string, to avoid JavaScript overflows: UInt128 and Int128.
 - Identity types generated for Entity&lt;TId, TIdPrimitive&gt; now have a summary.
 - Identity types wrapping a non-nullable string now explain the non-nullness for default struct instances, in summaries for ToString(), Value, and convert-to-string operators.
@@ -64,7 +66,7 @@ Release notes:
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	</ItemGroup>
 
 	<ItemGroup>

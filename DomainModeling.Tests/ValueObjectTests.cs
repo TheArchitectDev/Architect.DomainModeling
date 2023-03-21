@@ -756,7 +756,7 @@ namespace Architect.DomainModeling.Tests
 			var intInstance = value is null ? null : new IntValue(value.Value, value.Value);
 			Assert.Equal(value is null ? "null" : $@"{{""One"":{value},""Two"":{value},""CalculatedProperty"":""{value}-{value}""}}", System.Text.Json.JsonSerializer.Serialize(intInstance));
 
-			var stringInstance = value is null ? null : new StringValue(value.ToString(), value.ToString());
+			var stringInstance = value is null ? null : new StringValue(value.ToString()!, value.ToString()!);
 			Assert.Equal(value is null ? "null" : $@"{{""One"":""{value}"",""Two"":""{value}""}}", System.Text.Json.JsonSerializer.Serialize(stringInstance));
 		}
 
@@ -770,7 +770,7 @@ namespace Architect.DomainModeling.Tests
 			var intInstance = value is null ? null : new IntValue(value.Value, value.Value);
 			Assert.Equal(value is null ? "null" : $@"{{""One"":{value},""Two"":{value},""CalculatedProperty"":""{value}-{value}""}}", Newtonsoft.Json.JsonConvert.SerializeObject(intInstance));
 
-			var stringInstance = value is null ? null : new StringValue(value.ToString(), value.ToString());
+			var stringInstance = value is null ? null : new StringValue(value.ToString()!, value.ToString()!);
 			Assert.Equal(value is null ? "null" : $@"{{""One"":""{value}"",""Two"":""{value}""}}", Newtonsoft.Json.JsonConvert.SerializeObject(stringInstance));
 		}
 
@@ -823,18 +823,20 @@ namespace Architect.DomainModeling.Tests
 				Assert.Null(result);
 			else
 			{
+				Assert.NotNull(result);
 				Assert.Equal(value, result.One);
 				Assert.Equal(value, result.Two);
 			}
 
-			json = json == "null" ? json : json.Replace(value.ToString(), $@"""{value}""");
+			json = json == "null" ? json : json.Replace(value.ToString()!, $@"""{value}""");
 
 			var stringResult = System.Text.Json.JsonSerializer.Deserialize<StringValue>(json);
 
 			if (value is null)
-				Assert.Null(result);
+				Assert.Null(stringResult);
 			else
 			{
+				Assert.NotNull(stringResult);
 				Assert.Equal(value.ToString(), stringResult.One);
 				Assert.Equal(value.ToString(), stringResult.Two);
 			}
@@ -852,18 +854,20 @@ namespace Architect.DomainModeling.Tests
 				Assert.Null(result);
 			else
 			{
+				Assert.NotNull(result);
 				Assert.Equal(value, result.One);
 				Assert.Equal(value, result.Two);
 			}
 
-			json = json == "null" ? json : json.Replace(value.ToString(), $@"""{value}""");
+			json = json == "null" ? json : json.Replace(value.ToString()!, $@"""{value}""");
 
 			var stringResult = Newtonsoft.Json.JsonConvert.DeserializeObject<StringValue>(json);
 
 			if (value is null)
-				Assert.Null(result);
+				Assert.Null(stringResult);
 			else
 			{
+				Assert.NotNull(stringResult);
 				Assert.Equal(value.ToString(), stringResult.One);
 				Assert.Equal(value.ToString(), stringResult.Two);
 			}
@@ -888,6 +892,7 @@ namespace Architect.DomainModeling.Tests
 				Assert.Null(result);
 			else
 			{
+				Assert.NotNull(result);
 				Assert.Equal(value.Value, result.One);
 				Assert.Equal(value.Value, result.Two);
 			}
@@ -912,6 +917,7 @@ namespace Architect.DomainModeling.Tests
 				Assert.Null(result);
 			else
 			{
+				Assert.NotNull(result);
 				Assert.Equal(value.Value, result.One);
 				Assert.Equal(value.Value, result.Two);
 			}
@@ -1055,9 +1061,9 @@ namespace Architect.DomainModeling.Tests
 		[SourceGenerated]
 		public sealed partial class DefaultComparingStringValue : ValueObject, IComparable<DefaultComparingStringValue>
 		{
-			public string Value { get; }
+			public string? Value { get; }
 
-			public DefaultComparingStringValue(string value)
+			public DefaultComparingStringValue(string? value)
 			{
 				this.Value = value;
 			}
@@ -1083,12 +1089,12 @@ namespace Architect.DomainModeling.Tests
 		[SourceGenerated]
 		public sealed partial class CustomCollectionValueObject : ValueObject
 		{
-			public CustomCollection Values { get; set; }
+			public CustomCollection? Values { get; set; }
 
 			public class CustomCollection : IReadOnlyCollection<int>
 			{
 				public override int GetHashCode() => 1;
-				public override bool Equals(object other) => true;
+				public override bool Equals(object? other) => true;
 				public int Count => throw new NotSupportedException();
 				public IEnumerator<int> GetEnumerator() => throw new NotSupportedException();
 				IEnumerator IEnumerable.GetEnumerator() => throw new NotSupportedException();
@@ -1121,9 +1127,8 @@ namespace Architect.DomainModeling.Tests
 		[Newtonsoft.Json.JsonObject(Newtonsoft.Json.MemberSerialization.Fields)]
 		internal sealed partial class FullySelfImplementedValueObject : ValueObject, IComparable<FullySelfImplementedValueObject>
 		{
-			protected sealed override StringComparison StringComparison => StringComparison.Ordinal;
+			protected sealed override StringComparison StringComparison => throw new NotSupportedException("This operation applies to string-based value objects only.");
 
-			[return: NotNull]
 			public sealed override string ToString()
 			{
 				return $"{{FullySelfImplementedValueObject}}";
@@ -1134,37 +1139,33 @@ namespace Architect.DomainModeling.Tests
 				return typeof(FullySelfImplementedValueObject).GetHashCode();
 			}
 
-			public sealed override bool Equals([AllowNull] object other)
+			public sealed override bool Equals(object? other)
 			{
 				return other is FullySelfImplementedValueObject otherValue && this.Equals(otherValue);
 			}
 
-			public bool Equals([AllowNull] FullySelfImplementedValueObject other)
+			public bool Equals(FullySelfImplementedValueObject? other)
 			{
 				if (other is null) return false;
 
-				return
-					true;
+				return true; ;
 			}
 
-			public int CompareTo([AllowNull] FullySelfImplementedValueObject other)
+			// This method is generated only if the ValueObject implements IComparable<T> against its own type and each data member implements IComparable<T> against its own type
+			public int CompareTo(FullySelfImplementedValueObject? other)
 			{
 				if (other is null) return +1;
 
 				return 0;
 			}
 
-#nullable disable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
+			public static bool operator ==(FullySelfImplementedValueObject? left, FullySelfImplementedValueObject? right) => left is null ? right is null : left.Equals(right);
+			public static bool operator !=(FullySelfImplementedValueObject? left, FullySelfImplementedValueObject? right) => !(left == right);
 
-			public static bool operator ==([AllowNull] FullySelfImplementedValueObject left, [AllowNull] FullySelfImplementedValueObject right) => left is null ? right is null : left.Equals(right);
-			public static bool operator !=([AllowNull] FullySelfImplementedValueObject left, [AllowNull] FullySelfImplementedValueObject right) => !(left == right);
-
-			public static bool operator >([AllowNull] FullySelfImplementedValueObject left, [AllowNull] FullySelfImplementedValueObject right) => left is not null && left.CompareTo(right) > 0;
-			public static bool operator <([AllowNull] FullySelfImplementedValueObject left, [AllowNull] FullySelfImplementedValueObject right) => left is null ? right is not null : left.CompareTo(right) < 0;
-			public static bool operator >=([AllowNull] FullySelfImplementedValueObject left, [AllowNull] FullySelfImplementedValueObject right) => !(left < right);
-			public static bool operator <=([AllowNull] FullySelfImplementedValueObject left, [AllowNull] FullySelfImplementedValueObject right) => !(left > right);
-
-#nullable enable // The compiler fails to interpret nullable attributes on overloaded operators at the time of writing
+			public static bool operator >(FullySelfImplementedValueObject? left, FullySelfImplementedValueObject? right) => left is not null && left.CompareTo(right) > 0;
+			public static bool operator <(FullySelfImplementedValueObject? left, FullySelfImplementedValueObject? right) => left is null ? right is not null : left.CompareTo(right) < 0;
+			public static bool operator >=(FullySelfImplementedValueObject? left, FullySelfImplementedValueObject? right) => !(left < right);
+			public static bool operator <=(FullySelfImplementedValueObject? left, FullySelfImplementedValueObject? right) => !(left > right);
 		}
 	}
 }

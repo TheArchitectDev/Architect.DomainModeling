@@ -242,9 +242,9 @@ public class SourceGeneratedIdentityTests
 		IntId? instance = value is null ? null : new IntId(value.Value);
 
 		if (expectedResult is null)
-			Assert.Throws<InvalidOperationException>(() => (int)instance);
+			Assert.Throws<InvalidOperationException>(() => (int)instance!);
 		else
-			Assert.Equal(expectedResult, (int)instance);
+			Assert.Equal(expectedResult, (int)instance!);
 	}
 
 	[Theory]
@@ -462,8 +462,8 @@ public class SourceGeneratedIdentityTests
 	public sealed class ComparableObject : IEquatable<ComparableObject>, IComparable<ComparableObject>
 	{
 		public override int GetHashCode() => 1;
-		public override bool Equals(object obj) => obj is ComparableObject other && this.Equals(other);
-		public bool Equals(ComparableObject other) => other is not null;
-		public int CompareTo(ComparableObject other) => other is null ? +1 : 0;
+		public override bool Equals(object? obj) => obj is ComparableObject other && this.Equals(other);
+		public bool Equals(ComparableObject? other) => other is not null;
+		public int CompareTo(ComparableObject? other) => other is null ? +1 : 0;
 	}
 }

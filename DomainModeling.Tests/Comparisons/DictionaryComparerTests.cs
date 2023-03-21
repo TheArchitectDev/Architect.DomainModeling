@@ -1,13 +1,17 @@
-﻿using Architect.DomainModeling.Comparisons;
+using System.Diagnostics.CodeAnalysis;
+using Architect.DomainModeling.Comparisons;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests.Comparisons;
 
 public class DictionaryComparerTests
 {
-	private static Dictionary<TKey, string> CreateDictionaryWithEqualityComparer<TKey>(IEnumerable<TKey> keys, IEqualityComparer<TKey> comparer)
+	[return: NotNullIfNotNull(nameof(keys))]
+	private static Dictionary<TKey, string>? CreateDictionaryWithEqualityComparer<TKey>(IEnumerable<TKey>? keys, IEqualityComparer<TKey> comparer)
+		where TKey : notnull
 	{
-		if (keys is null) return null;
+		if (keys is null)
+			return null;
 
 		var result = new Dictionary<TKey, string>(comparer);
 		foreach (var key in keys)
@@ -15,7 +19,7 @@ public class DictionaryComparerTests
 		return result;
 	}
 
-	private static void AssertGetHashCodesEqual<TKey, TValue>(bool expectedResult, IReadOnlyDictionary<TKey, TValue> left, IReadOnlyDictionary<TKey, TValue> right)
+	private static void AssertGetHashCodesEqual<TKey, TValue>(bool expectedResult, IReadOnlyDictionary<TKey, TValue>? left, IReadOnlyDictionary<TKey, TValue>? right)
 	{
 		var leftHashCode = DictionaryComparer.GetDictionaryHashCode(left);
 		var rightHashCode = DictionaryComparer.GetDictionaryHashCode(right);
@@ -29,13 +33,12 @@ public class DictionaryComparerTests
 		if (expectedResult) Assert.Equal(expectedResult, result);
 	}
 
-	private static void InterfaceAlternativesReturn<TKey, TValue>(bool expectedResult, Dictionary<TKey, TValue> left, Dictionary<TKey, TValue> right)
+	private static void InterfaceAlternativesReturn<TKey, TValue>(bool expectedResult, Dictionary<TKey, TValue>? left, Dictionary<TKey, TValue>? right)
+		where TKey : notnull
 		where TValue : IEquatable<TValue>
 	{
-#pragma warning disable IDE0004 // Cast is not redundant, but actually leads to a different overload
-		Assert.Equal(expectedResult, DictionaryComparer.DictionaryEquals((IDictionary<TKey, TValue>)left, (IDictionary<TKey, TValue>)right));
-		Assert.Equal(expectedResult, DictionaryComparer.DictionaryEquals((IReadOnlyDictionary<TKey, TValue>)left, (IReadOnlyDictionary<TKey, TValue>)right));
-#pragma warning restore IDE0004
+		Assert.Equal(expectedResult, DictionaryComparer.DictionaryEquals((IDictionary<TKey, TValue>?)left, (IDictionary<TKey, TValue>?)right));
+		Assert.Equal(expectedResult, DictionaryComparer.DictionaryEquals((IReadOnlyDictionary<TKey, TValue>?)left, (IReadOnlyDictionary<TKey, TValue>?)right));
 	}
 
 	[Theory]

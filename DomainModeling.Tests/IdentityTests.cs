@@ -292,9 +292,9 @@ namespace Architect.DomainModeling.Tests
 			var instance = value is null ? (IntId?)null : new IntId(value.Value);
 
 			if (expectedResult is null)
-				Assert.Throws<InvalidOperationException>(() => (int)instance);
+				Assert.Throws<InvalidOperationException>(() => (int)instance!);
 			else
-				Assert.Equal(expectedResult, (int)instance);
+				Assert.Equal(expectedResult, (int)instance!);
 		}
 
 		[Theory]
@@ -337,11 +337,11 @@ namespace Architect.DomainModeling.Tests
 		{
 			var intInstance = (IntId?)value;
 			Assert.Equal(value?.ToString() ?? "null", System.Text.Json.JsonSerializer.Serialize(intInstance));
-			if (value is not null) Assert.Equal(value?.ToString() ?? "null", System.Text.Json.JsonSerializer.Serialize(intInstance.Value));
+			if (intInstance is not null) Assert.Equal(value?.ToString() ?? "null", System.Text.Json.JsonSerializer.Serialize(intInstance.Value));
 
 			var stringInstance = (StringId?)value?.ToString();
 			Assert.Equal(value is null ? "null" : $@"""{value}""", System.Text.Json.JsonSerializer.Serialize(stringInstance));
-			if (value is not null) Assert.Equal(value is null ? "null" : $@"""{value}""", System.Text.Json.JsonSerializer.Serialize(stringInstance.Value));
+			if (stringInstance is not null) Assert.Equal(value is null ? "null" : $@"""{value}""", System.Text.Json.JsonSerializer.Serialize(stringInstance.Value));
 		}
 
 		[Theory]
@@ -352,11 +352,11 @@ namespace Architect.DomainModeling.Tests
 		{
 			var intInstance = (IntId?)value;
 			Assert.Equal(value?.ToString() ?? "null", Newtonsoft.Json.JsonConvert.SerializeObject(intInstance));
-			if (value is not null) Assert.Equal(value?.ToString() ?? "null", Newtonsoft.Json.JsonConvert.SerializeObject(intInstance.Value));
+			if (intInstance is not null) Assert.Equal(value?.ToString() ?? "null", Newtonsoft.Json.JsonConvert.SerializeObject(intInstance.Value));
 
 			var stringInstance = (StringId?)value?.ToString();
 			Assert.Equal(value is null ? "null" : $@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject(stringInstance));
-			if (value is not null) Assert.Equal(value is null ? "null" : $@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject(stringInstance.Value));
+			if (stringInstance is not null) Assert.Equal(value is null ? "null" : $@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject(stringInstance.Value));
 		}
 
 		/// <summary>
@@ -435,7 +435,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(value, System.Text.Json.JsonSerializer.Deserialize<DecimalId?>(json)?.Value);
 
 			if (json != "null")
-				Assert.Equal((decimal)value, System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json).Value);
+				Assert.Equal((decimal)value!, System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json).Value);
 		}
 
 		/// <summary>
@@ -454,7 +454,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalId?>(json)?.Value);
 
 			if (json != "null")
-				Assert.Equal((decimal)value, System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json).Value);
+				Assert.Equal((decimal)value!, System.Text.Json.JsonSerializer.Deserialize<DecimalId>(json).Value);
 		}
 
 		[Theory]
@@ -464,11 +464,11 @@ namespace Architect.DomainModeling.Tests
 		{
 			json = $$"""{ "{{json}}": true }""";
 
-			Assert.Equal(KeyValuePair.Create((IntId)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<IntId, bool>>(json).Single());
+			Assert.Equal(KeyValuePair.Create((IntId)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<IntId, bool>>(json)?.Single());
 
-			Assert.Equal(KeyValuePair.Create((StringId)value.ToString(), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<StringId, bool>>(json).Single());
+			Assert.Equal(KeyValuePair.Create((StringId)value.ToString(), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<StringId, bool>>(json)?.Single());
 
-			Assert.Equal(KeyValuePair.Create((DecimalId)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<DecimalId, bool>>(json).Single());
+			Assert.Equal(KeyValuePair.Create((DecimalId)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<DecimalId, bool>>(json)?.Single());
 		}
 
 		[Theory]
@@ -526,10 +526,9 @@ namespace Architect.DomainModeling.Tests
 				this.Value = value;
 			}
 
-			[return: MaybeNull]
 			public override string ToString()
 			{
-				return this.Value.ToString();
+				return this.Value.ToString("0.#");
 			}
 
 			public override int GetHashCode()
@@ -537,7 +536,7 @@ namespace Architect.DomainModeling.Tests
 				return this.Value.GetHashCode();
 			}
 
-			public override bool Equals([AllowNull] object other)
+			public override bool Equals(object? other)
 			{
 				return other is FullySelfImplementedIdentity otherId && this.Equals(otherId);
 			}
@@ -575,7 +574,7 @@ namespace Architect.DomainModeling.Tests
 					return (FullySelfImplementedIdentity)System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options);
 				}
 
-				public override void Write(System.Text.Json.Utf8JsonWriter writer, [AllowNull] FullySelfImplementedIdentity value, System.Text.Json.JsonSerializerOptions options)
+				public override void Write(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedIdentity value, System.Text.Json.JsonSerializerOptions options)
 				{
 					System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
 				}
@@ -600,7 +599,7 @@ namespace Architect.DomainModeling.Tests
 					return objectType == typeof(FullySelfImplementedIdentity) || objectType == typeof(FullySelfImplementedIdentity?);
 				}
 
-				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, [AllowNull] object value, Newtonsoft.Json.JsonSerializer serializer)
+				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer)
 				{
 					if (value is null)
 						serializer.Serialize(writer, null);
@@ -608,8 +607,7 @@ namespace Architect.DomainModeling.Tests
 						serializer.Serialize(writer, ((FullySelfImplementedIdentity)value).Value);
 				}
 
-				[return: MaybeNull]
-				public override object ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, [AllowNull] object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+				public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer)
 				{
 					if (objectType == typeof(FullySelfImplementedIdentity)) // Non-nullable
 						return (FullySelfImplementedIdentity)serializer.Deserialize<int>(reader);
