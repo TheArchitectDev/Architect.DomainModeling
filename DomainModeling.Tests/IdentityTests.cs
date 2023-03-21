@@ -582,7 +582,7 @@ namespace Architect.DomainModeling.Tests
 #if NET7_0_OR_GREATER
 				public override FullySelfImplementedIdentity ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
 				{
-					return new FullySelfImplementedIdentity(reader.GetParsedString<int>(CultureInfo.InvariantCulture));
+					return (FullySelfImplementedIdentity)reader.GetParsedString<int>(CultureInfo.InvariantCulture);
 				}
 
 				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedIdentity value, System.Text.Json.JsonSerializerOptions options)
