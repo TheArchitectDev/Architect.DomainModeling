@@ -358,7 +358,7 @@ namespace {containingNamespace}
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
 		{nonNullStringSummary}
-		public {underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType ? "" : isNonNullString ? "" : "?")} Value {(isNonNullString ? @"=> this._value ?? """";" : "{ get; }")}
+		public {underlyingTypeFullyQualifiedName}{(underlyingType.IsValueType || isNonNullString ? "" : "?")} Value {(isNonNullString ? @"=> this._value ?? """";" : "{ get; }")}
 		{(isNonNullString ? "private readonly string _value;" : "")}
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "*/" : "")}
 
