@@ -501,7 +501,7 @@ namespace {containingNamespace}
 				if (objectType == typeof({idTypeName})) // Non-nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
 						? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader)!, System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);"
-						: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader);")}
+						: $@"return ({idTypeName})serializer.Deserialize<{underlyingTypeFullyQualifiedName}>(reader)!;")}
 				else // Nullable
 					{(underlyingTypeIsNumericUnsuitableForJson
 						? $@"return reader.TokenType == Newtonsoft.Json.JsonToken.String ? ({idTypeName}?){underlyingType.ContainingNamespace}.{underlyingType.Name}.Parse(serializer.Deserialize<string>(reader)!, System.Globalization.CultureInfo.InvariantCulture) : ({idTypeName}?)serializer.Deserialize<{underlyingTypeFullyQualifiedName}?>(reader);"
