@@ -8,9 +8,12 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void Build_Regularly_ShouldReturnExpectedResult()
 		{
+			var expectedCreationDateTime = new DateTime(2000, 01, 01, 00, 00, 00, DateTimeKind.Utc).ToLocalTime();
+
 			var result = new TestEntityDummyBuilder().Build();
 
-			Assert.Equal(new DateTime(2000, 01, 01, 01, 00, 00, DateTimeKind.Local), result.CreationDateTime);
+			Assert.Equal(expectedCreationDateTime, result.CreationDateTime);
+			Assert.Equal(DateTimeKind.Local, result.CreationDateTime.Kind);
 			Assert.Equal(1, result.Count);
 			Assert.Equal("Currency", result.Amount.Currency);
 			Assert.Equal(1m, result.Amount.Amount.Value);
