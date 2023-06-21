@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 
 namespace Architect.DomainModeling.Generator;
 
@@ -12,16 +12,16 @@ internal static class NamespaceSymbolExtensions
 	/// </summary>
 	public static bool IsInSystemNamespace(this INamespaceSymbol namespaceSymbol)
 	{
-		while (namespaceSymbol.ContainingNamespace is not null)
+		while (namespaceSymbol?.ContainingNamespace is not null)
 			namespaceSymbol = namespaceSymbol.ContainingNamespace;
 
-		return namespaceSymbol.Name == "System";
+		return namespaceSymbol?.Name == "System";
 	}
 
 	/// <summary>
 	/// Returns whether the given <see cref="INamedTypeSymbol"/> has the given <paramref name="fullName"/>.
 	/// </summary>
-	public static bool HasFullName(this INamespaceSymbol namespaceSymbol, string fullName)
+	public static bool HasFullName(this INamespaceSymbol? namespaceSymbol, string fullName)
 	{
 		return namespaceSymbol.HasFullName(fullName.AsSpan());
 	}
@@ -29,8 +29,11 @@ internal static class NamespaceSymbolExtensions
 	/// <summary>
 	/// Returns whether the given <see cref="INamedTypeSymbol"/> has the given <paramref name="fullName"/>.
 	/// </summary>
-	public static bool HasFullName(this INamespaceSymbol namespaceSymbol, ReadOnlySpan<char> fullName)
+	public static bool HasFullName(this INamespaceSymbol? namespaceSymbol, ReadOnlySpan<char> fullName)
 	{
+		if (namespaceSymbol is null)
+			return false;
+
 		do
 		{
 			var length = namespaceSymbol.Name.Length;

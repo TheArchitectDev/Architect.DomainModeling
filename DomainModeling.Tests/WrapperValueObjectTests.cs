@@ -508,6 +508,18 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
+		[SourceGenerated]
+		[Obsolete("Should merely compile.", error: true)]
+		public sealed partial class StringArrayValue : WrapperValueObject<string?[]>
+		{
+		}
+
+		[SourceGenerated]
+		[Obsolete("Should merely compile.", error: true)]
+		public sealed partial class DecimalArrayValue : WrapperValueObject<decimal?[]>
+		{
+		}
+
 		/// <summary>
 		/// Should merely compile.
 		/// </summary>
