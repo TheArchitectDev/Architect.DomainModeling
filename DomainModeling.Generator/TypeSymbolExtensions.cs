@@ -43,7 +43,7 @@ internal static class TypeSymbolExtensions
 
 		chars = chars.Slice(0, chars.Length - freeBuffer.Length);
 		if (containingNamespace?.IsGlobalNamespace != false)
-			chars = typeSymbol.ContainingNamespace.ToString().AsSpan();
+			chars = (typeSymbol.ContainingNamespace?.ToString() ?? "").AsSpan();
 
 		if (!typeSymbol.IsType(typeSymbol.Name.AsSpan(), chars))
 			return false;
@@ -333,6 +333,11 @@ internal static class TypeSymbolExtensions
 		if (!typeSymbol.IsOrImplementsInterface(type => type.IsType("IEnumerable", "System.Collections", generic: false), out var nonGenericEnumerableInterface))
 			return false;
 
+		if (typeSymbol.Kind == SymbolKind.ArrayType)
+		{
+			elementType = ((IArrayTypeSymbol)typeSymbol).ElementType as INamedTypeSymbol;
+			return true;
+		}
 		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IList", "System.Collections.Generic", generic: true), out var interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;

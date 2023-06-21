@@ -1086,6 +1086,25 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
+		/// <summary>
+		/// Should merely compile.
+		/// </summary>
+		[Obsolete("Should merely compile.", error: true)]
+		[SourceGenerated]
+		public sealed partial class ArrayValueObject : ValueObject
+		{
+			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
+
+			public string?[]? StringValues { get; }
+			public int?[] IntValues { get; }
+
+			public ArrayValueObject(string?[]? stringValues, int?[] intValues)
+			{
+				this.StringValues = stringValues;
+				this.IntValues = intValues;
+			}
+		}
+
 		[SourceGenerated]
 		public sealed partial class CustomCollectionValueObject : ValueObject
 		{

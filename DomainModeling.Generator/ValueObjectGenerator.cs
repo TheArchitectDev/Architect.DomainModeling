@@ -148,7 +148,7 @@ public class ValueObjectGenerator : SourceGenerator
 		{
 			dataMemberHashCode = tuple.Member.Name.GetStableHashCode64(dataMemberHashCode);
 			dataMemberHashCode = ":".GetStableHashCode64(dataMemberHashCode);
-			dataMemberHashCode = tuple.Type.ContainingNamespace.ToString().GetStableHashCode64(dataMemberHashCode);
+			dataMemberHashCode = (tuple.Type.ContainingNamespace?.ToString() ?? "").GetStableHashCode64(dataMemberHashCode); // Arrays have no namespace
 			dataMemberHashCode = ".".GetStableHashCode64(dataMemberHashCode);
 			dataMemberHashCode = tuple.Type.Name.GetStableHashCode64(dataMemberHashCode);
 			dataMemberHashCode = "&".GetStableHashCode64(dataMemberHashCode);
@@ -288,7 +288,7 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsMethod) ? " */" : "")}
 
 		/// <summary>
-		/// Provides type inference when comparing types that are completed source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
+		/// Provides type inference when comparing types that are entirely source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
 		/// </summary>
 		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 		private static bool Equals<T>(T left, T right)
@@ -307,7 +307,7 @@ namespace {containingNamespace}
 		}}
 
 		/// <summary>
-		/// Provides type inference when comparing types that are completed source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
+		/// Provides type inference when comparing types that are entirely source-generated. The current code's source generator does not know the appropriate namespace, because the type is being generated at the same time, thus necessitating type inference.
 		/// </summary>
 		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 		private static int Compare<T>(T left, T right)
