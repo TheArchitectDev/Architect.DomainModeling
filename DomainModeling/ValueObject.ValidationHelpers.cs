@@ -378,7 +378,7 @@ public abstract partial class ValueObject
 	/// It does <em>not</em> detect whitespace characters, even if they are zero-width.
 	/// </para>
 	/// <para>
-	/// It returns true, unless the given <paramref name="text"/> consists exclusively of printable characters other than doubles quotes (").
+	/// It returns true, unless the given <paramref name="text"/> consists exclusively of printable characters that are not double quotes (").
 	/// </para>
 	/// <para>
 	/// </para>
