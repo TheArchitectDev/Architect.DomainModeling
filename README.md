@@ -149,7 +149,7 @@ The `Entity<TId, TIdPrimitive>` base class is what triggers source generation of
 
 For performance reasons, the `Entity<TId, TIdPrimitive>` base class is only recognized when inherited from _directly_. If it is _indirectly_ inherited from (i.e. via a custom base class), then the ID type must be [explicitly declared](#identity).
 
-The entity could then be modified as follows to create a new, unique ID on construction:
+Next, the entity could be modified as follows to create a new, unique ID on construction:
 
 ```cs
 public Payment(string currency, decimal amount)
@@ -159,7 +159,7 @@ public Payment(string currency, decimal amount)
 }
 ```
 
-For a more database-friendly alternative to GUIDs, see [Distributed IDs](https://github.com/TheArchitectDev/Architect.Identities#distributed-ids).
+For a more database-friendly alternative to UUIDs, see [Distributed IDs](https://github.com/TheArchitectDev/Architect.Identities#distributed-ids).
 
 ## Identity
 
