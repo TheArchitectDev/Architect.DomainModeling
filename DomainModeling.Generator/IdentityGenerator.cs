@@ -133,7 +133,7 @@ public class IdentityGenerator : SourceGenerator
 			existingComponents |= IdTypeComponents.GetHashCodeOverride.If(!result.IsRecord && members.Any(member =>
 				member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
 
-			// Records irrevocably and correctly override this to check the type and delegate to IEquatable<T>.Equals(T)
+			// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.EqualsOverride.If(members.Any(member =>
 				member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 				method.Parameters[0].Type.IsType<object>()));
@@ -147,13 +147,13 @@ public class IdentityGenerator : SourceGenerator
 				member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-			// Records irrevocably and correctly override this to delegate to IEquatable<T>.Equals(T)
+			// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.EqualsOperator.If(members.Any(member =>
 				member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
-			// Records irrevocably and correctly override this to delegate to IEquatable<T>.Equals(T)
+			// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.NotEqualsOperator.If(members.Any(member =>
 				member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
