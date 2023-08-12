@@ -7,7 +7,11 @@ namespace Architect.DomainModeling.Generator;
 /// </summary>
 internal static class TypeSyntaxExtensions
 {
-	public static bool HasArityAndName(this TypeSyntax typeSyntax, int arity, string unqualifiedName)
+	/// <summary>
+	/// Returns whether the given <see cref="TypeSyntax"/> has the given arity (type parameter count) and (unqualified) name.
+	/// </summary>
+	/// <param name="arity">Pass null to accept any arity.</param>
+	public static bool HasArityAndName(this TypeSyntax typeSyntax, int? arity, string unqualifiedName)
 	{
 		int actualArity;
 		string actualUnqualifiedName;
@@ -32,6 +36,20 @@ internal static class TypeSyntaxExtensions
 			return false;
 		}
 
-		return actualArity == arity && actualUnqualifiedName == unqualifiedName;
+		return (arity is null || actualArity == arity) && actualUnqualifiedName == unqualifiedName;
+	}
+
+	/// <summary>
+	/// Returns the given <see cref="TypeSyntax"/>'s name, or null if no name can be obtained.
+	/// </summary>
+	public static string? GetNameOrDefault(this TypeSyntax typeSyntax)
+	{
+		return typeSyntax switch
+		{
+			SimpleNameSyntax simpleName => simpleName.Identifier.ValueText,
+			QualifiedNameSyntax qualifiedName => qualifiedName.Right.Identifier.ValueText,
+			AliasQualifiedNameSyntax aliasQualifiedName => aliasQualifiedName.Name.Identifier.ValueText,
+			_ => null,
+		};
 	}
 }

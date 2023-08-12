@@ -18,14 +18,14 @@ public class IdentityGenerator : SourceGenerator
 
 	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
 	{
-		// Partial struct with some interface
-		if (node is StructDeclarationSyntax sds && sds.Modifiers.Any(SyntaxKind.PartialKeyword) && sds.BaseList is not null)
+		// Partial (record) struct with some interface
+		if (node is TypeDeclarationSyntax tds && tds is StructDeclarationSyntax or RecordDeclarationSyntax { ClassOrStructKeyword.ValueText: "struct" } && tds.Modifiers.Any(SyntaxKind.PartialKeyword) && tds.BaseList is not null)
 		{
 			// With SourceGenerated attribute
-			if (sds.HasAttributeWithPrefix(Constants.SourceGeneratedAttributeShortName))
+			if (tds.HasAttributeWithPrefix(Constants.SourceGeneratedAttributeShortName))
 			{
 				// Consider any type with SOME 1-param generic "IIdentity" inheritance/implementation
-				foreach (var baseType in sds.BaseList.Types)
+				foreach (var baseType in tds.BaseList.Types)
 				{
 					if (baseType.Type.HasArityAndName(1, Constants.IdentityInterfaceTypeName))
 						return true;
@@ -33,7 +33,7 @@ public class IdentityGenerator : SourceGenerator
 			}
 		}
 
-		// Concrete, non-generic class
+		// Concrete, non-generic class with any inherited/implemented types
 		if (node is ClassDeclarationSyntax cds && !cds.Modifiers.Any(SyntaxKind.AbstractKeyword) && cds.Arity == 0 && cds.BaseList is not null)
 		{
 			// Consider any type with SOME 2-param generic "Entity" inheritance/implementation
@@ -107,6 +107,7 @@ public class IdentityGenerator : SourceGenerator
 
 			result.IsIIdentity = true;
 			result.IdTypeExists = true;
+			result.IsRecord = type.IsRecord;
 			result.SetAssociatedData(new Tuple<INamedTypeSymbol?, ITypeSymbol, ITypeSymbol>(null, type, underlyingType));
 			result.ContainingNamespace = type.ContainingNamespace.ToString();
 			result.IdTypeName = type.Name;
@@ -124,17 +125,21 @@ public class IdentityGenerator : SourceGenerator
 			existingComponents |= IdTypeComponents.Constructor.If(type.Constructors.Any(ctor =>
 				!ctor.IsStatic && ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
 
-			existingComponents |= IdTypeComponents.ToStringOverride.If(members.Any(member =>
+			// Records override this, but our implementation is superior
+			existingComponents |= IdTypeComponents.ToStringOverride.If(!result.IsRecord && members.Any(member =>
 				member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
 
-			existingComponents |= IdTypeComponents.GetHashCodeOverride.If(members.Any(member =>
+			// Records override this, but our implementation is superior
+			existingComponents |= IdTypeComponents.GetHashCodeOverride.If(!result.IsRecord && members.Any(member =>
 				member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
 
+			// Records irrevocably and correctly override this to check the type and delegate to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.EqualsOverride.If(members.Any(member =>
 				member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 				method.Parameters[0].Type.IsType<object>()));
 
-			existingComponents |= IdTypeComponents.EqualsMethod.If(members.Any(member =>
+			// Records override this, but our implementation is superior
+			existingComponents |= IdTypeComponents.EqualsMethod.If(!result.IsRecord && members.Any(member =>
 				member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
@@ -142,11 +147,13 @@ public class IdentityGenerator : SourceGenerator
 				member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
+			// Records irrevocably and correctly override this to delegate to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.EqualsOperator.If(members.Any(member =>
 				member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
+			// Records irrevocably and correctly override this to delegate to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.NotEqualsOperator.If(members.Any(member =>
 				member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
@@ -298,7 +305,7 @@ public class IdentityGenerator : SourceGenerator
 #endif
 ";
 
-		string ? propertyNameParseStatement = null;
+		string? propertyNameParseStatement = null;
 		if (idType.IsOrImplementsInterface(interf => interf.Name == "ISpanParsable" && interf.ContainingNamespace.HasFullName("System") && interf.Arity == 1 && interf.TypeArguments[0].Equals(idType, SymbolEqualityComparer.Default), out _))
 			propertyNameParseStatement = $"return reader.GetParsedString<{idTypeName}>(System.Globalization.CultureInfo.InvariantCulture);";
 		else if (underlyingType.IsType<string>())
@@ -354,7 +361,7 @@ namespace {containingNamespace}
 	{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 
 	{(hasSourceGeneratedAttribute ? "" : "[SourceGenerated]")}
-	{(entityTypeName is null ? "/* Generated */ " : "")}{accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")} struct {idTypeName} : {Constants.IdentityInterfaceTypeName}<{underlyingTypeFullyQualifiedName}>, IEquatable<{idTypeName}>, IComparable<{idTypeName}>
+	{(entityTypeName is null ? "/* Generated */ " : "")}{accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")}{(idType.IsRecord ? " record" : "")} struct {idTypeName} : {Constants.IdentityInterfaceTypeName}<{underlyingTypeFullyQualifiedName}>, IEquatable<{idTypeName}>, IComparable<{idTypeName}>
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
 		{nonNullStringSummary}
@@ -548,6 +555,7 @@ namespace {containingNamespace}
 		public bool IdTypeExists { get; set; }
 		public string EntityTypeName { get; set; } = null!;
 		public bool IsIIdentity { get; set; }
+		public bool IsRecord { get; set; }
 		public string ContainingNamespace { get; set; } = null!;
 		public string IdTypeName { get; set; } = null!;
 		public string UnderlyingTypeFullyQualifiedName { get; set; } = null!;

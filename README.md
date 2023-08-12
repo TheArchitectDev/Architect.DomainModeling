@@ -109,7 +109,7 @@ public partial class Description : WrapperValueObject<string>
 }
 ```
 
-The `IComparable<Description>` interface can optionally be added, if the type is considered to have a natural order.
+To also have comparison methods generated, the `IComparable<Description>` interface can optionally be added, if the type is considered to have a natural order.
 
 ## Entity
 
@@ -147,17 +147,47 @@ public class Payment : Entity<PaymentId, string>
 
 The `Entity<TId, TIdPrimitive>` base class is what triggers source generation of the `TId`, if no such type exists. The `TIdPrimitive` type parameter specifies the underlying primitive to use. Note that the generated ID type is itself a value object, as is customary in DDD.
 
+For performance reasons, the `Entity<TId, TIdPrimitive>` base class is only recognized when inherited from _directly_. If it is _indirectly_ inherited from (i.e. via a custom base class), then the ID type must be [explicitly declared](#identity).
+
 The entity could then be modified as follows to create a new, unique ID on construction:
 
 ```cs
-	public Payment(string currency, decimal amount)
-		: base(new PaymentId(Guid.NewGuid().ToString("N")))
-	{
-		// Snip
-	}
+public Payment(string currency, decimal amount)
+	: base(new PaymentId(Guid.NewGuid().ToString("N")))
+{
+	// Snip
+}
 ```
 
 For a more database-friendly alternative to GUIDs, see [Distributed IDs](https://github.com/TheArchitectDev/Architect.Identities#distributed-ids).
+
+## Identity
+
+Identity types are a special case of value objects. Unlike other value objects, they are perfectly suitable to be implemented as structs, for the following reasons:
+
+- The enforced default constructor is unproblematic, because there is hardly such a thing as an invalid ID value: although ID 0 or -1 might not _exist_, the same might be true for ID 999999, which would still be valid as a value.
+- The possibility of an ID variable containing `null` is often undesirable. Structs avoid this complication. (Where we _want_ nullability, a nullable struct (e.g. `PaymentId?`) can be used.)
+- If the underlying type is `string`, the generator ensures that its `Value` property returns the empty string instead of null. This way, even `string`-wrapping identities know only one "empty" value and avoid representing null.
+
+Since an application is expected to work with many ID instances, using structs for them is a nice optimization that reduces heap allocations.
+
+Source-generated identities implement both `IEquatable<T>` and `IComparable<T>` automatically. They are declared as follows:
+
+```cs
+[SourceGenerated]
+public readonly partial struct PaymentId : IIdentity<ulong>
+{
+}
+```
+
+Records may be used for an even shorter syntax:
+
+```cs
+[SourceGenerated]
+public readonly partial record struct ExternalId : IIdentity<string>;
+```
+
+Note that an [entity](#entity) has the option of having its own ID type generated implicitly, with practically no code at all.
 
 ## DummyBuilder
 

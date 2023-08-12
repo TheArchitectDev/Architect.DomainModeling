@@ -18,7 +18,7 @@ public class ValueObjectGenerator : SourceGenerator
 
 	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
 	{
-		// Partial subclass
+		// Partial subclass with any inherited/implemented types
 		if (node is not ClassDeclarationSyntax cds || !cds.Modifiers.Any(SyntaxKind.PartialKeyword) || cds.BaseList is null)
 			return false;
 
@@ -29,11 +29,9 @@ public class ValueObjectGenerator : SourceGenerator
 				return true;
 		}
 
-		/* Supporting records has the following disadvantages:
-		 * - Allows the use of automatic properties. This generates a constructor and init-properties, stimulating non-validated ValueObjects, an antipattern.
-		 * - Overrides equality without an easy way to specify (or even think of) how to compare strings.
-		 * - Overrides equality without special-casing collections.
-		 * - Omits IComparable<T> and comparison operators.
+		/* Supporting records has the following issues:
+		 * - Cannot inherit from a non-record class (and vice versa).
+		 * - Promotes the use of "positional" (automatic) properties. This generates a constructor and init-properties, stimulating non-validated ValueObjects, an antipattern.
 		 * - Provides multiple nearly-identical solutions, reducing standardization.
 		// Partial record with some interface/base
 		if (node is RecordDeclarationSyntax rds && rds.Modifiers.Any(SyntaxKind.PartialKeyword) && rds.BaseList is not null)

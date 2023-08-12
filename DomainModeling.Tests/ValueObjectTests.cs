@@ -399,6 +399,84 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
+		[Fact]
+		public void ContainsNonPrintableCharactersOrDoubleQuotes_WithFlagNewLinesAndTabs_ShouldReturnExpectedResult()
+		{
+			for (var i = 0; i < UInt16.MaxValue; i++)
+			{
+				var chr = (char)i;
+
+				var category = Char.GetUnicodeCategory(chr);
+				var isPrintable = category != UnicodeCategory.Control && category != UnicodeCategory.PrivateUse && category != UnicodeCategory.OtherNotAssigned;
+				var isNotDoubleQuote = chr != '"';
+
+				var span = MemoryMarshal.CreateReadOnlySpan(ref chr, length: 1);
+				var result = ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(span, flagNewLinesAndTabs: true);
+
+				if (isPrintable && isNotDoubleQuote)
+					Assert.False(result, $"{nameof(ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes)} (disallowing newlines and tabs) for '{chr}' ({i}) should have been false, but was true.");
+				else
+					Assert.True(result, $"{nameof(ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes)} (disallowing newlines and tabs) for '{chr}' ({i}) should have been true, but was false.");
+
+				var longVersion = new string(chr, count: 33);
+				var longResult = ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(longVersion, flagNewLinesAndTabs: true);
+				Assert.Equal(result, longResult);
+			}
+		}
+
+		[Fact]
+		public void ContainsNonPrintableCharactersOrDoubleQuotes_WithoutFlagNewLinesAndTabs_ShouldReturnExpectedResult()
+		{
+			for (var i = 0; i < UInt16.MaxValue; i++)
+			{
+				var chr = (char)i;
+
+				var category = Char.GetUnicodeCategory(chr);
+				var isPrintable = category != UnicodeCategory.Control && category != UnicodeCategory.PrivateUse && category != UnicodeCategory.OtherNotAssigned;
+				isPrintable = isPrintable || chr == '\r' || chr == '\n' || chr == '\t';
+				var isNotDoubleQuote = chr != '"';
+
+				var span = MemoryMarshal.CreateReadOnlySpan(ref chr, length: 1);
+				var result = ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(span, flagNewLinesAndTabs: false);
+
+				if (isPrintable && isNotDoubleQuote)
+					Assert.False(result, $"{nameof(ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes)} (allowing newlines and tabs) for '{chr}' ({i}) should have been false, but was true.");
+				else
+					Assert.True(result, $"{nameof(ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes)} (allowing newlines and tabs) for '{chr}' ({i}) should have been true, but was false.");
+
+				var longVersion = new string(chr, count: 33);
+				var longResult = ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(longVersion, flagNewLinesAndTabs: false);
+				Assert.Equal(result, longResult);
+			}
+		}
+
+		[Theory]
+		[InlineData("_12345678901234561234567890123456", false)]
+		[InlineData("12345678901234561234567890123456_", false)]
+		[InlineData("12345678901234561234567890123456ë", false)]
+		[InlineData("12345678901234561234567890123456💩", false)]
+		[InlineData("1234567890123456123456789012345💩", false)]
+		[InlineData("123456789012345612345678901234💩", false)]
+		[InlineData("💩12345678901234561234567890123456", false)]
+		[InlineData("12345678901234💩561234567890123456", false)]
+		[InlineData("12345678901234561234567890123456", true)] // Ends with an invisible control character
+		[InlineData("12345678901234561234567890123456\0", true)]
+		[InlineData("1234567890123456123456789012345\0", true)]
+		[InlineData("123456789012345612345678901234\0", true)]
+		[InlineData("\012345678901234561234567890123456", true)]
+		[InlineData("12345678901234561234567890123456\"", true)]
+		[InlineData("1234567890123456123456789012345\"", true)]
+		[InlineData("123456789012345612345678901234\"", true)]
+		[InlineData("12345678901234\0561234567890123456", true)]
+		[InlineData("\"12345678901234561234567890123456", true)]
+		[InlineData("12345678901234\"561234567890123456", true)]
+		public void ContainsNonPrintableCharactersOrDoubleQuotes_WithLongInput_ShouldReturnExpectedResult(string text, bool expectedResult)
+		{
+			var result = ManualValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(text, flagNewLinesAndTabs: true);
+
+			Assert.Equal(expectedResult, result);
+		}
+
 		[Theory]
 		[InlineData("_12345678901234561234567890123456", false)]
 		[InlineData("12345678901234561234567890123456_", false)]
@@ -962,6 +1040,11 @@ namespace Architect.DomainModeling.Tests
 			public static new bool ContainsNonPrintableCharacters(ReadOnlySpan<char> text, bool flagNewLinesAndTabs)
 			{
 				return ValueObject.ContainsNonPrintableCharacters(text, flagNewLinesAndTabs);
+			}
+
+			public static new bool ContainsNonPrintableCharactersOrDoubleQuotes(ReadOnlySpan<char> text, bool flagNewLinesAndTabs)
+			{
+				return ValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(text, flagNewLinesAndTabs);
 			}
 
 			public static new bool ContainsWhitespaceOrNonPrintableCharacters(ReadOnlySpan<char> text)

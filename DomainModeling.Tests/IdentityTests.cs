@@ -104,6 +104,28 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(new StringId(""), left);
 		}
 
+		[Fact]
+		public void ObjectEquals_WithRegularStruct_ShouldReturnExpectedResult()
+		{
+			var one = (object)new IntId(1);
+			var alsoOne = (object)new IntId(1);
+			var two = (object)new IntId(2);
+
+			Assert.Equal(one, alsoOne);
+			Assert.NotEqual(one, two);
+		}
+
+		[Fact]
+		public void ObjectEquals_WithRecordStruct_ShouldReturnExpectedResult()
+		{
+			var one = (object)new DecimalId(1);
+			var alsoOne = (object)new DecimalId(1);
+			var two = (object)new DecimalId(2);
+
+			Assert.Equal(one, alsoOne);
+			Assert.NotEqual(one, two);
+		}
+
 		[Theory]
 		[InlineData(0, 0)]
 		[InlineData(0, 1)]
@@ -495,14 +517,10 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[SourceGenerated]
-		internal partial struct DecimalId : IIdentity<decimal>
-		{
-		}
+		internal partial record struct DecimalId : IIdentity<decimal>;
 
 		[SourceGenerated]
-		internal partial struct StringId : IIdentity<string>
-		{
-		}
+		internal partial record struct StringId : IIdentity<string>;
 
 		[SourceGenerated]
 		internal partial struct IgnoreCaseStringId : IIdentity<string>

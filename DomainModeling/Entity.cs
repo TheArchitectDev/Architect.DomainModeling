@@ -100,6 +100,6 @@ public abstract class Entity<TId> : Entity, IEquatable<Entity<TId>?>
 /// </para>
 /// </summary>
 [Serializable]
-public abstract class Entity : DomainObject
+public abstract class Entity : DomainObject, IEntity
 {
 }
