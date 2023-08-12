@@ -149,7 +149,7 @@ The `Entity<TId, TIdPrimitive>` base class is what triggers source generation of
 
 For performance reasons, the `Entity<TId, TIdPrimitive>` base class is only recognized when inherited from _directly_. If it is _indirectly_ inherited from (i.e. via a custom base class), then the ID type must be [explicitly declared](#identity).
 
-Next, the entity could be modified as follows to create a new, unique ID on construction:
+Next, the entity could be modified to create a new, unique ID on construction:
 
 ```cs
 public Payment(string currency, decimal amount)
@@ -163,11 +163,11 @@ For a more database-friendly alternative to UUIDs, see [Distributed IDs](https:/
 
 ## Identity
 
-Identity types are a special case of value objects. Unlike other value objects, they are perfectly suitable to be implemented as structs, for the following reasons:
+Identity types are a special case of value objects. Unlike other value objects, they are perfectly suitable to be implemented as structs:
 
-- The enforced default constructor is unproblematic, because there is hardly such a thing as an invalid ID value: although ID 0 or -1 might not _exist_, the same might be true for ID 999999, which would still be valid as a value.
-- The possibility of an ID variable containing `null` is often undesirable. Structs avoid this complication. (Where we _want_ nullability, a nullable struct (e.g. `PaymentId?`) can be used.)
-- If the underlying type is `string`, the generator ensures that its `Value` property returns the empty string instead of null. This way, even `string`-wrapping identities know only one "empty" value and avoid representing null.
+- The enforced default constructor is unproblematic, because there is hardly such a thing as an invalid ID value. Although ID 0 or -1 might not _exist_, the same might be true for ID 999999, which would still be valid as a value.
+- The possibility of an ID variable containing `null` is often undesirable. Structs avoid this complication. (Where we _want_ nullability, a nullable struct can be used, e.g. `PaymentId?`.
+- If the underlying type is `string`, the generator ensures that its `Value` property returns the empty string instead of `null`. This way, even `string`-wrapping identities know only one "empty" value and avoid representing `null`.
 
 Since an application is expected to work with many ID instances, using structs for them is a nice optimization that reduces heap allocations.
 
