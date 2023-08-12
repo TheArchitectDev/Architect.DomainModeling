@@ -55,7 +55,7 @@ public class SourceGeneratedAttributeAnalyzer : SourceGenerator
 		else if (type.IsOrInheritsClass(type => type.Arity == 2 && type.IsType(Constants.DummyBuilderTypeName, Constants.DomainModelingNamespace), out _))
 			expectedTypeName = tds is ClassDeclarationSyntax ? null : "class"; // Expect a class
 		else if (type.IsOrImplementsInterface(type => type.Arity == 1 && type.IsType(Constants.IdentityInterfaceTypeName, Constants.DomainModelingNamespace), out _))
-			expectedTypeName = tds is StructDeclarationSyntax ? null : "struct"; // Expect a struct
+			expectedTypeName = tds is StructDeclarationSyntax or RecordDeclarationSyntax { ClassOrStructKeyword.ValueText: "struct" } ? null : "struct"; // Expect a struct
 		else
 			expectedTypeName = "*"; // No suitable inheritance found for source generation
 

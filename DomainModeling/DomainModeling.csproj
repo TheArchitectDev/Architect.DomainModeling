@@ -13,13 +13,18 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<VersionPrefix>2.0.1</VersionPrefix>
+		<VersionPrefix>2.1.0</VersionPrefix>
 		<Description>
 A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
 https://github.com/TheArchitectDev/Architect.DomainModeling
 
 Release notes:
+
+2.1.0:
+- Added ValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(), a common validation requirement for proper names.
+- Explicitly declared identity types now support "record struct", allowing their curly braces to be omitted.
+- Added the IEntity interface, implemented by the Entity class and its derivatives.
 
 2.0.1:
 - Fixed a bug where arrays in (Wrapper)ValueObjects would trip the generator.

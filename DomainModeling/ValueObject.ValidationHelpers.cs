@@ -374,6 +374,59 @@ public abstract partial class ValueObject
 
 	/// <summary>
 	/// <para>
+	/// This method detects double quotes (") and non-printable characters, such as control characters.
+	/// It does <em>not</em> detect whitespace characters, even if they are zero-width.
+	/// </para>
+	/// <para>
+	/// It returns true, unless the given <paramref name="text"/> consists exclusively of printable characters that are not double quotes (").
+	/// </para>
+	/// <para>
+	/// </para>
+	/// <para>
+	/// A parameter controls whether this method flags newline and tab characters, allowing single-line vs. multiline input to be validated.
+	/// </para>
+	/// </summary>
+	/// <param name="flagNewLinesAndTabs">Pass true to flag \r, \n, and \t as non-printable characters. Pass false to overlook them.</param>
+	protected static bool ContainsNonPrintableCharactersOrDoubleQuotes(ReadOnlySpan<char> text, bool flagNewLinesAndTabs)
+	{
+		return flagNewLinesAndTabs
+			? EvaluateIncludingNewLinesAndTabs(text)
+			: EvaluateOverlookingNewLinesAndTabs(text);
+
+		// Local function that performs the work while including \r, \n, and \t characters
+		static bool EvaluateIncludingNewLinesAndTabs(ReadOnlySpan<char> text)
+		{
+			foreach (var chr in text)
+			{
+				var category = Char.GetUnicodeCategory(chr);
+
+				if (category == UnicodeCategory.Control | category == UnicodeCategory.PrivateUse | category == UnicodeCategory.OtherNotAssigned | chr == '"')
+					return true;
+			}
+
+			return false;
+		}
+
+		// Local function that performs the work while overlooking \r, \n, and \t characters
+		static bool EvaluateOverlookingNewLinesAndTabs(ReadOnlySpan<char> text)
+		{
+			foreach (var chr in text)
+			{
+				var category = Char.GetUnicodeCategory(chr);
+
+				if (category == UnicodeCategory.Control | category == UnicodeCategory.PrivateUse | category == UnicodeCategory.OtherNotAssigned | chr == '"')
+				{
+					if (chr == '\r' | chr == '\n' | chr == '\t') continue; // Exempt
+					return true;
+				}
+			}
+
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// <para>
 	/// This method detects whitespace characters and non-printable characters.
 	/// </para>
 	/// <para>
