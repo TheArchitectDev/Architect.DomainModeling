@@ -276,6 +276,8 @@ namespace {containingNamespace}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "/*" : "")}
 #pragma warning disable CS8618 // Deserialization constructor
+		[System.Text.Json.Serialization.JsonConstructor]
+		[Newtonsoft.Json.JsonConstructor]
 		[Obsolete(""This constructor exists for deserialization purposes only."")]
 		private {typeName}()
 		{{

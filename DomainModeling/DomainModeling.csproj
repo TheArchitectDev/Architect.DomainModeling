@@ -30,7 +30,7 @@ Release notes:
 - BREAKING: Platform support: Dropped support for .NET 5.0 (EOL).
 - BREAKING: Marker attributes: [SourceGenerated] attribute is refactored into [Entity], [ValueObject], [WrapperValueObject&lt;TValue&gt;], etc. Obsolete marking helps with migrating.
 - BREAKING: DummyBuilder base class: The DummyBuilder&lt;TModel, TModelBuilder&gt; base class is deprecated in favor of the new [DummyBuilder&lt;TModel&gt;] attribute. Obsolete marking helps with migrating.
-- BREAKING: Private ctors: Source-generated ValueObject types now generate a private default ctor, for logic-free deserialization. This may break deserialization if properties lack an init/set. Analyzer included.
+- BREAKING: Private ctors: Source-generated ValueObject types now generate a private default ctor with [JsonConstructor], for logic-free deserialization. This may break deserialization if properties lack an init/set. Analyzer included.
 - BREAKING: Init properties: A new analyzer warns if a WrapperValueObject's Value property lacks an init/set, because logic-free deserialization then requires a workaround.
 - BREAKING: ISerializableDomainObject interface: Wrapper value objects and identities now require the new ISerializableDomainObject&lt;TModel, TValue&gt; interface (generated automatically).
 - Feature: Custom inheritance: Source generation with custom base classes is now easy, with marker attributes identifying the concrete types.

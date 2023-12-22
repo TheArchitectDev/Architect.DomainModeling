@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
 using Architect.DomainModeling.Tests.ValueObjectTestTypes;
 using Xunit;
 
@@ -1092,14 +1093,14 @@ namespace Architect.DomainModeling.Tests
 		[ValueObject]
 		public sealed partial class IntValue
 		{
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
 			public int One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
 			public int Two { get; private init; }
 
 			public string CalculatedProperty => $"{this.One}-{this.Two}";
 
-			[System.Text.Json.Serialization.JsonConstructor]
-			[Newtonsoft.Json.JsonConstructor]
-			public IntValue(int one, int two)
+			public IntValue(int one, int two, object? _ = null)
 			{
 				this.One = one;
 				this.Two = two;
@@ -1113,12 +1114,12 @@ namespace Architect.DomainModeling.Tests
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
 			public string One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
 			public string Two { get; private init; }
 
-			[System.Text.Json.Serialization.JsonConstructor]
-			[Newtonsoft.Json.JsonConstructor]
-			public StringValue(string one, string two)
+			public StringValue(string one, string two, object? _ = null)
 			{
 				this.One = one ?? throw new ArgumentNullException(nameof(one));
 				this.Two = two ?? throw new ArgumentNullException(nameof(two));
@@ -1130,12 +1131,12 @@ namespace Architect.DomainModeling.Tests
 		[ValueObject]
 		public sealed partial class DecimalValue : ValueObject
 		{
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
 			public decimal One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
 			public decimal Two { get; private init; }
 
-			[System.Text.Json.Serialization.JsonConstructor]
-			[Newtonsoft.Json.JsonConstructor]
-			public DecimalValue(decimal one, decimal two)
+			public DecimalValue(decimal one, decimal two, object? _ = null)
 			{
 				this.One = one;
 				this.Two = two;

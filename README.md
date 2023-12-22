@@ -320,7 +320,7 @@ From the domain model's perspective, any instance is constructed only once. The 
 As such, constructors in the domain model should not be re-run when objects are reconstituted. The source generators provide this property:
 
 - Each generated `IIdentity<T>` and `WrapperValueObject<TValue>` comes with a JSON converter for both System.Text.Json and Newtonsoft.Json, each of which deserialize without the use of (parameterized) constructors.
-- Each generated `ValueObject` will have an empty default constructor for deserialization purposes. Declare its properties with `private init` and add a `[JsonInclude]` and `[JsonPropertyName("StableName")]` attribute to allow them to be rehydrated.
+- Each generated `ValueObject` will have an empty default constructor for deserialization purposes, with a `[JsonConstructor`] attribute for both System.Text.Json and Newtonsoft.Json. Declare its properties with `private init` and add a `[JsonInclude]` and `[JsonPropertyName("StableName")]` attribute to allow them to be rehydrated.
 - If the generated [Entity Framework mappings](#entity-framework-conventions) are used, all domain objects are reconstituted without the use of (parameterized) constructors.
 - Third party extensions can use the methods on `DomainObjectSerializer` to (de)serialize according to the same conventions.
 
