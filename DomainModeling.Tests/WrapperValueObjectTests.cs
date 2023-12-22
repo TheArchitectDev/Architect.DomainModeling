@@ -467,7 +467,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("5", new FullySelfImplementedWrapperValueObject(5).ToString(format: null, formatProvider: null));
 			Assert.Equal("5", new FormatAndParseTestingStringWrapper("5").ToString(format: null, formatProvider: null));
 
-			Assert.Null(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).ToString(format: null, formatProvider: null));
+			Assert.Equal("", ((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).ToString(format: null, formatProvider: null));
 		}
 
 		[Fact]

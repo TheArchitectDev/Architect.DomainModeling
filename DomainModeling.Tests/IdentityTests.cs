@@ -538,7 +538,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("5", new FullySelfImplementedIdentity(5).ToString(format: null, formatProvider: null));
 			Assert.Equal("5", new FormatAndParseTestingIntId(5).ToString(format: null, formatProvider: null));
 
-			Assert.Null(((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).ToString(format: null, formatProvider: null));
+			Assert.Equal("", ((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).ToString(format: null, formatProvider: null));
 		}
 
 		[Fact]

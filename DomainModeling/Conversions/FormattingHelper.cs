@@ -22,8 +22,7 @@ public static class FormattingHelper
 	/// Implement the interface to have overload resolution pick the functional overload.
 	/// </summary>
 	/// <param name="callerLineNumber">Used only for overload resolution.</param>
-	[return: NotNullIfNotNull(nameof(instance))]
-	public static string? ToString<T>(T? instance,
+	public static string ToString<T>(T? instance,
 		string? format, IFormatProvider? formatProvider,
 		[CallerLineNumber] int callerLineNumber = -1)
 	{
@@ -33,13 +32,12 @@ public static class FormattingHelper
 	/// <summary>
 	/// Delegates to <see cref="IFormattable.ToString"/>.
 	/// </summary>
-	[return: NotNullIfNotNull(nameof(instance))]
-	public static string? ToString<T>(T? instance,
+	public static string ToString<T>(T? instance,
 		string? format, IFormatProvider? formatProvider)
 		where T : IFormattable
 	{
 		if (instance is null)
-			return null;
+			return "";
 
 		return instance.ToString(format, formatProvider);
 	}
@@ -56,10 +54,10 @@ public static class FormattingHelper
 	/// <param name="format">Ignored.</param>
 	/// <param name="formatProvider">Ignored.</param>
 	[return: NotNullIfNotNull(nameof(instance))]
-	public static string? ToString(string? instance,
+	public static string ToString(string? instance,
 		string? format, IFormatProvider? formatProvider)
 	{
-		return instance;
+		return instance ?? "";
 	}
 #pragma warning restore IDE0060 // Remove unused parameter
 
