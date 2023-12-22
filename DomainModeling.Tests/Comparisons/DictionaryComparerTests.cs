@@ -49,7 +49,7 @@ public class DictionaryComparerTests
 	[InlineData("A", "A", true)]
 	[InlineData("A", "a", true)]
 	[InlineData("A", "AA", false)]
-	public void DictionaryEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+	public void DictionaryEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 	{
 		var left = CreateDictionaryWithEqualityComparer(one is null ? null : new[] { one }, StringComparer.OrdinalIgnoreCase);
 		var right = CreateDictionaryWithEqualityComparer(two is null ? null : new[] { two }, StringComparer.OrdinalIgnoreCase);

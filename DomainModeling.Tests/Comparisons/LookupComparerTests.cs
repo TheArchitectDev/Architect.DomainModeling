@@ -55,7 +55,7 @@ public class LookupComparerTests
 	[InlineData("A", "A", true)]
 	[InlineData("A", "a", true)]
 	[InlineData("A", "AA", false)]
-	public void LookupEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+	public void LookupEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 	{
 		var left = CreateLookupWithEqualityComparer(one is null ? null : new[] { one }, StringComparer.OrdinalIgnoreCase);
 		var right = CreateLookupWithEqualityComparer(two is null ? null : new[] { two }, StringComparer.OrdinalIgnoreCase);

@@ -562,7 +562,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, false)] // Custom collection's hash code always returns 1
 		[InlineData("A", "A", true)] // Custom collection's hash code always returns 1
 		[InlineData("A", "B", true)] // Custom collection's hash code always returns 1
-		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
 			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
@@ -639,7 +639,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, true)] // Custom collection's equality always returns true
 		[InlineData("A", "A", true)] // Custom collection's equality always returns true
 		[InlineData("A", "B", true)] // Custom collection's equality always returns true
-		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
 			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
@@ -737,7 +737,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = one is null ? null : new StringValue(one, "7");
 			var right = two is null ? null : new StringValue(two, "7");
@@ -763,7 +763,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = one is null ? null : new StringValue(one, "7");
 			var right = two is null ? null : new StringValue(two, "7");
@@ -789,7 +789,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = one is null ? null : new StringValue(one, "7");
 			var right = two is null ? null : new StringValue(two, "7");
@@ -809,6 +809,7 @@ namespace Architect.DomainModeling.Tests
 		{
 			var nullValued = new DefaultComparingStringValue(value: null);
 
+#pragma warning disable xUnit2024 // Do not use boolean asserts for simple equality tests -- We are testing overloaded operators
 			Assert.False(null == nullValued);
 			Assert.True(null != nullValued);
 			Assert.False(nullValued == null);
@@ -821,6 +822,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.False(nullValued <= null);
 			Assert.True(nullValued > null);
 			Assert.True(nullValued >= null);
+#pragma warning restore xUnit2024 // Do not use boolean asserts for simple equality tests
 		}
 
 		[Theory]

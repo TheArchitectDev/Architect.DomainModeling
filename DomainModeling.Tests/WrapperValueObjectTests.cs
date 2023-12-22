@@ -2,7 +2,6 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
 using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 using Xunit;
@@ -56,7 +55,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void GetHashCode_WithUnintializedObject_ShouldReturnExpectedResult()
 		{
-			var instance = (StringValue)FormatterServices.GetUninitializedObject(typeof(StringValue));
+			var instance = (StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue));
 			Assert.Equal(0, instance.GetHashCode());
 		}
 
@@ -66,13 +65,13 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, false)] // Custom collection's hash code always returns 1
 		[InlineData("A", "A", true)] // Custom collection's hash code always returns 1
 		[InlineData("A", "B", true)] // Custom collection's hash code always returns 1
-		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = one is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(one));
 			var right = two is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(two));
 
 			var leftHashCode = left.GetHashCode();
@@ -107,7 +106,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void Equals_WithUnintializedObject_ShouldReturnExpectedResult()
 		{
-			var left = (StringValue)FormatterServices.GetUninitializedObject(typeof(StringValue));
+			var left = (StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue));
 			var right = new StringValue("Example");
 
 			Assert.NotEqual(left, right);
@@ -120,13 +119,13 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, true)] // Custom collection's equality always returns true
 		[InlineData("A", "A", true)] // Custom collection's equality always returns true
 		[InlineData("A", "B", true)] // Custom collection's equality always returns true
-		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = one is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(one));
 			var right = two is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(two));
 			Assert.Equal(expectedResult, left.Equals(right));
 		}
@@ -197,10 +196,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
-			var left = (StringValue)one;
-			var right = (StringValue)two;
+			var left = (StringValue?)one;
+			var right = (StringValue?)two;
 
 			Assert.Equal(expectedResult, Comparer<StringValue>.Default.Compare(left, right));
 			Assert.Equal(-expectedResult, Comparer<StringValue>.Default.Compare(right, left));
@@ -217,10 +216,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
-			var left = (StringValue)one;
-			var right = (StringValue)two;
+			var left = (StringValue?)one;
+			var right = (StringValue?)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
@@ -237,10 +236,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
-			var left = (StringValue)one;
-			var right = (StringValue)two;
+			var left = (StringValue?)one;
+			var right = (StringValue?)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);

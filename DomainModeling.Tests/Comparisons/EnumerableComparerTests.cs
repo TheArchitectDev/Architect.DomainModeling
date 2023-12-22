@@ -176,7 +176,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", false)]
 		[InlineData("A", "AA", false)]
-		public void EnumerableEquals_WithStrings_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void EnumerableEquals_WithStrings_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = this.CreateCollection(one);
 			var right = this.CreateCollection(two);
@@ -196,7 +196,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", false)]
 		[InlineData("A", "AA", false)]
-		public void EnumerableEquals_WithStringWrapperValueObjectsWithOrdinal_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void EnumerableEquals_WithStringWrapperValueObjectsWithOrdinal_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = this.CreateCollection(one is null ? null : new StringWrapperValueObject(one, StringComparison.Ordinal));
 			var right = this.CreateCollection(two is null ? null : new StringWrapperValueObject(two, StringComparison.Ordinal));
@@ -216,7 +216,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", true)]
 		[InlineData("A", "AA", false)]
-		public void EnumerableEquals_WithStringWrapperValueObjectsWithOrdinalIgnoreCase_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void EnumerableEquals_WithStringWrapperValueObjectsWithOrdinalIgnoreCase_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = this.CreateCollection(one is null ? null : new StringWrapperValueObject(one, StringComparison.OrdinalIgnoreCase));
 			var right = this.CreateCollection(two is null ? null : new StringWrapperValueObject(two, StringComparison.OrdinalIgnoreCase));
@@ -236,7 +236,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", false)]
 		[InlineData("A", "AA", false)]
-		public void EnumerableEquals_WithStringIdentities_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void EnumerableEquals_WithStringIdentities_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = this.CreateCollection((SomeStringId)one);
 			var right = this.CreateCollection((SomeStringId)two);
@@ -256,7 +256,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", true)]
 		[InlineData("A", "AA", false)]
-		public void EnumerableEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void EnumerableEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = this.CreateCollectionWithEqualityComparer(new[] { one }, StringComparer.OrdinalIgnoreCase);
 			var right = this.CreateCollectionWithEqualityComparer(new[] { two }, StringComparer.OrdinalIgnoreCase);
@@ -341,7 +341,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", false)]
 		[InlineData("A", "AA", false)]
-		public void GetMemoryHashCode_BetweenInstances_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void GetMemoryHashCode_BetweenInstances_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = new[] { one, }.AsMemory();
 			var right = new[] { two, }.AsMemory();
@@ -360,7 +360,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", false)]
 		[InlineData("A", "AA", false)]
-		public void GetMemoryHashCode_BetweenNullableInstances_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void GetMemoryHashCode_BetweenNullableInstances_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = one is null ? null : (Memory<string>?)new[] { one, }.AsMemory();
 			var right = two is null ? null : (Memory<string>?)new[] { two, }.AsMemory();
@@ -379,7 +379,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", false)]
 		[InlineData("A", "AA", false)]
-		public void GetSpanHashCode_BetweenNullableInstances_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void GetSpanHashCode_BetweenNullableInstances_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = new[] { one, }.AsSpan();
 			var right = new[] { two }.AsSpan();

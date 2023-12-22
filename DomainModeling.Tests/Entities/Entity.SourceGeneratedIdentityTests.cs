@@ -1,5 +1,5 @@
 using System.Globalization;
-using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests.Entities;
@@ -59,10 +59,10 @@ public class SourceGeneratedIdentityTests
 	[Fact]
 	public void GetHashCode_WithUnintializedObject_ShouldReturnExpectedResult()
 	{
-		var instance1 = (StringId)FormatterServices.GetUninitializedObject(typeof(StringId));
+		var instance1 = (StringId)RuntimeHelpers.GetUninitializedObject(typeof(StringId));
 		Assert.Equal("".GetHashCode(), instance1.GetHashCode());
 
-		var instance2 = (ObjectId)FormatterServices.GetUninitializedObject(typeof(ObjectId));
+		var instance2 = (ObjectId)RuntimeHelpers.GetUninitializedObject(typeof(ObjectId));
 		Assert.Equal(0, instance2.GetHashCode());
 	}
 
@@ -85,7 +85,7 @@ public class SourceGeneratedIdentityTests
 	[InlineData("A", "A", true)]
 	[InlineData("A", "a", false)]
 	[InlineData("A", "B", false)]
-	public void Equals_WithString_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+	public void Equals_WithString_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 	{
 		var left = new StringId(one);
 		var right = new StringId(two);
@@ -95,12 +95,12 @@ public class SourceGeneratedIdentityTests
 	[Fact]
 	public void Equals_WithUnintializedObject_ShouldReturnExpectedResult()
 	{
-		var left1 = (StringId)FormatterServices.GetUninitializedObject(typeof(StringId));
+		var left1 = (StringId)RuntimeHelpers.GetUninitializedObject(typeof(StringId));
 		var right1 = new StringId("");
 		Assert.Equal(left1, right1);
 		Assert.Equal(right1, left1);
 
-		var left2 = (ObjectId)FormatterServices.GetUninitializedObject(typeof(ObjectId));
+		var left2 = (ObjectId)RuntimeHelpers.GetUninitializedObject(typeof(ObjectId));
 		var right2 = new ObjectId(new ComparableObject());
 		Assert.NotEqual(left2, right2);
 		Assert.NotEqual(right2, left2);
@@ -125,7 +125,7 @@ public class SourceGeneratedIdentityTests
 	[InlineData("A", "A")]
 	[InlineData("A", "a")]
 	[InlineData("A", "B")]
-	public void EqualityOperator_WithString_ShouldMatchEquals(string one, string two)
+	public void EqualityOperator_WithString_ShouldMatchEquals(string? one, string? two)
 	{
 		var left = new StringId(one);
 		var right = new StringId(two);
@@ -140,7 +140,7 @@ public class SourceGeneratedIdentityTests
 	[InlineData("A", "A")]
 	[InlineData("A", "a")]
 	[InlineData("A", "B")]
-	public void CompareTo_Regularly_ShouldHaveEqualityMatchingEquals(string one, string two)
+	public void CompareTo_Regularly_ShouldHaveEqualityMatchingEquals(string? one, string? two)
 	{
 		var left = new StringId(one);
 		var right = new StringId(two);
@@ -184,7 +184,7 @@ public class SourceGeneratedIdentityTests
 	[InlineData("a", "A", +1)]
 	[InlineData("A", "B", -1)]
 	[InlineData("AA", "A", +1)]
-	public void CompareTo_Regularly_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+	public void CompareTo_Regularly_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 	{
 		var left = (StringId)one;
 		var right = (StringId)two;
@@ -204,7 +204,7 @@ public class SourceGeneratedIdentityTests
 	[InlineData("a", "A", +1)]
 	[InlineData("A", "B", -1)]
 	[InlineData("AA", "A", +1)]
-	public void GreaterThan_Regularly_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+	public void GreaterThan_Regularly_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 	{
 		var left = (StringId)one;
 		var right = (StringId)two;
@@ -224,7 +224,7 @@ public class SourceGeneratedIdentityTests
 	[InlineData("a", "A", +1)]
 	[InlineData("A", "B", -1)]
 	[InlineData("AA", "A", +1)]
-	public void LessThan_Regularly_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+	public void LessThan_Regularly_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 	{
 		var left = (StringId)one;
 		var right = (StringId)two;

@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
 using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Xunit;
@@ -47,7 +46,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void GetHashCode_WithUnintializedObject_ShouldReturnExpectedResult()
 		{
-			var instance = (StringId)FormatterServices.GetUninitializedObject(typeof(StringId));
+			var instance = (StringId)RuntimeHelpers.GetUninitializedObject(typeof(StringId));
 			Assert.Equal("".GetHashCode(), instance.GetHashCode());
 		}
 
@@ -70,7 +69,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", false)]
 		[InlineData("A", "B", false)]
-		public void Equals_WithString_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void Equals_WithString_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = new StringId(one);
 			var right = new StringId(two);
@@ -85,7 +84,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "A", true)]
 		[InlineData("A", "a", true)]
 		[InlineData("A", "B", false)]
-		public void Equals_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+		public void Equals_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
 			var left = new IgnoreCaseStringId(one);
 			var right = new IgnoreCaseStringId(two);
@@ -95,7 +94,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void Equals_WithUnintializedObject_ShouldReturnExpectedResult()
 		{
-			var left = (StringId)FormatterServices.GetUninitializedObject(typeof(StringId));
+			var left = (StringId)RuntimeHelpers.GetUninitializedObject(typeof(StringId));
 			var right = new StringId("Example");
 
 			Assert.NotEqual(left, right);
@@ -225,7 +224,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void CompareTo_WithString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void CompareTo_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;
@@ -251,7 +250,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = (IgnoreCaseStringId)one;
 			var right = (IgnoreCaseStringId)two;
@@ -277,7 +276,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void GreaterThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;
@@ -297,7 +296,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void LessThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;

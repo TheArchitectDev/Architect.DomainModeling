@@ -85,9 +85,9 @@ public class EntityTests
 	[InlineData(null, true)]
 	[InlineData("", false)]
 	[InlineData("1", false)]
-	public void DefaultId_WithStringId_ShouldEquateAsExpected(string value, bool expectedResult)
+	public void DefaultId_WithStringId_ShouldEquateAsExpected(string? value, bool expectedResult)
 	{
-		var instance = new StringIdEntity(value);
+		var instance = new StringIdEntity(value!);
 
 		Assert.Equal(expectedResult, instance.HasDefaultId());
 	}
@@ -96,10 +96,10 @@ public class EntityTests
 	[InlineData(null, false)]
 	[InlineData("", true)]
 	[InlineData("1", true)]
-	public void GetHashCode_WithStringId_ShouldEquateAsExpected(string value, bool expectedResult)
+	public void GetHashCode_WithStringId_ShouldEquateAsExpected(string? value, bool expectedResult)
 	{
-		var one = new StringIdEntity(value);
-		var two = new StringIdEntity(value);
+		var one = new StringIdEntity(value!);
+		var two = new StringIdEntity(value!);
 
 		Assert.Equal(expectedResult, one.GetHashCode().Equals(two.GetHashCode()));
 	}
@@ -108,10 +108,10 @@ public class EntityTests
 	[InlineData(null, false)]
 	[InlineData("", true)]
 	[InlineData("1", true)]
-	public void Equals_WithStringId_ShouldEquateAsExpected(string value, bool expectedResult)
+	public void Equals_WithStringId_ShouldEquateAsExpected(string? value, bool expectedResult)
 	{
-		var one = new StringIdEntity(value);
-		var two = new StringIdEntity(value);
+		var one = new StringIdEntity(value!);
+		var two = new StringIdEntity(value!);
 
 		Assert.Equal(one, one);
 		Assert.Equal(two, two);
@@ -131,9 +131,9 @@ public class EntityTests
 	[InlineData(null, true)]
 	[InlineData("", true)]
 	[InlineData("1", false)]
-	public void DefaultId_WithStringWrappingId_ShouldEquateAsExpected(string value, bool expectedResult)
+	public void DefaultId_WithStringWrappingId_ShouldEquateAsExpected(string? value, bool expectedResult)
 	{
-		var instance = new StringWrappingIdEntity(value);
+		var instance = new StringWrappingIdEntity(value!);
 
 		Assert.Equal(expectedResult, instance.HasDefaultId());
 	}
@@ -142,10 +142,10 @@ public class EntityTests
 	[InlineData(null, false)] // Null and empty string are both treated as the default ID value (and represented as "")
 	[InlineData("", false)] // Null and empty string are both treated as the default ID value (and represented as "")
 	[InlineData("1", true)]
-	public void GetHashCode_WithStringWrappingId_ShouldEquateAsExpected(string value, bool expectedResult)
+	public void GetHashCode_WithStringWrappingId_ShouldEquateAsExpected(string? value, bool expectedResult)
 	{
-		var one = new StringWrappingIdEntity(value);
-		var two = new StringWrappingIdEntity(value);
+		var one = new StringWrappingIdEntity(value!);
+		var two = new StringWrappingIdEntity(value!);
 
 		Assert.Equal(expectedResult, one.GetHashCode().Equals(two.GetHashCode()));
 	}
@@ -154,10 +154,10 @@ public class EntityTests
 	[InlineData(null, false)] // Null and empty string are both treated as the default ID value (and represented as "")
 	[InlineData("", false)] // Null and empty string are both treated as the default ID value (and represented as "")
 	[InlineData("1", true)]
-	public void Equals_WithStringWrappingId_ShouldEquateAsExpected(string value, bool expectedResult)
+	public void Equals_WithStringWrappingId_ShouldEquateAsExpected(string? value, bool expectedResult)
 	{
-		var one = new StringWrappingIdEntity(value);
-		var two = new StringWrappingIdEntity(value);
+		var one = new StringWrappingIdEntity(value!);
+		var two = new StringWrappingIdEntity(value!);
 
 		Assert.Equal(one, one);
 		Assert.Equal(two, two);

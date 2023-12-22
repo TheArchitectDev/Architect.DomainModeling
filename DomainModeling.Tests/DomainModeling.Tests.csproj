@@ -10,6 +10,13 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
+		<!-- CA1861: Prefer 'static readonly' fields over constant array arguments - inline is more readable for a battery of tests -->
+		<!-- IDE0290: Use primary constructor - not necessarily more readable for numerous test classes -->
+		<!-- IDE0305: Collection initialization can be simplified - this is not a readability improvement for chained LINQ calls -->
+		<NoWarn>CA1861, IDE0290, IDE0305</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup>
 		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 		<CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)/GeneratedFiles</CompilerGeneratedFilesOutputPath>
 	</PropertyGroup>

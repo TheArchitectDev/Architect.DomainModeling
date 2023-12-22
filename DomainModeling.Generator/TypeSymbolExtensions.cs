@@ -481,7 +481,7 @@ internal static class TypeSymbolExtensions
 	{
 		if (typeSymbol.IsValueType && !typeSymbol.IsNullable()) return $"this.{memberName}.ToString()";
 		if (typeSymbol.IsType<string>()) return String.Format(stringVariant, memberName);
-		return $"this.{memberName}?.ToString()"; // Null-safety can be especially relevant for instances created with FormatterServices.GetUninitializedObject()
+		return $"this.{memberName}?.ToString()"; // Null-safety can be especially relevant for instances created with RuntimeHelpers.GetUninitializedObject()
 	}
 
 	/// <summary>
