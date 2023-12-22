@@ -108,7 +108,7 @@ internal sealed class TestDbContext(
 internal sealed class DomainEventForEF : IDomainObject
 {
 	/// <summary>
-	/// This lets us test if a constructorw as used or not.
+	/// This lets us test if a constructor as used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -131,7 +131,7 @@ public readonly partial record struct DomainEventForEFId;
 internal sealed class EntityForEF : Entity<EntityForEFId, int>
 {
 	/// <summary>
-	/// This lets us test if a constructorw as used or not.
+	/// This lets us test if a constructor as used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -160,7 +160,7 @@ internal sealed partial class Wrapper1ForEF
 	protected override StringComparison StringComparison => StringComparison.Ordinal;
 
 	/// <summary>
-	/// This lets us test if a constructorw as used or not.
+	/// This lets us test if a constructor as used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -177,7 +177,7 @@ internal sealed partial class Wrapper1ForEF
 internal sealed partial class Wrapper2ForEF
 {
 	/// <summary>
-	/// This lets us test if a constructorw as used or not.
+	/// This lets us test if a constructor as used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -194,7 +194,7 @@ internal sealed partial class Wrapper2ForEF
 internal sealed partial class ValueObjectForEF
 {
 	/// <summary>
-	/// This lets us test if a constructorw as used or not.
+	/// This lets us test if a constructor as used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun = true;
 
