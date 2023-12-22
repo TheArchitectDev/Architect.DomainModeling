@@ -402,8 +402,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 	// Use a namespace, since our source generators dislike nested types
 	namespace EnumerableComparerTestTypes
 	{
-		[SourceGenerated]
-		public sealed partial class StringWrapperValueObject : WrapperValueObject<string>, IComparable<StringWrapperValueObject>
+		[WrapperValueObject<string>]
+		public sealed partial class StringWrapperValueObject : IComparable<StringWrapperValueObject>
 		{
 			protected sealed override StringComparison StringComparison { get; }
 

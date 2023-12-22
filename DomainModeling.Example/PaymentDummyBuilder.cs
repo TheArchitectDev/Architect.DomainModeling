@@ -1,8 +1,8 @@
 namespace Architect.DomainModeling.Example;
 
 // The source-generated partial provides an appropriate type summary
-[SourceGenerated]
-public sealed partial class PaymentDummyBuilder : DummyBuilder<Payment, PaymentDummyBuilder>
+[DummyBuilder<Payment>]
+public sealed partial class PaymentDummyBuilder
 {
 	// The source-generated partial defines a default value for each property, along with a fluent method to change it
 

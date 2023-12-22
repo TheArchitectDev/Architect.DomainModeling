@@ -2,13 +2,14 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net7.0</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Example</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Example</RootNamespace>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
 		<IsPackable>False</IsPackable>
 		<IsTrimmable>True</IsTrimmable>
+		<LangVersion>12</LangVersion>
 	</PropertyGroup>
 
 	<ItemGroup>

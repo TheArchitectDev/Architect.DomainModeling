@@ -13,30 +13,47 @@ internal static class TypeSyntaxExtensions
 	/// <param name="arity">Pass null to accept any arity.</param>
 	public static bool HasArityAndName(this TypeSyntax typeSyntax, int? arity, string unqualifiedName)
 	{
-		int actualArity;
-		string actualUnqualifiedName;
+		return TryGetArityAndUnqualifiedName(typeSyntax, out var actualArity, out var actualUnqualifiedName) &&
+			(arity is null || actualArity == arity) &&
+			actualUnqualifiedName == unqualifiedName;
+	}
 
+	/// <summary>
+	/// Returns whether the given <see cref="TypeSyntax"/> has the given arity (type parameter count) and (unqualified) name suffix.
+	/// </summary>
+	/// <param name="arity">Pass null to accept any arity.</param>
+	public static bool HasArityAndNameSuffix(this TypeSyntax typeSyntax, int? arity, string unqualifiedName)
+	{
+		return TryGetArityAndUnqualifiedName(typeSyntax, out var actualArity, out var actualUnqualifiedName) &&
+			(arity is null || actualArity == arity) &&
+			actualUnqualifiedName.EndsWith(unqualifiedName);
+	}
+
+	private static bool TryGetArityAndUnqualifiedName(TypeSyntax typeSyntax, out int arity, out string unqualifiedName)
+	{
 		if (typeSyntax is SimpleNameSyntax simpleName)
 		{
-			actualArity = simpleName.Arity;
-			actualUnqualifiedName = simpleName.Identifier.ValueText;
+			arity = simpleName.Arity;
+			unqualifiedName = simpleName.Identifier.ValueText;
 		}
 		else if (typeSyntax is QualifiedNameSyntax qualifiedName)
 		{
-			actualArity = qualifiedName.Arity;
-			actualUnqualifiedName = qualifiedName.Right.Identifier.ValueText;
+			arity = qualifiedName.Arity;
+			unqualifiedName = qualifiedName.Right.Identifier.ValueText;
 		}
 		else if (typeSyntax is AliasQualifiedNameSyntax aliasQualifiedName)
 		{
-			actualArity = aliasQualifiedName.Arity;
-			actualUnqualifiedName = aliasQualifiedName.Name.Identifier.ValueText;
+			arity = aliasQualifiedName.Arity;
+			unqualifiedName = aliasQualifiedName.Name.Identifier.ValueText;
 		}
 		else
 		{
+			arity = -1;
+			unqualifiedName = null!;
 			return false;
 		}
 
-		return (arity is null || actualArity == arity) && actualUnqualifiedName == unqualifiedName;
+		return true;
 	}
 
 	/// <summary>

@@ -2,24 +2,24 @@ namespace Architect.DomainModeling.Tests;
 
 // This file tests source generation in combination with C# 10's FileScopedNamespaces, which initially was wrongfully flagged as nested types
 
-[SourceGenerated]
-public partial class FileScopedNamespaceValueObject : ValueObject
+[ValueObject]
+public partial class FileScopedNamespaceValueObject
 {
 	public override string ToString() => throw new NotSupportedException();
 }
 
-[SourceGenerated]
-public partial class FileScopedNamespaceWrapperValueObject : WrapperValueObject<int>
+[WrapperValueObject<int>]
+public partial class FileScopedNamespaceWrapperValueObject
 {
 }
 
-[SourceGenerated]
-public partial class FileScopedDummyBuilder : DummyBuilder<FileScopedNamespaceValueObject, FileScopedDummyBuilder>
+[DummyBuilder<FileScopedNamespaceValueObject>]
+public partial class FileScopedDummyBuilder
 {
 }
 
-[SourceGenerated]
-public partial struct FileScopedId : IIdentity<ulong>
+[IdentityValueObject<ulong>]
+public partial struct FileScopedId
 {
 }
 

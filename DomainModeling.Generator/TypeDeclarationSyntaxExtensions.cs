@@ -12,7 +12,7 @@ internal static class TypeDeclarationSyntaxExtensions
 	/// </summary>
 	public static bool IsNested(this TypeDeclarationSyntax typeDeclarationSyntax)
 	{
-		var result = typeDeclarationSyntax.Parent is not NamespaceDeclarationSyntax && typeDeclarationSyntax.Parent is not FileScopedNamespaceDeclarationSyntax;
+		var result = typeDeclarationSyntax.Parent is not BaseNamespaceDeclarationSyntax;
 		return result;
 	}
 
@@ -26,13 +26,19 @@ internal static class TypeDeclarationSyntaxExtensions
 	}
 
 	/// <summary>
+	/// <para>
 	/// Returns whether the <see cref="TypeDeclarationSyntax"/> is directly annotated with an attribute whose name starts with the given prefix.
+	/// </para>
+	/// <para>
+	/// Prefixes are useful because a developer may type either "[Obsolete]" or "[ObsoleteAttribute]".
+	/// </para>
 	/// </summary>
 	public static bool HasAttributeWithPrefix(this TypeDeclarationSyntax typeDeclarationSyntax, string namePrefix)
 	{
-		for (var i = 0; i < typeDeclarationSyntax.AttributeLists.Count; i++)
-			for (var j = 0; j < typeDeclarationSyntax.AttributeLists[i].Attributes.Count; j++)
-				if (typeDeclarationSyntax.AttributeLists[i].Attributes[j].Name is IdentifierNameSyntax identifier && identifier.Identifier.ValueText.StartsWith(namePrefix))
+		foreach (var attributeList in typeDeclarationSyntax.AttributeLists)
+			foreach (var attribute in attributeList.Attributes)
+				if ((attribute.Name is IdentifierNameSyntax identifierName && identifierName.Identifier.ValueText.StartsWith(namePrefix)) ||
+					(attribute.Name	is GenericNameSyntax genericName && genericName.Identifier.ValueText.StartsWith(namePrefix)))
 					return true;
 
 		return false;

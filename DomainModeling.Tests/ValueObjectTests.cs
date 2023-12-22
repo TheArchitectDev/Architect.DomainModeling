@@ -1056,22 +1056,22 @@ namespace Architect.DomainModeling.Tests
 	// Use a namespace, since our source generators dislike nested types
 	namespace ValueObjectTestTypes
 	{
-		[SourceGenerated]
-		public sealed partial class ValueObjectWithIIdentity : ValueObject, IIdentity<int>
+		[ValueObject]
+		public sealed partial class ValueObjectWithIIdentity : IIdentity<int>
 		{
 		}
 
 		/// <summary>
 		/// This once caused build errors, before a bug fix handled properties of fully source-generated types.
 		/// </summary>
-		[SourceGenerated]
-		public sealed partial class ValueObjectWithGeneratedIdentity : ValueObject // Unfortunately we cannot get IComparable<T>, since the source generator will only implement it if all properties are KNOWN to be IComparable<T> to themselves
+		[ValueObject]
+		public sealed partial class ValueObjectWithGeneratedIdentity // Unfortunately we cannot get IComparable<T>, since the source generator will only implement it if all properties are KNOWN to be IComparable<T> to themselves
 		{
 			/// <summary>
 			/// This type is only fleshed out AFTER source generators have run.
 			/// During source generation, its properties are unknown, and thus our own source generator cannot know whether it is a value type or a reference type.
 			/// </summary>
-			public FullyGeneratedId SomeValue { get; }
+			public FullyGeneratedId SomeValue { get; private init; }
 
 			public ValueObjectWithGeneratedIdentity(FullyGeneratedId someValue)
 			{
@@ -1087,11 +1087,11 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class IntValue : ValueObject
+		[ValueObject]
+		public sealed partial class IntValue
 		{
-			public int One { get; }
-			public int Two { get; }
+			public int One { get; private init; }
+			public int Two { get; private init; }
 
 			public string CalculatedProperty => $"{this.One}-{this.Two}";
 
@@ -1106,13 +1106,13 @@ namespace Architect.DomainModeling.Tests
 			public StringComparison GetStringComparison() => this.StringComparison;
 		}
 
-		[SourceGenerated]
-		public sealed partial class StringValue : ValueObject, IComparable<StringValue>
+		[ValueObject]
+		public sealed partial class StringValue : IComparable<StringValue>
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
-			public string One { get; }
-			public string Two { get; }
+			public string One { get; private init; }
+			public string Two { get; private init; }
 
 			[System.Text.Json.Serialization.JsonConstructor]
 			[Newtonsoft.Json.JsonConstructor]
@@ -1125,11 +1125,11 @@ namespace Architect.DomainModeling.Tests
 			public StringComparison GetStringComparison() => this.StringComparison;
 		}
 
-		[SourceGenerated]
+		[ValueObject]
 		public sealed partial class DecimalValue : ValueObject
 		{
-			public decimal One { get; }
-			public decimal Two { get; }
+			public decimal One { get; private init; }
+			public decimal Two { get; private init; }
 
 			[System.Text.Json.Serialization.JsonConstructor]
 			[Newtonsoft.Json.JsonConstructor]
@@ -1140,10 +1140,10 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class DefaultComparingStringValue : ValueObject, IComparable<DefaultComparingStringValue>
+		[ValueObject]
+		public sealed partial class DefaultComparingStringValue : IComparable<DefaultComparingStringValue>
 		{
-			public string? Value { get; }
+			public string? Value { get; private init; }
 
 			public DefaultComparingStringValue(string? value)
 			{
@@ -1153,13 +1153,13 @@ namespace Architect.DomainModeling.Tests
 			public StringComparison GetStringComparison() => this.StringComparison;
 		}
 
-		[SourceGenerated]
-		public sealed partial class ImmutableArrayValueObject : ValueObject
+		[ValueObject]
+		public sealed partial class ImmutableArrayValueObject
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
-			public ImmutableArray<string> Values { get; }
-			public ImmutableArray<string>? ValuesNullable { get; }
+			public ImmutableArray<string> Values { get; private init; }
+			public ImmutableArray<string>? ValuesNullable { get; private init; }
 
 			public ImmutableArrayValueObject(IEnumerable<string> values)
 			{
@@ -1172,13 +1172,13 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
-		public sealed partial class ArrayValueObject : ValueObject
+		[ValueObject]
+		public sealed partial class ArrayValueObject
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
-			public string?[]? StringValues { get; }
-			public int?[] IntValues { get; }
+			public string?[]? StringValues { get; private init; }
+			public int?[] IntValues { get; private init; }
 
 			public ArrayValueObject(string?[]? stringValues, int?[] intValues)
 			{
@@ -1187,8 +1187,8 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class CustomCollectionValueObject : ValueObject
+		[ValueObject]
+		public sealed partial class CustomCollectionValueObject
 		{
 			public CustomCollection? Values { get; set; }
 
@@ -1213,8 +1213,8 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
-		internal sealed partial class EmptyValueObject : ValueObject
+		[ValueObject]
+		internal sealed partial class EmptyValueObject
 		{
 			public override string ToString() => throw new NotSupportedException();
 		}
@@ -1223,7 +1223,7 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
+		[ValueObject]
 		[Serializable]
 		[Newtonsoft.Json.JsonObject(Newtonsoft.Json.MemberSerialization.Fields)]
 		internal sealed partial class FullySelfImplementedValueObject : ValueObject, IComparable<FullySelfImplementedValueObject>

@@ -13,47 +13,24 @@ public class ValueObjectGenerator : SourceGenerator
 			.Where(generatable => generatable is not null)
 			.DeduplicatePartials();
 
-		context.RegisterSourceOutput(provider, GenerateSource!);
+		context.RegisterSourceOutput(provider.Combine(context.CompilationProvider), GenerateSource!);
 	}
 
 	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
 	{
-		// Partial subclass with any inherited/implemented types
-		if (node is not ClassDeclarationSyntax cds || !cds.Modifiers.Any(SyntaxKind.PartialKeyword) || cds.BaseList is null)
-			return false;
-
-		foreach (var baseType in cds.BaseList.Types)
+		// Struct or class or record
+		if (node is TypeDeclarationSyntax tds && tds is StructDeclarationSyntax or ClassDeclarationSyntax or RecordDeclarationSyntax)
 		{
-			// Consider any type with SOME non-generic "ValueObject" inheritance/implementation
-			if (baseType.Type.HasArityAndName(0, Constants.ValueObjectTypeName))
+			// With relevant attribute
+			if (tds.HasAttributeWithPrefix("ValueObject"))
 				return true;
 		}
-
-		/* Supporting records has the following issues:
-		 * - Cannot inherit from a non-record class (and vice versa).
-		 * - Promotes the use of "positional" (automatic) properties. This generates a constructor and init-properties, stimulating non-validated ValueObjects, an antipattern.
-		 * - Provides multiple nearly-identical solutions, reducing standardization.
-		// Partial record with some interface/base
-		if (node is RecordDeclarationSyntax rds && rds.Modifiers.Any(SyntaxKind.PartialKeyword) && rds.BaseList is not null)
-		{
-			foreach (var baseType in rds.BaseList.Types)
-			{
-				// Consider any type with SOME non-generic "IValueObject" inheritance/implementation
-				if (baseType.Type.HasArityAndName(0, Constants.ValueObjectInterfaceTypeName))
-				{
-					this.CandidateValueObjectTypes.Add(rds);
-					return;
-				}
-			}
-		}*/
 
 		return false;
 	}
 
 	private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 	{
-		cancellationToken.ThrowIfCancellationRequested();
-
 		var result = new Generatable();
 
 		var model = context.SemanticModel;
@@ -64,14 +41,13 @@ public class ValueObjectGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (!type.HasAttribute(Constants.SourceGeneratedAttributeName, Constants.DomainModelingNamespace))
+		if (type.GetAttribute("ValueObjectAttribute", Constants.DomainModelingNamespace, arity: 0) is null)
 			return null;
 
-		result.SetAssociatedData(type);
-		result.IsClass = tds is ClassDeclarationSyntax;
-		result.IsRecord = tds is RecordDeclarationSyntax;
-		result.IsValueObject = type.BaseType?.IsType(Constants.ValueObjectTypeName, Constants.DomainModelingNamespace) == true;
-		result.IsIValueObject = !type.AllInterfaces.Any(interf => interf.IsType(Constants.ValueObjectInterfaceTypeName, Constants.DomainModelingNamespace));
+		result.IsValueObject = type.IsOrImplementsInterface(type => type.IsType(Constants.ValueObjectInterfaceTypeName, Constants.DomainModelingNamespace, arity: 0), out _);
+		result.IsPartial = tds.Modifiers.Any(SyntaxKind.PartialKeyword);
+		result.IsRecord = type.IsRecord;
+		result.IsClass = type.TypeKind == TypeKind.Class;
 		result.IsAbstract = type.IsAbstract;
 		result.IsGeneric = type.IsGenericType;
 		result.IsNested = type.IsNested();
@@ -83,17 +59,24 @@ public class ValueObjectGenerator : SourceGenerator
 
 		var existingComponents = ValueObjectTypeComponents.None;
 
-		existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
+		existingComponents |= ValueObjectTypeComponents.DefaultConstructor.If(type.Constructors.Any(ctor =>
+			!ctor.IsStatic && ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
+
+		// Records override this, but our implementation is superior
+		existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(!result.IsRecord && members.Any(member =>
 			member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
 
-		existingComponents |= ValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
+		// Records override this, but our implementation is superior
+		existingComponents |= ValueObjectTypeComponents.GetHashCodeOverride.If(!result.IsRecord && members.Any(member =>
 			member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
 
+		// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
 			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 			method.Parameters[0].Type.IsType<object>()));
 
-		existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
+		// Records override this, but our implementation is superior
+		existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(!result.IsRecord && members.Any(member =>
 			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
@@ -101,11 +84,13 @@ public class ValueObjectGenerator : SourceGenerator
 			member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
+		// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.EqualsOperator.If(members.Any(member =>
 			member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
+		// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.NotEqualsOperator.If(members.Any(member =>
 			member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
@@ -154,50 +139,78 @@ public class ValueObjectGenerator : SourceGenerator
 		result.DataMemberHashCode = dataMemberHashCode;
 
 		// IComparable is implemented on-demand, if the type implements IComparable against itself and all data members are self-comparable
-		result.IsComparable = type.AllInterfaces.Any(interf => interf.IsType("IComparable", "System", generic: true) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default));
+		result.IsComparable = type.IsOrImplementsInterface(interf => interf.IsType("IComparable", "System", arity: 1) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default), out _);
 		result.IsComparable = result.IsComparable && dataMembers.All(tuple => tuple.Type.IsComparable(seeThroughNullable: true));
 
 		return result;
 	}
 
-	private static void GenerateSource(SourceProductionContext context, Generatable generatable)
+	private static void GenerateSource(SourceProductionContext context, (Generatable Generatable, Compilation Compilation) input)
 	{
 		context.CancellationToken.ThrowIfCancellationRequested();
 
-		var type = generatable.GetAssociatedData<INamedTypeSymbol>();
+		var generatable = input.Generatable;
+		var compilation = input.Compilation;
 
-		// Only with the intended inheritance
-		if (generatable.IsClass && !generatable.IsValueObject)
+		var type = compilation.GetTypeByMetadataName($"{generatable.ContainingNamespace}.{generatable.TypeName}");
+
+		// Require being able to find the type and attribute
+		if (type is null)
 		{
-			context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Unexpected base class",
-				"The type marked as source-generated has an unexpected base class. Did you mean ValueObject?", DiagnosticSeverity.Warning, type);
+			context.ReportDiagnostic("ValueObjectGeneratorUnexpectedType", "Unexpected type",
+				$"Type marked as value object has unexpected type '{generatable.TypeName}'.", DiagnosticSeverity.Warning, type);
 			return;
 		}
-		if (generatable.IsRecord && !generatable.IsIValueObject)
+
+		// Require the expected inheritance
+		if (!generatable.IsPartial && !generatable.IsValueObject)
 		{
-			context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Missing interface",
-				"The type marked as source-generated has an unexpected base class or interface. Did you mean IValueObject?", DiagnosticSeverity.Warning, type);
+			context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Unexpected inheritance",
+				"Type marked as value object lacks IValueObject interface. Did you forget the 'partial' keyword and elude source generation?", DiagnosticSeverity.Warning, type);
 			return;
 		}
+
+		// No source generation, only above analyzers
+		if (!generatable.IsPartial)
+			return;
+
+		// Only if class
+		if (!generatable.IsClass)
+		{
+			context.ReportDiagnostic("ValueObjectGeneratorValueType", "Source-generated struct value object",
+				"The type was not source-generated because it is a struct, while a class was expected. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
+			return;
+		}
+
+		// Only if non-record
+		if (generatable.IsRecord)
+		{
+			context.ReportDiagnostic("ValueObjectGeneratorRecordType", "Source-generated record value object",
+				"The type was not source-generated because it is a record, which cannot inherit from a non-record base class. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
+			return;
+		}
+
 		// Only if non-abstract
 		if (generatable.IsAbstract)
 		{
 			context.ReportDiagnostic("ValueObjectGeneratorAbstractType", "Source-generated abstract type",
-				"The type was not source-generated because it is abstract.", DiagnosticSeverity.Warning, type);
+				"The type was not source-generated because it is abstract. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
 			return;
 		}
+
 		// Only if non-generic
 		if (generatable.IsGeneric)
 		{
 			context.ReportDiagnostic("ValueObjectGeneratorGenericType", "Source-generated generic type",
-				"The type was not source-generated because it is generic.", DiagnosticSeverity.Warning, type);
+				"The type was not source-generated because it is generic. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
 			return;
 		}
+
 		// Only if non-nested
 		if (generatable.IsNested)
 		{
 			context.ReportDiagnostic("ValueObjectGeneratorNestedType", "Source-generated nested type",
-				"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type.", DiagnosticSeverity.Warning, type);
+				"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
 			return;
 		}
 
@@ -209,6 +222,14 @@ public class ValueObjectGenerator : SourceGenerator
 		var existingComponents = generatable.ExistingComponents;
 
 		var dataMembers = GetFieldsAndPropertiesWithBackingField(type, out _, out _);
+
+		// Warn if properties are not settable
+		foreach (var member in dataMembers.Where(member => member.Member is IPropertySymbol { SetMethod: null }))
+		{
+			context.ReportDiagnostic("ValueObjectGeneratorUnsettableDataProperty", "ValueObject has data property without init",
+				"ValueObject data property is missing 'private init' and may not be deserializable. To support deserialization, use '{ get; private init; }', optionally with attributes such as [JsonInclude] and [JsonPropertyName('StableName')].",
+				DiagnosticSeverity.Warning, member.Member);
+		}
 
 		var toStringExpressions = dataMembers
 			.Select(tuple => $"{tuple.Member.Name}={{this.{tuple.Member.Name}}}")
@@ -245,13 +266,22 @@ using {Constants.DomainModelingNamespace};
 
 namespace {containingNamespace}
 {{
-	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record" : "class")} {typeName} : IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
+	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial{(isRecord ? " record" : "")} class {typeName} : ValueObject, IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "/*" : "")}
 		{(dataMembers.Any(member => member.Type.IsType<string>())
-	? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"
-	: @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
+			? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"
+			: @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "*/" : "")}
+
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "/*" : "")}
+#pragma warning disable CS8618 // Deserialization constructor
+		[Obsolete(""This constructor exists for deserialization purposes only."")]
+		private {typeName}()
+		{{
+		}}
+#pragma warning restore CS8618
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "*/" : "")}
 
 		{(!isRecord && existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
 		public sealed override string ToString()
@@ -384,14 +414,15 @@ namespace {containingNamespace}
 		GreaterEqualsOperator = 1 << 11,
 		LessEqualsOperator = 1 << 12,
 		StringComparison = 1 << 13,
+		DefaultConstructor = 1 << 14,
 	}
 
 	private sealed record Generatable : IGeneratable
 	{
-		public bool IsClass { get; set; }
-		public bool IsRecord { get; set; }
 		public bool IsValueObject { get; set; }
-		public bool IsIValueObject { get; set; }
+		public bool IsPartial { get; set; }
+		public bool IsRecord { get; set; }
+		public bool IsClass { get; set; }
 		public bool IsAbstract { get; set; }
 		public bool IsGeneric { get; set; }
 		public bool IsNested { get; set; }
