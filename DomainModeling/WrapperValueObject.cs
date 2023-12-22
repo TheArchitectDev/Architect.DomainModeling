@@ -12,7 +12,7 @@ namespace Architect.DomainModeling;
 /// </para>
 /// </summary>
 [Serializable]
-public abstract class WrapperValueObject<TValue> : ValueObject
+public abstract class WrapperValueObject<TValue> : ValueObject, IWrapperValueObject<TValue>
 	where TValue : notnull
 {
 	/// <summary>

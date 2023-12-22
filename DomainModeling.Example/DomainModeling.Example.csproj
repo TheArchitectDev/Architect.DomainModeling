@@ -2,13 +2,19 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net7.0</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Example</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Example</RootNamespace>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
 		<IsPackable>False</IsPackable>
 		<IsTrimmable>True</IsTrimmable>
+		<LangVersion>12</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!-- IDE0290: Use primary constructor - domain objects tend to have complex ctor logic, and we want to be consistent even when ctors are simple -->
+		<NoWarn>IDE0290</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

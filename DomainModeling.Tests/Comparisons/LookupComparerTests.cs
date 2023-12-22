@@ -55,7 +55,7 @@ public class LookupComparerTests
 	[InlineData("A", "A", true)]
 	[InlineData("A", "a", true)]
 	[InlineData("A", "AA", false)]
-	public void LookupEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
+	public void LookupEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 	{
 		var left = CreateLookupWithEqualityComparer(one is null ? null : new[] { one }, StringComparer.OrdinalIgnoreCase);
 		var right = CreateLookupWithEqualityComparer(two is null ? null : new[] { two }, StringComparer.OrdinalIgnoreCase);
@@ -125,6 +125,24 @@ public class LookupComparerTests
 		AssertGetHashCodesEqual(result, left, right);
 	}
 
+	[Fact]
+	public void LookupEquals_WithElementsRequiringTwoWayComparison_ShouldReturnExpectedResult()
+	{
+		// Left will consider right equal: it contains all of its keys, each with the same set of values
+		// Right will not consider left equal: it contains all of its keys, but not always with the same set of values
+		// The values MUST be checked in each direction to ensure that the inequality is detected
+		var left = new[] { "A" }.ToLookup(key => key, key => key == "A" ? 1 : 2, StringComparer.OrdinalIgnoreCase);
+		var right = new[] { "A", "a", }.ToLookup(key => key, key => key == "A" ? 1 : 2, StringComparer.OrdinalIgnoreCase);
+
+		var result1 = LookupComparer.LookupEquals(left, right);
+		var result2 = LookupComparer.LookupEquals(right, left);
+
+		Assert.False(result1);
+		Assert.False(result2);
+		AssertGetHashCodesEqual(result1, left, right);
+		AssertGetHashCodesEqual(result2, right, left);
+	}
+
 	[Theory]
 	[InlineData("", "", true)]
 	[InlineData("A", "", false)]
@@ -151,7 +169,7 @@ public class LookupComparerTests
 	}
 
 	[Fact]
-	public void DictionaryEquals_WithSameDataInDifferentKeyOrdering_ShouldReturnExpectedResult()
+	public void LookupEquals_WithSameDataInDifferentKeyOrdering_ShouldReturnExpectedResult()
 	{
 		var left = new[] { (1, "A"), (1, "B"), (2, "C"), }.ToLookup(pair => pair.Item1, pair => pair.Item2);
 		var right = new[] { (2, "C"), (1, "A"), (1, "B"), }.ToLookup(pair => pair.Item1, pair => pair.Item2);
@@ -163,7 +181,7 @@ public class LookupComparerTests
 	}
 
 	[Fact]
-	public void DictionaryEquals_WithSameDataInDifferentElementOrdering_ShouldReturnExpectedResult()
+	public void LookupEquals_WithSameDataInDifferentElementOrdering_ShouldReturnExpectedResult()
 	{
 		var left = new[] { (1, "A"), (1, "B"), (2, "C"), }.ToLookup(pair => pair.Item1, pair => pair.Item2);
 		var right = new[] { (1, "B"), (1, "A"), (2, "C"), }.ToLookup(pair => pair.Item1, pair => pair.Item2);

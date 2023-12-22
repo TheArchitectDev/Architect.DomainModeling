@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 
 namespace Architect.DomainModeling.Generator;
@@ -13,7 +12,15 @@ public static class StringExtensions
 	/// </summary>
 	private static readonly string RegexNewLine = Regex.Escape(Environment.NewLine);
 
-	private static ImmutableArray<char> Base32Alphabet { get; } = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".ToImmutableArray();
+	private static readonly Regex NewlineRegex = new Regex(@"\r?\n", RegexOptions.Compiled); // Finds the next \r\n pair or \n instance
+	private static readonly Regex LineFeedWithNeedlessIndentRegex = new Regex(@"\n[ \t]+(?=[\r\n])", RegexOptions.Compiled); // Finds the next line feed with indentations that is otherwise empty
+	private static readonly Regex ThreeOrMoreNewlinesRegex = new Regex($"(?:{RegexNewLine}){{3,}}", RegexOptions.Compiled); // Finds the next set of 3 or more contiguous newlines
+	private static readonly Regex OpeningBraceWithTwoNewlinesRegex = new Regex($"{{{RegexNewLine}{RegexNewLine}", RegexOptions.Compiled); // Finds the next opening brace followed by 2 newlines
+	private static readonly Regex ClosingBraceWithTwoNewlinesRegex = new Regex($"{RegexNewLine}({RegexNewLine}\t* *)}}", RegexOptions.Compiled | RegexOptions.RightToLeft); // Finds the next closing brace preceded by 2 newlines, capturing the last newline and its identation
+	private static readonly Regex EndSummaryWithTwoNewlinesRegex = new Regex($"</summary>{RegexNewLine}{RegexNewLine}", RegexOptions.Compiled); // Finds the next </summary> tag followed by 2 newlines
+	private static readonly Regex CloseAttributeWithTwoNewlinesRegex = new Regex($"]{RegexNewLine}{RegexNewLine}", RegexOptions.Compiled); // Finds the next ] symbol followed by 2 newlines
+
+	private static readonly string Base32Alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 	/// <summary>
 	/// Returns the input <see cref="String"/> with the first character made uppercase.
@@ -38,13 +45,13 @@ public static class StringExtensions
 	public static string NormalizeWhitespace(this string source)
 	{
 		source = source.TrimStart(); // Remove starting whitespace
-		source = Regex.Replace(source, @"\r?\n", Environment.NewLine); // Normalize line endings for the executing OS
-		source = Regex.Replace(source, @"\n[ \t]+(?=[\r\n])", "\n"); // Remove needless tabs from empty lines
-		source = Regex.Replace(source, $"(?:{RegexNewLine}){{3,}}", $"{Environment.NewLine}{Environment.NewLine}"); // Remove needless whitespace between paragraphs
-		source = Regex.Replace(source, $"{{(?:{RegexNewLine}\t* *)+({RegexNewLine}\t* *)(?=\\S)", $"{{$1"); // Remove needless whitespace after opening braces
-		source = Regex.Replace(source, $"(\\S)(?:{RegexNewLine}\t* *)+({RegexNewLine}\t* *)(?=}})", $"$1$2"); // Remove needless whitespace before closing braces
-		source = Regex.Replace(source, $"(</summary>)(?:{RegexNewLine})+({RegexNewLine})", $"$1$2"); // Remove needless whitespace after summaries
-		source = Regex.Replace(source, $"](?:{RegexNewLine})+({RegexNewLine}\t* *)\\[", $"]$1["); // Remove needless whitespace between attributes
+		source = NewlineRegex.Replace(source, Environment.NewLine); // Normalize line endings for the executing OS
+		source = LineFeedWithNeedlessIndentRegex.Replace(source, "\n"); // Remove needless indentation from otherwise empty lines
+		source = ThreeOrMoreNewlinesRegex.Replace(source, $"{Environment.NewLine}{Environment.NewLine}"); // Remove needless whitespace between paragraphs
+		source = OpeningBraceWithTwoNewlinesRegex.Replace(source, $"{{{Environment.NewLine}"); // Remove needless whitespace after opening braces
+		source = ClosingBraceWithTwoNewlinesRegex.Replace(source, $"$1}}"); // Remove needless whitespace before closing braces
+		source = EndSummaryWithTwoNewlinesRegex.Replace(source, $"</summary>{Environment.NewLine}"); // Remove needless whitespace after summaries
+		source = CloseAttributeWithTwoNewlinesRegex.Replace(source, $"]{Environment.NewLine}"); // Remove needless whitespace between attributes
 
 		return source;
 	}

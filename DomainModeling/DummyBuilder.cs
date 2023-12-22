@@ -5,6 +5,7 @@ namespace Architect.DomainModeling;
 /// </summary>
 /// <typeparam name="TModel">The type constructed by the builder.</typeparam>
 /// <typeparam name="TModelBuilder">The type of the concrete builder itself.</typeparam>
+[Obsolete("This base class is deprecated. Apply the [DummyBuilder<TModel>] attribute instead.", error: true)]
 public abstract class DummyBuilder<TModel, TModelBuilder>
 	where TModel : class
 	where TModelBuilder : DummyBuilder<TModel, TModelBuilder>

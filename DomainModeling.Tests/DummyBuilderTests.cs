@@ -61,13 +61,14 @@ namespace Architect.DomainModeling.Tests
 	// We will test a somewhat realistic setup: an Entity with some scalars and a ValueObject that itself contains a WrapperValueObject
 	namespace DummyBuilderTestTypes
 	{
-		[SourceGenerated]
-		public sealed partial class TestEntityDummyBuilder : DummyBuilder<TestEntity, TestEntityDummyBuilder>
+		[DummyBuilder<TestEntity>]
+		public sealed partial class TestEntityDummyBuilder
 		{
 			// Demonstrate that we can take priority over the generated members
 			public TestEntityDummyBuilder WithCreationDateTime(DateTime value) => this.With(b => b.CreationDateTime = value);
 		}
 
+		[Entity]
 		public sealed class TestEntity : Entity<TestEntityId, string>
 		{
 			public DateTime CreationDateTime { get; }
@@ -109,8 +110,8 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class Amount : WrapperValueObject<decimal>
+		[WrapperValueObject<decimal>]
+		public sealed partial class Amount
 		{
 			// The type's simplest non-default constructor should be used by the builder. It is source-generated.
 
@@ -121,11 +122,11 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class Money : ValueObject
+		[ValueObject]
+		public sealed partial class Money
 		{
-			public string Currency { get; }
-			public Amount Amount { get; }
+			public string Currency { get; private init; }
+			public Amount Amount { get; private init; }
 
 			/// <summary>
 			/// The type's simplest non-default constructor should be used by the builder.
@@ -155,12 +156,12 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
-		public sealed partial class EmptyTypeDummyBuilder : DummyBuilder<EmptyType, EmptyTypeDummyBuilder>
+		[DummyBuilder<EmptyType>]
+		public sealed partial class EmptyTypeDummyBuilder
 		{
 		}
 
-		[SourceGenerated]
+		[WrapperValueObject<string>]
 		public sealed partial class StringWrapper : WrapperValueObject<string>
 		{
 			protected override StringComparison StringComparison => StringComparison.Ordinal;
@@ -169,7 +170,7 @@ namespace Architect.DomainModeling.Tests
 		public sealed class ManualStringWrapper : WrapperValueObject<string>
 		{
 			protected override StringComparison StringComparison => StringComparison.Ordinal;
-			public override string ToString() =>  this.Value;
+			public override string ToString() => this.Value;
 
 			public string Value { get; }
 
@@ -192,8 +193,8 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class StringWrapperTestingDummyBuilder : DummyBuilder<StringWrapperTestingEntity, StringWrapperTestingDummyBuilder>
+		[DummyBuilder<StringWrapperTestingEntity>]
+		public sealed partial class StringWrapperTestingDummyBuilder
 		{
 		}
 	}

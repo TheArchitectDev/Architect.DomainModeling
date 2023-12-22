@@ -85,14 +85,12 @@ public static class EnumerableComparer
 		if (left is null || right is null) return false; // Double nulls are already handled above
 
 		// Prefer common concrete types, to avoid (possibly many) virtualized calls
-#if NET6_0_OR_GREATER // .NET 6 introduces unconstrained MemoryExtensions.SequenceEqual() overloads
 		if (left is List<TElement> leftList && right is List<TElement> rightList)
 			return MemoryExtensions.SequenceEqual(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(leftList), System.Runtime.InteropServices.CollectionsMarshal.AsSpan(rightList));
 		if (left is TElement[] leftArray && right is TElement[] rightArray)
 			return MemoryExtensions.SequenceEqual(leftArray.AsSpan(), rightArray.AsSpan());
 		if (left is System.Collections.Immutable.ImmutableArray<TElement> leftImmutableArray && right is System.Collections.Immutable.ImmutableArray<TElement> rightImmutableArray)
 			return MemoryExtensions.SequenceEqual(leftImmutableArray.AsSpan(), rightImmutableArray.AsSpan());
-#endif
 
 		// Prefer to index directly, to avoid allocation of an enumerator
 		if (left is IList<TElement> leftIndexable && right is IList<TElement> rightIndexable)

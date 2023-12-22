@@ -42,9 +42,12 @@ public abstract class SourceGenerator : IIncrementalGenerator
 			? typeName
 			: $"{Path.GetFileNameWithoutExtension(callerFilePath)}:{typeName}";
 		var stableNamespaceHashCode = containingNamespace.GetStableStringHashCode32();
-		var hashCodesForTypeName = NamespacesByGeneratorAndTypeName.AddOrUpdate(uniqueKey, addValue: stableNamespaceHashCode, (key, namespaceHashCodeConcatenation) => namespaceHashCodeConcatenation.Contains(stableNamespaceHashCode)
-			? namespaceHashCodeConcatenation
-			: $"{namespaceHashCodeConcatenation}-{stableNamespaceHashCode}");
+		var hashCodesForTypeName = NamespacesByGeneratorAndTypeName.AddOrUpdate(
+			key: uniqueKey,
+			addValue: stableNamespaceHashCode,
+			updateValueFactory: (key, namespaceHashCodeConcatenation) => namespaceHashCodeConcatenation.Contains(stableNamespaceHashCode)
+				? namespaceHashCodeConcatenation
+				: $"{namespaceHashCodeConcatenation}-{stableNamespaceHashCode}");
 		if (!hashCodesForTypeName.StartsWith(stableNamespaceHashCode)) // Not the first to want this name
 			sourceName = $"{typeName}-{stableNamespaceHashCode}.g.cs";
 

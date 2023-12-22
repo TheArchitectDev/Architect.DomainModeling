@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net7.0;net6.0;net5.0</TargetFrameworks>
+		<TargetFrameworks>net8.0;net7.0;net6.0</TargetFrameworks>
 		<CheckEolTargetFramework>False</CheckEolTargetFramework>
 		<AssemblyName>Architect.DomainModeling</AssemblyName>
 		<RootNamespace>Architect.DomainModeling</RootNamespace>
@@ -12,8 +12,12 @@
 		<IsTrimmable>True</IsTrimmable>
 	</PropertyGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="$(AssemblyName).Tests" />
+	</ItemGroup>
+
 	<PropertyGroup>
-		<VersionPrefix>2.1.0</VersionPrefix>
+		<VersionPrefix>3.0.0</VersionPrefix>
 		<Description>
 A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
@@ -21,42 +25,28 @@ https://github.com/TheArchitectDev/Architect.DomainModeling
 
 Release notes:
 
-2.1.0:
-- Added ValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(), a common validation requirement for proper names.
-- Explicitly declared identity types now support "record struct", allowing their curly braces to be omitted.
-- Added the IEntity interface, implemented by the Entity class and its derivatives.
+3.0.0:
 
-2.0.1:
-- Fixed a bug where arrays in (Wrapper)ValueObjects would trip the generator.
-
-2.0.0:
-- BREAKING: Generated DummyBuilders now use UTC datetimes for generated defaults and for interpreting datetime strings.
-- Semi-breaking: Generated types no longer add [Serializable] attribute, since there would be no way to remove it.
-- Generated types are now easier to read, using ?-based nullables instead of attributes.
-- Identity and WrapperValueObject&lt;TValue&gt; types now honor the underlying type's nullability in ToString().
-- Identity and WrapperValueObject&lt;TValue&gt; types' generated System.Text.Json serializers now implement ReadAsPropertyName() and WriteAsPropertyName(), enabling serialization of such types when they are used as dictionary keys (only in .NET 7 and up).
-- DummyBuilderGenerator: WrapperValueObject&lt;string&gt; and IIdentity&lt;string&gt; constructor params now get a string value equal to the param name instead of the type name (e.g. "FirstName" and "LastName" instead of "ProperName" and "ProperName").
-- Added some missing nullable annotations.
-- IIdentity&lt;T&gt; now has an explicit notnull constraint (whereas before this was only indirectly enforced by its IEquatable&lt;T&gt; interface).
-- Identity types now serialize additional large numeric types as string, to avoid JavaScript overflows: UInt128 and Int128.
-- Identity types generated for Entity&lt;TId, TIdPrimitive&gt; now have a summary.
-- Identity types wrapping a non-nullable string now explain the non-nullness for default struct instances, in summaries for ToString(), Value, and convert-to-string operators.
-- Identity types: Fixed a bug where string representations of numeric IDs could contain meaningless decimal places, e.g. when a decimal was internally represented as 1.0.
-- Identity types: Fixed a bug in the generated JSON converters for IIdentity&lt;decimal&gt;, where an incorrect ArgumentNullException or NullReferenceException could be thrown instead of the expected JsonException/JsonSerializationException.
-- Fixed a compile-time bug where the source generator for ValueObjects would create non-compiling equality/comparison for properties of types created solely by source generators.
-- Fixed a potential bug in Entity&lt;TId&gt;, where entities of different types could be considered equal if they used the same TId (even though the latter is not advisable).
-- Added support for trimming.
-- Minor performance optimizations.
-
-1.0.3:
-- Improved performance by using incremental generators.
-- Made it easier to navigate into the right file, thanks to a comment just before the generated type definition.
-- Generated source now uses the common .g.cs suffix.
-- Fixed a compile-time bug where [Wrapper]ValueObject inheritance combined with the IIdentity interface would cause an unwarranted warning.
-- Fixed a compile-time bug where the source generator would fail to acknowledge a type with the SourceGeneratedAttribute on one partial and the required base type on another.
-- Fixed a compile-time bug where the source generator would crash if the partial to be extended already consisted of multiple partials.
-- Fixed a compile-time bug where the DummyBuilder source generator would crash if it encountered a constructor taking a parameter that is a source-generated IIdentity.
-- Reduced the need for duplicate type names to require a uniquefier in the generated source name.
+- BREAKING: Platform support: Dropped support for .NET 5.0 (EOL).
+- BREAKING: Marker attributes: [SourceGenerated] attribute is refactored into [Entity], [ValueObject], [WrapperValueObject&lt;TValue&gt;], etc. Obsolete marking helps with migrating.
+- BREAKING: DummyBuilder base class: The DummyBuilder&lt;TModel, TModelBuilder&gt; base class is deprecated in favor of the new [DummyBuilder&lt;TModel&gt;] attribute. Obsolete marking helps with migrating.
+- BREAKING: Private ctors: Source-generated ValueObject types now generate a private default ctor with [JsonConstructor], for logic-free deserialization. This may break deserialization if properties lack an init/set. Analyzer included.
+- BREAKING: Init properties: A new analyzer warns if a WrapperValueObject's Value property lacks an init/set, because logic-free deserialization then requires a workaround.
+- BREAKING: ISerializableDomainObject interface: Wrapper value objects and identities now require the new ISerializableDomainObject&lt;TModel, TValue&gt; interface (generated automatically).
+- Feature: Custom inheritance: Source generation with custom base classes is now easy, with marker attributes identifying the concrete types.
+- Feature: Optional inheritance: For source-generated value objects, wrappers, and identities, the base type or interface is generated and can be omitted.
+- Feature: DomainObjectSerializer (.NET 7+): The new DomainObjectSerializer type can be used to (de)serialize identities and wrappers without running any domain logic (such as parameterized ctors), and customizable per type.
+- Feature: Entity Framework mappings (.NET 7+): If Entity Framework is used, mappings by convention (that also bypass ctors) can be generated. Override DbContext.ConfigureConventions() and call ConfigureDomainModelConventions(). Its action param allows all identities, wrapper value objects, entities, and/or domain events to be mapped, even in a trimmer-safe way.
+- Feature: Miscellaneous mappings: Other third party components can similarly map domain objects. See the readme.
+- Feature: Marker attributes: Non-partial types with the new marker attributes skip source generation, but can still participate in mappings.
+- Feature: Record struct identities: Explicitly declared identity types now support "record struct", allowing their curly braces to be omitted: `public partial record struct GeneratedId;`
+- Feature: ValueObject validation helpers: Added ValueObject.ContainsNonPrintableCharactersOrDoubleQuotes(), a common validation requirement for proper names.
+- Feature: Formattable and parsable interfaces (.NET 7+): Generated identities and wrappers now implement IFormattable, IParsable&lt;TSelf&gt;, ISpanFormattable, and ISpanParsable&lt;TSelf&gt;, recursing into the wrapped type's implementation.
+- Feature: UTF-8 formattable and parsable interfaces (.NET 8+): Generated identities and wrappers now implement IUtf8SpanFormattable and IUtf8SpanParsable&lt;TSelf&gt;, recursing into the wrapped type's implementation.
+- Enhancement: JSON converters (.NET 7+): All generated JSON converters now pass through the new Serialize() and Deserialize() methods, for customizable and logic-free (de)serialization.
+- Enhancement: JSON converters (.NET 7+): ReadAsPropertyName() and WriteAsPropertyName() in generated JSON converters now recurse into the wrapped type's converter and also pass through the new Serialize() and Deserialize() methods.
+- Bug fix: IDE stability: Fixed a compile-time bug that could cause some of the IDE's features to crash, such as certain analyzers.
+- Minor feature: Additional interfaces: IEntity and IWrapperValueObject&lt;TValue&gt; interfaces are now available.
 		</Description>
 		<Copyright>The Architect</Copyright>
 		<Company>The Architect</Company>

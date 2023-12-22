@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
 using Architect.DomainModeling.Tests.ValueObjectTestTypes;
 using Xunit;
 
@@ -562,7 +563,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, false)] // Custom collection's hash code always returns 1
 		[InlineData("A", "A", true)] // Custom collection's hash code always returns 1
 		[InlineData("A", "B", true)] // Custom collection's hash code always returns 1
-		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
 			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
@@ -639,7 +640,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, true)] // Custom collection's equality always returns true
 		[InlineData("A", "A", true)] // Custom collection's equality always returns true
 		[InlineData("A", "B", true)] // Custom collection's equality always returns true
-		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
 			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
@@ -737,7 +738,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = one is null ? null : new StringValue(one, "7");
 			var right = two is null ? null : new StringValue(two, "7");
@@ -763,7 +764,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = one is null ? null : new StringValue(one, "7");
 			var right = two is null ? null : new StringValue(two, "7");
@@ -789,7 +790,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = one is null ? null : new StringValue(one, "7");
 			var right = two is null ? null : new StringValue(two, "7");
@@ -809,6 +810,7 @@ namespace Architect.DomainModeling.Tests
 		{
 			var nullValued = new DefaultComparingStringValue(value: null);
 
+#pragma warning disable xUnit2024 // Do not use boolean asserts for simple equality tests -- We are testing overloaded operators
 			Assert.False(null == nullValued);
 			Assert.True(null != nullValued);
 			Assert.False(nullValued == null);
@@ -821,6 +823,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.False(nullValued <= null);
 			Assert.True(nullValued > null);
 			Assert.True(nullValued >= null);
+#pragma warning restore xUnit2024 // Do not use boolean asserts for simple equality tests
 		}
 
 		[Theory]
@@ -1056,22 +1059,22 @@ namespace Architect.DomainModeling.Tests
 	// Use a namespace, since our source generators dislike nested types
 	namespace ValueObjectTestTypes
 	{
-		[SourceGenerated]
-		public sealed partial class ValueObjectWithIIdentity : ValueObject, IIdentity<int>
+		[ValueObject]
+		public sealed partial class ValueObjectWithIIdentity : IIdentity<int>
 		{
 		}
 
 		/// <summary>
 		/// This once caused build errors, before a bug fix handled properties of fully source-generated types.
 		/// </summary>
-		[SourceGenerated]
-		public sealed partial class ValueObjectWithGeneratedIdentity : ValueObject // Unfortunately we cannot get IComparable<T>, since the source generator will only implement it if all properties are KNOWN to be IComparable<T> to themselves
+		[ValueObject]
+		public sealed partial class ValueObjectWithGeneratedIdentity // Unfortunately we cannot get IComparable<T>, since the source generator will only implement it if all properties are KNOWN to be IComparable<T> to themselves
 		{
 			/// <summary>
 			/// This type is only fleshed out AFTER source generators have run.
 			/// During source generation, its properties are unknown, and thus our own source generator cannot know whether it is a value type or a reference type.
 			/// </summary>
-			public FullyGeneratedId SomeValue { get; }
+			public FullyGeneratedId SomeValue { get; private init; }
 
 			public ValueObjectWithGeneratedIdentity(FullyGeneratedId someValue)
 			{
@@ -1087,17 +1090,17 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class IntValue : ValueObject
+		[ValueObject]
+		public sealed partial class IntValue
 		{
-			public int One { get; }
-			public int Two { get; }
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
+			public int One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
+			public int Two { get; private init; }
 
 			public string CalculatedProperty => $"{this.One}-{this.Two}";
 
-			[System.Text.Json.Serialization.JsonConstructor]
-			[Newtonsoft.Json.JsonConstructor]
-			public IntValue(int one, int two)
+			public IntValue(int one, int two, object? _ = null)
 			{
 				this.One = one;
 				this.Two = two;
@@ -1106,17 +1109,17 @@ namespace Architect.DomainModeling.Tests
 			public StringComparison GetStringComparison() => this.StringComparison;
 		}
 
-		[SourceGenerated]
-		public sealed partial class StringValue : ValueObject, IComparable<StringValue>
+		[ValueObject]
+		public sealed partial class StringValue : IComparable<StringValue>
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
-			public string One { get; }
-			public string Two { get; }
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
+			public string One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
+			public string Two { get; private init; }
 
-			[System.Text.Json.Serialization.JsonConstructor]
-			[Newtonsoft.Json.JsonConstructor]
-			public StringValue(string one, string two)
+			public StringValue(string one, string two, object? _ = null)
 			{
 				this.One = one ?? throw new ArgumentNullException(nameof(one));
 				this.Two = two ?? throw new ArgumentNullException(nameof(two));
@@ -1125,25 +1128,25 @@ namespace Architect.DomainModeling.Tests
 			public StringComparison GetStringComparison() => this.StringComparison;
 		}
 
-		[SourceGenerated]
+		[ValueObject]
 		public sealed partial class DecimalValue : ValueObject
 		{
-			public decimal One { get; }
-			public decimal Two { get; }
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
+			public decimal One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
+			public decimal Two { get; private init; }
 
-			[System.Text.Json.Serialization.JsonConstructor]
-			[Newtonsoft.Json.JsonConstructor]
-			public DecimalValue(decimal one, decimal two)
+			public DecimalValue(decimal one, decimal two, object? _ = null)
 			{
 				this.One = one;
 				this.Two = two;
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class DefaultComparingStringValue : ValueObject, IComparable<DefaultComparingStringValue>
+		[ValueObject]
+		public sealed partial class DefaultComparingStringValue : IComparable<DefaultComparingStringValue>
 		{
-			public string? Value { get; }
+			public string? Value { get; private init; }
 
 			public DefaultComparingStringValue(string? value)
 			{
@@ -1153,13 +1156,13 @@ namespace Architect.DomainModeling.Tests
 			public StringComparison GetStringComparison() => this.StringComparison;
 		}
 
-		[SourceGenerated]
-		public sealed partial class ImmutableArrayValueObject : ValueObject
+		[ValueObject]
+		public sealed partial class ImmutableArrayValueObject
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
-			public ImmutableArray<string> Values { get; }
-			public ImmutableArray<string>? ValuesNullable { get; }
+			public ImmutableArray<string> Values { get; private init; }
+			public ImmutableArray<string>? ValuesNullable { get; private init; }
 
 			public ImmutableArrayValueObject(IEnumerable<string> values)
 			{
@@ -1172,13 +1175,13 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
-		public sealed partial class ArrayValueObject : ValueObject
+		[ValueObject]
+		public sealed partial class ArrayValueObject
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
-			public string?[]? StringValues { get; }
-			public int?[] IntValues { get; }
+			public string?[]? StringValues { get; private init; }
+			public int?[] IntValues { get; private init; }
 
 			public ArrayValueObject(string?[]? stringValues, int?[] intValues)
 			{
@@ -1187,8 +1190,8 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		public sealed partial class CustomCollectionValueObject : ValueObject
+		[ValueObject]
+		public sealed partial class CustomCollectionValueObject
 		{
 			public CustomCollection? Values { get; set; }
 
@@ -1213,8 +1216,8 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
-		internal sealed partial class EmptyValueObject : ValueObject
+		[ValueObject]
+		internal sealed partial class EmptyValueObject
 		{
 			public override string ToString() => throw new NotSupportedException();
 		}
@@ -1223,7 +1226,7 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
+		[ValueObject]
 		[Serializable]
 		[Newtonsoft.Json.JsonObject(Newtonsoft.Json.MemberSerialization.Fields)]
 		internal sealed partial class FullySelfImplementedValueObject : ValueObject, IComparable<FullySelfImplementedValueObject>

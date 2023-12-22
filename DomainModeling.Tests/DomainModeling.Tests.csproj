@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net7.0</TargetFramework>
+		<TargetFramework>net8.0</TargetFramework>
 		<AssemblyName>Architect.DomainModeling.Tests</AssemblyName>
 		<RootNamespace>Architect.DomainModeling.Tests</RootNamespace>
 		<Nullable>Enable</Nullable>
@@ -10,14 +10,23 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
+		<!-- CA1861: Prefer 'static readonly' fields over constant array arguments - inline is more readable for a battery of tests -->
+		<!-- IDE0290: Use primary constructor - not necessarily more readable for numerous test classes -->
+		<!-- IDE0305: Collection initialization can be simplified - this is not a readability improvement for chained LINQ calls -->
+		<NoWarn>CA1861, IDE0290, IDE0305</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup>
 		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 		<CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)/GeneratedFiles</CompilerGeneratedFilesOutputPath>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
-		<PackageReference Include="xunit" Version="2.4.2" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+		<PackageReference Include="xunit" Version="2.6.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="2.5.5">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
@@ -25,7 +34,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\DomainModeling\DomainModeling.csproj" />
-		<ProjectReference Include="..\DomainModeling.Generator\DomainModeling.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\DomainModeling.Generator\DomainModeling.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
 	</ItemGroup>
 
 </Project>

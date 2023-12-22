@@ -17,19 +17,28 @@ internal interface IGeneratable
 
 internal static class GeneratableExtensions
 {
-	public static readonly ConditionalWeakTable<object, object> AdditionalDataPerGeneratable = new ConditionalWeakTable<object, object>();
-
-	public static void SetAssociatedData(this IGeneratable generatable, object data)
+	/// <summary>
+	/// Unpacks the boolean value stored in the bit set at position <paramref name="position"/>.
+	/// </summary>
+	public static bool GetBit(this uint bits, int position)
 	{
-		AdditionalDataPerGeneratable.Remove(generatable);
-		AdditionalDataPerGeneratable.Add(generatable, data);
+		var result = (bits >> position) & 1U;
+		return Unsafe.As<uint, bool>(ref result);
 	}
 
-	public static TData GetAssociatedData<TData>(this IGeneratable generatable)
+	/// <summary>
+	/// Stores the given <paramref name="value"/> in the bit set at position <paramref name="position"/>.
+	/// </summary>
+	public static void SetBit(ref this uint bits, int position, bool value)
 	{
-		if (!AdditionalDataPerGeneratable.TryGetValue(generatable, out var result))
-			throw new KeyNotFoundException("Attemped to retrieve data for the generatable object, but no data was stored.");
+		// Create a mask to unset the target bit: 1 << position
+		// Unset the target bit: & (1 << position)
 
-		return (TData)result;
+		// Create a mask to write the target bit value: 1 << value
+		// Write the target bit: | (1 << value)
+
+		bits = bits
+			& ~(1U << position)
+			| (Unsafe.As<bool, uint>(ref value) << position);
 	}
 }

@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 using Xunit;
@@ -55,7 +55,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void GetHashCode_WithUnintializedObject_ShouldReturnExpectedResult()
 		{
-			var instance = (StringValue)FormatterServices.GetUninitializedObject(typeof(StringValue));
+			var instance = (StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue));
 			Assert.Equal(0, instance.GetHashCode());
 		}
 
@@ -65,13 +65,13 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, false)] // Custom collection's hash code always returns 1
 		[InlineData("A", "A", true)] // Custom collection's hash code always returns 1
 		[InlineData("A", "B", true)] // Custom collection's hash code always returns 1
-		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = one is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(one));
 			var right = two is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(two));
 
 			var leftHashCode = left.GetHashCode();
@@ -106,7 +106,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void Equals_WithUnintializedObject_ShouldReturnExpectedResult()
 		{
-			var left = (StringValue)FormatterServices.GetUninitializedObject(typeof(StringValue));
+			var left = (StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue));
 			var right = new StringValue("Example");
 
 			Assert.NotEqual(left, right);
@@ -119,13 +119,13 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("", null, true)] // Custom collection's equality always returns true
 		[InlineData("A", "A", true)] // Custom collection's equality always returns true
 		[InlineData("A", "B", true)] // Custom collection's equality always returns true
-		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string one, string two, bool expectedResult)
+		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
 			var left = one is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(one));
 			var right = two is null
-				? FormatterServices.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
+				? RuntimeHelpers.GetUninitializedObject(typeof(CustomCollectionWrapperValueObject))
 				: new CustomCollectionWrapperValueObject(new CustomCollectionWrapperValueObject.CustomCollection(two));
 			Assert.Equal(expectedResult, left.Equals(right));
 		}
@@ -196,10 +196,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void CompareTo_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
-			var left = (StringValue)one;
-			var right = (StringValue)two;
+			var left = (StringValue?)one;
+			var right = (StringValue?)two;
 
 			Assert.Equal(expectedResult, Comparer<StringValue>.Default.Compare(left, right));
 			Assert.Equal(-expectedResult, Comparer<StringValue>.Default.Compare(right, left));
@@ -216,10 +216,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
-			var left = (StringValue)one;
-			var right = (StringValue)two;
+			var left = (StringValue?)one;
+			var right = (StringValue?)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
@@ -236,10 +236,10 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
-			var left = (StringValue)one;
-			var right = (StringValue)two;
+			var left = (StringValue?)one;
+			var right = (StringValue?)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
@@ -302,6 +302,10 @@ namespace Architect.DomainModeling.Tests
 
 			var stringInstance = (StringValue?)value?.ToString();
 			Assert.Equal(value is null ? "null" : $@"""{value}""", System.Text.Json.JsonSerializer.Serialize(stringInstance));
+
+			// Even with nested identity and/or wrapper value objects, no constructors should be hit
+			var nestedInstance = value is null ? null : new JsonTestingStringWrapper(value.ToString()!, false);
+			Assert.Equal(value is null ? "null" : $@"""{value}""", System.Text.Json.JsonSerializer.Serialize(nestedInstance));
 		}
 
 		[Theory]
@@ -315,6 +319,10 @@ namespace Architect.DomainModeling.Tests
 
 			var stringInstance = (StringValue?)value?.ToString();
 			Assert.Equal(value is null ? "null" : $@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject(stringInstance));
+
+			// Even with nested identity and/or wrapper value objects, no constructors should be hit
+			var nestedInstance = value is null ? null : new JsonTestingStringWrapper(value.ToString()!, false);
+			Assert.Equal(value is null ? "null" : $@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject(nestedInstance));
 		}
 
 		/// <summary>
@@ -364,6 +372,9 @@ namespace Architect.DomainModeling.Tests
 
 			json = json == "null" ? json : $@"""{json}""";
 			Assert.Equal(value?.ToString(), System.Text.Json.JsonSerializer.Deserialize<StringValue>(json)?.Value);
+
+			// Even with nested identity and/or wrapper value objects, no constructors should be hit
+			Assert.Equal(value?.ToString(), json == "null" ? null : System.Text.Json.JsonSerializer.Deserialize<JsonTestingNestedStringWrapper>(json)?.Value.Value?.Value);
 		}
 
 		[Theory]
@@ -376,6 +387,9 @@ namespace Architect.DomainModeling.Tests
 
 			json = json == "null" ? json : $@"""{json}""";
 			Assert.Equal(value?.ToString(), Newtonsoft.Json.JsonConvert.DeserializeObject<StringValue>(json)?.Value);
+
+			// Even with nested identity and/or wrapper value objects, no constructors should be hit
+			Assert.Equal(value?.ToString(), json == "null" ? null : Newtonsoft.Json.JsonConvert.DeserializeObject<JsonTestingNestedStringWrapper>(json)?.Value.Value?.Value);
 		}
 
 		/// <summary>
@@ -422,6 +436,9 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(KeyValuePair.Create((StringValue)value.ToString(), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<StringValue, bool>>(json)?.Single());
 
 			Assert.Equal(KeyValuePair.Create((DecimalValue)value, true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<DecimalValue, bool>>(json)?.Single());
+
+			// Even with nested identity and/or wrapper value objects, no constructors should be hit
+			Assert.Equal(KeyValuePair.Create(new JsonTestingStringWrapper(value.ToString(), false), true), System.Text.Json.JsonSerializer.Deserialize<Dictionary<JsonTestingStringWrapper, bool>>(json)?.Single());
 		}
 
 		[Theory]
@@ -436,60 +453,197 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<StringValue, bool>() { [(StringValue)value.ToString()] = true }));
 
 			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<DecimalValue, bool>() { [(DecimalValue)value] = true }));
+
+			// Even with nested identity and/or wrapper value objects, no constructors should be hit
+			Assert.Equal(expectedResult, System.Text.Json.JsonSerializer.Serialize(new Dictionary<JsonTestingStringWrapper, bool>() { [new JsonTestingStringWrapper(value.ToString(), false)] = true }));
+		}
+
+		[Fact]
+		public void FormattableToString_InAllScenarios_ShouldReturnExpectedResult()
+		{
+			Assert.Equal("5", new IntValue(5).ToString(format: null, formatProvider: null));
+			Assert.Equal("5", new StringValue("5").ToString(format: null, formatProvider: null));
+			Assert.Equal("5", new FullySelfImplementedWrapperValueObject(5).ToString(format: null, formatProvider: null));
+			Assert.Equal("5", new FormatAndParseTestingStringWrapper("5").ToString(format: null, formatProvider: null));
+
+			Assert.Equal("", ((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).ToString(format: null, formatProvider: null));
+		}
+
+		[Fact]
+		public void SpanFormattableTryFormat_InAllScenarios_ShouldReturnExpectedResult()
+		{
+			Span<char> result = stackalloc char[1];
+
+			Assert.True(new IntValue(5).TryFormat(result, out var charsWritten, format: null, provider: null));
+			Assert.Equal(1, charsWritten);
+			Assert.Equal("5".AsSpan(), result);
+
+			Assert.True(new StringValue("5").TryFormat(result, out charsWritten, format: null, provider: null));
+			Assert.Equal(1, charsWritten);
+			Assert.Equal("5".AsSpan(), result);
+
+			Assert.True(new FullySelfImplementedWrapperValueObject(5).TryFormat(result, out charsWritten, format: null, provider: null));
+			Assert.Equal(1, charsWritten);
+			Assert.Equal("5".AsSpan(), result);
+
+			Assert.True(new FormatAndParseTestingStringWrapper("5").TryFormat(result, out charsWritten, format: null, provider: null));
+			Assert.Equal(1, charsWritten);
+			Assert.Equal("5".AsSpan(), result);
+
+			Assert.True(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).TryFormat(result, out charsWritten, format: null, provider: null));
+			Assert.Equal(0, charsWritten);
+		}
+
+		[Fact]
+		public void UtfSpanFormattableTryFormat_InAllScenarios_ShouldReturnExpectedResult()
+		{
+			Span<byte> result = stackalloc byte[1];
+
+			Assert.True(new IntValue(5).TryFormat(result, out var bytesWritten, format: null, provider: null));
+			Assert.Equal(1, bytesWritten);
+			Assert.Equal("5"u8, result);
+
+			Assert.True(new StringValue("5").TryFormat(result, out bytesWritten, format: null, provider: null));
+			Assert.Equal(1, bytesWritten);
+			Assert.Equal("5"u8, result);
+
+			Assert.True(new FullySelfImplementedWrapperValueObject(5).TryFormat(result, out bytesWritten, format: null, provider: null));
+			Assert.Equal(1, bytesWritten);
+			Assert.Equal("5"u8, result);
+
+			Assert.True(new FormatAndParseTestingStringWrapper("5").TryFormat(result, out bytesWritten, format: null, provider: null));
+			Assert.Equal(1, bytesWritten);
+			Assert.Equal("5"u8, result);
+
+			Assert.True(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).TryFormat(result, out bytesWritten, format: null, provider: null));
+			Assert.Equal(0, bytesWritten);
+		}
+
+		[Fact]
+		public void ParsableTryParseAndParse_InAllScenarios_ShouldReturnExpectedResult()
+		{
+			var input = "5";
+
+			Assert.True(IntValue.TryParse(input, provider: null, out var result1));
+			Assert.Equal(5, result1.Value);
+			Assert.Equal(result1, IntValue.Parse(input, provider: null));
+
+			Assert.True(StringValue.TryParse(input, provider: null, out var result2));
+			Assert.Equal("5", result2.Value);
+			Assert.Equal(result2, StringValue.Parse(input, provider: null));
+
+			Assert.True(FullySelfImplementedWrapperValueObject.TryParse(input, provider: null, out var result3));
+			Assert.Equal(5, result3.Value);
+			Assert.Equal(result3, FullySelfImplementedWrapperValueObject.Parse(input, provider: null));
+
+			Assert.True(FormatAndParseTestingStringWrapper.TryParse(input, provider: null, out var result4));
+			Assert.Equal("5", result4.Value?.Value.Value?.Value);
+			Assert.Equal(result4, FormatAndParseTestingStringWrapper.Parse(input, provider: null));
+		}
+
+		[Fact]
+		public void SpanParsableTryParseAndParse_InAllScenarios_ShouldReturnExpectedResult()
+		{
+			var input = "5".AsSpan();
+
+			Assert.True(IntValue.TryParse(input, provider: null, out var result1));
+			Assert.Equal(5, result1.Value);
+			Assert.Equal(result1, IntValue.Parse(input, provider: null));
+
+			Assert.True(StringValue.TryParse(input, provider: null, out var result2));
+			Assert.Equal("5", result2.Value);
+			Assert.Equal(result2, StringValue.Parse(input, provider: null));
+
+			Assert.True(FullySelfImplementedWrapperValueObject.TryParse(input, provider: null, out var result3));
+			Assert.Equal(5, result3.Value);
+			Assert.Equal(result3, FullySelfImplementedWrapperValueObject.Parse(input, provider: null));
+
+			Assert.True(FormatAndParseTestingStringWrapper.TryParse(input, provider: null, out var result4));
+			Assert.Equal("5", result4.Value?.Value.Value?.Value);
+			Assert.Equal(result4, FormatAndParseTestingStringWrapper.Parse(input, provider: null));
+		}
+
+		[Fact]
+		public void Utf8SpanParsableTryParseAndParse_InAllScenarios_ShouldReturnExpectedResult()
+		{
+			var input = "5"u8;
+
+			Assert.True(IntValue.TryParse(input, provider: null, out var result1));
+			Assert.Equal(5, result1.Value);
+			Assert.Equal(result1, IntValue.Parse(input, provider: null));
+
+			Assert.True(StringValue.TryParse(input, provider: null, out var result2));
+			Assert.Equal("5", result2.Value);
+			Assert.Equal(result2, StringValue.Parse(input, provider: null));
+
+			Assert.True(FullySelfImplementedWrapperValueObject.TryParse(input, provider: null, out var result3));
+			Assert.Equal(5, result3.Value);
+			Assert.Equal(result3, FullySelfImplementedWrapperValueObject.Parse(input, provider: null));
+
+			Assert.True(FormatAndParseTestingStringWrapper.TryParse(input, provider: null, out var result4));
+			Assert.Equal("5", result4.Value?.Value.Value?.Value);
+			Assert.Equal(result4, FormatAndParseTestingStringWrapper.Parse(input, provider: null));
 		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
 	namespace WrapperValueObjectTestTypes
 	{
-		// Should compile in spite of already consisting of two partials
-		[SourceGenerated]
+		// Should compile in spite of already consisting of multiple partials, both with and without the attribute
+		[WrapperValueObject<int>]
+		public sealed partial class AlreadyPartial
+		{
+		}
+
+		// Should compile in spite of already consisting of multiple partials, both with and without the attribute
 		public sealed partial class AlreadyPartial : WrapperValueObject<int>
 		{
 		}
 
-		// Should compile in spite of already consisting of two partials
-		public sealed partial class AlreadyPartial : WrapperValueObject<int>
+		// Should compile in spite of already consisting of multiple partials, both with and without the attribute
+		public partial class AlreadyPartial
 		{
 		}
 
-		// Should be recognized in spite of the SourceGeneratedAttribute and the base class to be defined on different partials
-		[SourceGenerated]
+		// Should be recognized in spite of the attribute and the base class to be defined on different partials
+		[WrapperValueObject<int>]
 		public sealed partial class OtherAlreadyPartial
 		{
 		}
 
-		// Should be recognized in spite of the SourceGeneratedAttribute and the base class to be defined on different partials
+		// Should be recognized in spite of the attribute and the base class to be defined on different partials
 		public sealed partial class OtherAlreadyPartial : WrapperValueObject<int>
 		{
 		}
 
-		[SourceGenerated]
-		public sealed partial class WrapperValueObjectWithIIdentity : WrapperValueObject<int>, IIdentity<int>
+		[WrapperValueObject<int>]
+		public sealed partial class WrapperValueObjectWithIIdentity : IIdentity<int>
 		{
 		}
 
-		[SourceGenerated]
+		[WrapperValueObject<int>]
 		public sealed partial class IntValue : WrapperValueObject<int>
 		{
 			public StringComparison GetStringComparison() => this.StringComparison;
+
+			public int Value { get; private init; }
 		}
 
-		[SourceGenerated]
-		public sealed partial class StringValue : WrapperValueObject<string>, IComparable<StringValue>
+		[WrapperValueObject<string>]
+		public sealed partial class StringValue : IComparable<StringValue>
 		{
 			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
 			public StringComparison GetStringComparison() => this.StringComparison;
 		}
 
-		[SourceGenerated]
-		public sealed partial class DecimalValue : WrapperValueObject<decimal>
+		[WrapperValueObject<decimal>]
+		public sealed partial class DecimalValue
 		{
 		}
 
-		[SourceGenerated]
-		public sealed partial class CustomCollectionWrapperValueObject : WrapperValueObject<CustomCollectionWrapperValueObject.CustomCollection>
+		[WrapperValueObject<CustomCollection>]
+		public sealed partial class CustomCollectionWrapperValueObject
 		{
 			public class CustomCollection : IReadOnlyCollection<int>
 			{
@@ -508,44 +662,147 @@ namespace Architect.DomainModeling.Tests
 			}
 		}
 
-		[SourceGenerated]
-		[Obsolete("Should merely compile.", error: true)]
-		public sealed partial class StringArrayValue : WrapperValueObject<string?[]>
-		{
-		}
-
-		[SourceGenerated]
-		[Obsolete("Should merely compile.", error: true)]
-		public sealed partial class DecimalArrayValue : WrapperValueObject<decimal?[]>
+		/// <summary>
+		/// Should merely compile.
+		/// </summary>
+		[WrapperValueObject<string[]>]
+		public sealed partial class StringArrayValue
 		{
 		}
 
 		/// <summary>
 		/// Should merely compile.
 		/// </summary>
-		[Obsolete("Should merely compile.", error: true)]
-		[SourceGenerated]
+		[WrapperValueObject<decimal?[]>]
+		public sealed partial class DecimalArrayValue : WrapperValueObject<decimal?[]>
+		{
+		}
+
+		[WrapperValueObject<FormatAndParseTestingNestedStringWrapper>]
+		internal partial class FormatAndParseTestingStringWrapper
+		{
+			public FormatAndParseTestingStringWrapper(string value)
+			{
+				this.Value = new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value)));
+			}
+		}
+		[WrapperValueObject<FormatAndParseTestingStringId>]
+		internal partial class FormatAndParseTestingNestedStringWrapper
+		{
+		}
+		[IdentityValueObject<StringValue>]
+		internal partial struct FormatAndParseTestingStringId : IComparable<FormatAndParseTestingStringId>
+		{
+		}
+
+		[WrapperValueObject<JsonTestingNestedStringWrapper>]
+		internal partial class JsonTestingStringWrapper
+		{
+			public JsonTestingStringWrapper(JsonTestingNestedStringWrapper _)
+			{
+				throw new Exception("This constructor should not be used. This lets tests confirm that concerns such as deserialization correctly avoid constructors.");
+			}
+			public JsonTestingStringWrapper(string value, bool _)
+			{
+				this.Value = new JsonTestingNestedStringWrapper(value, false);
+			}
+			public string ToString(string? format, IFormatProvider? formatProvider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+			public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+		}
+		[WrapperValueObject<JsonTestingStringId>]
+		internal partial class JsonTestingNestedStringWrapper
+		{
+			public JsonTestingNestedStringWrapper(JsonTestingStringId _)
+			{
+				throw new Exception("This constructor should not be used. This lets tests confirm that concerns such as deserialization correctly avoid constructors.");
+			}
+			public JsonTestingNestedStringWrapper(string value, bool _)
+			{
+				this.Value = new JsonTestingStringId(value, false);
+			}
+			public string ToString(string? format, IFormatProvider? formatProvider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+			public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+		}
+		[IdentityValueObject<StringValue>]
+		internal partial struct JsonTestingStringId : IComparable<JsonTestingStringId>
+		{
+			public JsonTestingStringId(StringValue? _)
+			{
+				throw new Exception("This constructor should not be used. This lets tests confirm that concerns such as deserialization correctly avoid constructors.");
+			}
+			public JsonTestingStringId(string value, bool _)
+			{
+				this.Value = new StringValue(value);
+			}
+			public string ToString(string? format, IFormatProvider? formatProvider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+			public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+			{
+				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+		}
+
+		/// <summary>
+		/// Should merely compile.
+		/// </summary>
+		[WrapperValueObject<int>]
 		[System.Text.Json.Serialization.JsonConverter(typeof(JsonConverter))]
 		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftJsonConverter))]
-		internal sealed partial class FullySelfImplementedWrapperValueObject : WrapperValueObject<int>, IComparable<FullySelfImplementedWrapperValueObject>
+		internal sealed partial class FullySelfImplementedWrapperValueObject
+			: WrapperValueObject<int>,
+			IComparable<FullySelfImplementedWrapperValueObject>,
+#if NET7_0_OR_GREATER
+			ISpanFormattable,
+			ISpanParsable<FullySelfImplementedWrapperValueObject>,
+#endif
+#if NET8_0_OR_GREATER
+			IUtf8SpanFormattable,
+			IUtf8SpanParsable<FullySelfImplementedWrapperValueObject>,
+#endif
+			ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>
 		{
 			protected sealed override StringComparison StringComparison => throw new NotSupportedException("This operation applies to string-based value objects only.");
 
-			public int Value { get; }
+			public int Value { get; private init; }
 
 			public FullySelfImplementedWrapperValueObject(int value)
 			{
 				this.Value = value;
 			}
 
-			public sealed override string ToString()
+			[Obsolete("This constructor exists for deserialization purposes only.")]
+			private FullySelfImplementedWrapperValueObject()
 			{
-				return this.Value.ToString();
 			}
 
 			public sealed override int GetHashCode()
 			{
-				// Null-safety protects instances from FormatterServices.GetUninitializedObject()
 				return this.Value.GetHashCode();
 			}
 
@@ -566,6 +823,29 @@ namespace Architect.DomainModeling.Tests
 					: this.Value.CompareTo(other.Value);
 			}
 
+			public sealed override string ToString()
+			{
+				return this.Value.ToString();
+			}
+
+			/// <summary>
+			/// Serializes a domain object as a plain value.
+			/// </summary>
+			int ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Serialize()
+			{
+				return this.Value;
+			}
+
+			/// <summary>
+			/// Deserializes a plain value back into a domain object without any validation.
+			/// </summary>
+			static FullySelfImplementedWrapperValueObject ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Deserialize(int value)
+			{
+#pragma warning disable CS0618 // Obsolete constructor is intended for us
+				return new FullySelfImplementedWrapperValueObject() { Value = value };
+#pragma warning restore CS0618
+			}
+
 			public static bool operator ==(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => left is null ? right is null : left.Equals(right);
 			public static bool operator !=(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => !(left == right);
 
@@ -582,50 +862,81 @@ namespace Architect.DomainModeling.Tests
 			[return: NotNullIfNotNull(nameof(instance))]
 			public static implicit operator int?(FullySelfImplementedWrapperValueObject? instance) => instance?.Value;
 
-			private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<FullySelfImplementedWrapperValueObject>
-			{
-				public override FullySelfImplementedWrapperValueObject Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-				{
-					return (FullySelfImplementedWrapperValueObject)System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options);
-				}
-
-				public override void Write(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options)
-				{
-					System.Text.Json.JsonSerializer.Serialize(writer, value.Value, options);
-				}
+			#region Formatting & Parsing
 
 #if NET7_0_OR_GREATER
-				public override FullySelfImplementedWrapperValueObject ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-				{
-					return (FullySelfImplementedWrapperValueObject)reader.GetParsedString<int>(CultureInfo.InvariantCulture);
-				}
 
-				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options)
-				{
-					writer.WritePropertyName(value.Value.Format(stackalloc char[64], default, CultureInfo.InvariantCulture));
-				}
+			public string ToString(string? format, IFormatProvider? formatProvider) =>
+				FormattingHelper.ToString(this.Value, format, formatProvider);
+
+			public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
+				FormattingHelper.TryFormat(this.Value, destination, out charsWritten, format, provider);
+
+			public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out FullySelfImplementedWrapperValueObject result) =>
+				ParsingHelper.TryParse(s, provider, out int value)
+					? (result = (FullySelfImplementedWrapperValueObject)value) is var _
+					: !((result = default) is var _);
+
+			public static bool TryParse(ReadOnlySpan<char> s, IFormatProvider? provider, [MaybeNullWhen(false)] out FullySelfImplementedWrapperValueObject result) =>
+				ParsingHelper.TryParse(s, provider, out int value)
+					? (result = (FullySelfImplementedWrapperValueObject)value) is var _
+					: !((result = default) is var _);
+
+			public static FullySelfImplementedWrapperValueObject Parse(string s, IFormatProvider? provider) =>
+				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(s, provider);
+
+			public static FullySelfImplementedWrapperValueObject Parse(ReadOnlySpan<char> s, IFormatProvider? provider) =>
+				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(s, provider);
+
 #endif
+
+#if NET8_0_OR_GREATER
+
+			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
+				FormattingHelper.TryFormat(this.Value, utf8Destination, out bytesWritten, format, provider);
+
+			public static bool TryParse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider, [MaybeNullWhen(false)] out FullySelfImplementedWrapperValueObject result) =>
+				ParsingHelper.TryParse(utf8Text, provider, out int value)
+					? (result = (FullySelfImplementedWrapperValueObject)value) is var _
+					: !((result = default) is var _);
+
+			public static FullySelfImplementedWrapperValueObject Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
+				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(utf8Text, provider);
+
+#endif
+
+			#endregion
+
+			private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<FullySelfImplementedWrapperValueObject>
+			{
+				public override FullySelfImplementedWrapperValueObject Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
+					DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options)!);
+
+				public override void Write(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options) =>
+					System.Text.Json.JsonSerializer.Serialize(writer, DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(value), options);
+
+				public override FullySelfImplementedWrapperValueObject ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
+					DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(
+						((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).ReadAsPropertyName(ref reader, typeToConvert, options));
+
+				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options) =>
+					((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).WriteAsPropertyName(
+						writer,
+						DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(value)!, options);
 			}
 
 			private sealed class NewtonsoftJsonConverter : Newtonsoft.Json.JsonConverter
 			{
-				public override bool CanConvert(Type objectType)
-				{
-					return objectType == typeof(FullySelfImplementedWrapperValueObject);
-				}
+				public override bool CanConvert(Type objectType) =>
+					objectType == typeof(FullySelfImplementedWrapperValueObject);
 
-				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer)
-				{
-					if (value is null)
-						serializer.Serialize(writer, null);
-					else
-						serializer.Serialize(writer, ((FullySelfImplementedWrapperValueObject)value).Value);
-				}
+				public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer) =>
+					reader.Value is null && (!typeof(FullySelfImplementedWrapperValueObject).IsValueType || objectType != typeof(FullySelfImplementedWrapperValueObject)) // Null data for a reference type or nullable value type
+						? (FullySelfImplementedWrapperValueObject?)null
+						: DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(serializer.Deserialize<int>(reader)!);
 
-				public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer)
-				{
-					return (FullySelfImplementedWrapperValueObject?)serializer.Deserialize<int?>(reader);
-				}
+				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer) =>
+					serializer.Serialize(writer, value is not FullySelfImplementedWrapperValueObject instance ? (object?)null : DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(instance));
 			}
 		}
 	}

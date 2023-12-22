@@ -95,7 +95,7 @@ internal static class TypeSymbolExtensions
 	/// Returns whether the <see cref="ITypeSymbol"/> has the given <paramref name="fullTypeName"/>.
 	/// </summary>
 	/// <param name="fullTypeName">The type name including the namespace, e.g. System.Object.</param>
-	public static bool IsType(this ITypeSymbol typeSymbol, string fullTypeName, bool? generic = null)
+	public static bool IsType(this ITypeSymbol typeSymbol, string fullTypeName, int? arity = null)
 	{
 		var fullTypeNameSpan = fullTypeName.AsSpan();
 
@@ -106,22 +106,22 @@ internal static class TypeSymbolExtensions
 		var typeName = fullTypeNameSpan.Slice(1 + lastDotIndex);
 		var containingNamespace = fullTypeNameSpan.Slice(0, lastDotIndex);
 
-		return IsType(typeSymbol, typeName, containingNamespace, generic);
+		return IsType(typeSymbol, typeName, containingNamespace, arity);
 	}
 
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> has the given <paramref name="typeName"/> and <paramref name="containingNamespace"/>.
 	/// </summary>
-	public static bool IsType(this ITypeSymbol typeSymbol, string typeName, string containingNamespace, bool? generic = null)
+	public static bool IsType(this ITypeSymbol typeSymbol, string typeName, string containingNamespace, int? arity = null)
 	{
-		return IsType(typeSymbol, typeName.AsSpan(), containingNamespace.AsSpan(), generic);
+		return IsType(typeSymbol, typeName.AsSpan(), containingNamespace.AsSpan(), arity);
 	}
 
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> has the given <paramref name="typeName"/> and <paramref name="containingNamespace"/>.
 	/// </summary>
 	/// <param name="generic">If not null, the being-generic of the type must match this value.</param>
-	private static bool IsType(this ITypeSymbol typeSymbol, ReadOnlySpan<char> typeName, ReadOnlySpan<char> containingNamespace, bool? generic = null)
+	private static bool IsType(this ITypeSymbol typeSymbol, ReadOnlySpan<char> typeName, ReadOnlySpan<char> containingNamespace, int? arity = null)
 	{
 		var backtickIndex = typeName.IndexOf('`');
 		if (backtickIndex >= 0)
@@ -130,8 +130,8 @@ internal static class TypeSymbolExtensions
 		var result = typeSymbol.Name.AsSpan().Equals(typeName, StringComparison.Ordinal) &&
 			typeSymbol.ContainingNamespace.HasFullName(containingNamespace);
 
-		if (result && generic is not null)
-			result = typeSymbol is INamedTypeSymbol namedTypeSymbol && namedTypeSymbol.IsGenericType == generic.Value;
+		if (result && arity is not null)
+			result = typeSymbol is INamedTypeSymbol namedTypeSymbol && namedTypeSymbol.Arity == arity;
 
 		return result;
 	}
@@ -285,7 +285,7 @@ internal static class TypeSymbolExtensions
 	/// </summary>
 	public static bool IsNullable(this ITypeSymbol typeSymbol, out ITypeSymbol underlyingType)
 	{
-		if (typeSymbol is INamedTypeSymbol namedTypeSymbol && typeSymbol.IsType("System.Nullable", generic: true))
+		if (typeSymbol.IsValueType && typeSymbol is INamedTypeSymbol namedTypeSymbol && typeSymbol.IsType("System.Nullable", arity: 1))
 		{
 			underlyingType = namedTypeSymbol.TypeArguments[0];
 			return true;
@@ -300,7 +300,7 @@ internal static class TypeSymbolExtensions
 	/// </summary>
 	public static bool IsSelfEquatable(this ITypeSymbol typeSymbol)
 	{
-		return typeSymbol.IsOrImplementsInterface(interf => interf.IsType("IEquatable", "System", generic: true) && interf.HasSingleGenericTypeArgument(typeSymbol), out _);
+		return typeSymbol.IsOrImplementsInterface(interf => interf.IsType("IEquatable", "System", arity: 1) && interf.HasSingleGenericTypeArgument(typeSymbol), out _);
 	}
 
 	/// <summary>
@@ -330,51 +330,62 @@ internal static class TypeSymbolExtensions
 	{
 		elementType = null;
 
-		if (!typeSymbol.IsOrImplementsInterface(type => type.IsType("IEnumerable", "System.Collections", generic: false), out var nonGenericEnumerableInterface))
+		if (!typeSymbol.IsOrImplementsInterface(type => type.IsType("IEnumerable", "System.Collections", arity: 0), out var nonGenericEnumerableInterface))
 			return false;
 
 		if (typeSymbol.Kind == SymbolKind.ArrayType)
 		{
-			elementType = ((IArrayTypeSymbol)typeSymbol).ElementType as INamedTypeSymbol;
-			return true;
+			elementType = ((IArrayTypeSymbol)typeSymbol).ElementType as INamedTypeSymbol; // Does not work for nested arrays
+			return elementType is not null;
 		}
-		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IList", "System.Collections.Generic", generic: true), out var interf))
+		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IList", "System.Collections.Generic", arity: 1), out var interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;
 			return true;
 		}
-		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyList", "System.Collections.Generic", generic: true), out interf))
+		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyList", "System.Collections.Generic", arity: 1), out interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;
 			return true;
 		}
-		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ISet", "System.Collections.Generic", generic: true), out interf))
+		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ISet", "System.Collections.Generic", arity: 1), out interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;
 			return true;
 		}
-		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlySet", "System.Collections.Generic", generic: true), out interf))
+		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlySet", "System.Collections.Generic", arity: 1), out interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;
 			return true;
 		}
-		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ICollection", "System.Collections.Generic", generic: true), out interf))
+		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ICollection", "System.Collections.Generic", arity: 1), out interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;
 			return true;
 		}
-		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyCollection", "System.Collections.Generic", generic: true), out interf))
+		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyCollection", "System.Collections.Generic", arity: 1), out interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;
 			return true;
 		}
-		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IEnumerable", "System.Collections.Generic", generic: true), out interf))
+		if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IEnumerable", "System.Collections.Generic", arity: 1), out interf))
 		{
 			elementType = interf.TypeArguments[0] as INamedTypeSymbol;
 			return true;
 		}
 
 		return true;
+	}
+
+	/// <summary>
+	/// Extracts the array's element type, digging through any nested arrays if necessary.
+	/// </summary>
+	public static ITypeSymbol ExtractNonArrayElementType(this IArrayTypeSymbol arrayTypeSymbol)
+	{
+		var elementType = arrayTypeSymbol.ElementType;
+		return elementType is IArrayTypeSymbol arrayElementType
+			? ExtractNonArrayElementType(arrayElementType)
+			: elementType;
 	}
 
 	/// <summary>
@@ -392,27 +403,27 @@ internal static class TypeSymbolExtensions
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> is annotated with the specified attribute.
 	/// </summary>
-	public static bool HasAttribute<TAttribute>(this ITypeSymbol typeSymbol)
+	public static AttributeData? GetAttribute<TAttribute>(this ITypeSymbol typeSymbol)
 	{
-		var result = typeSymbol.HasAttribute(attribute => attribute.IsType<TAttribute>());
+		var result = typeSymbol.GetAttribute(attribute => attribute.IsType<TAttribute>());
 		return result;
 	}
 
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> is annotated with the specified attribute.
 	/// </summary>
-	public static bool HasAttribute(this ITypeSymbol typeSymbol, string typeName, string containingNamespace)
+	public static AttributeData? GetAttribute(this ITypeSymbol typeSymbol, string typeName, string containingNamespace, int? arity = null)
 	{
-		var result = typeSymbol.HasAttribute(attribute => attribute.IsType(typeName, containingNamespace));
+		var result = typeSymbol.GetAttribute(attribute => (arity is null || attribute.Arity == arity) && attribute.IsType(typeName, containingNamespace));
 		return result;
 	}
 
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> is annotated with the specified attribute.
 	/// </summary>
-	public static bool HasAttribute(this ITypeSymbol typeSymbol, Func<INamedTypeSymbol, bool> predicate)
+	public static AttributeData? GetAttribute(this ITypeSymbol typeSymbol, Func<INamedTypeSymbol, bool> predicate)
 	{
-		var result = typeSymbol.GetAttributes().Any(attribute => attribute.AttributeClass is not null && predicate(attribute.AttributeClass));
+		var result = typeSymbol.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass is not null && predicate(attribute.AttributeClass));
 		return result;
 	}
 
@@ -470,7 +481,7 @@ internal static class TypeSymbolExtensions
 	{
 		if (typeSymbol.IsValueType && !typeSymbol.IsNullable()) return $"this.{memberName}.ToString()";
 		if (typeSymbol.IsType<string>()) return String.Format(stringVariant, memberName);
-		return $"this.{memberName}?.ToString()"; // Null-safety can be especially relevant for instances created with FormatterServices.GetUninitializedObject()
+		return $"this.{memberName}?.ToString()"; // Null-safety can be especially relevant for instances created with RuntimeHelpers.GetUninitializedObject()
 	}
 
 	/// <summary>
@@ -499,23 +510,23 @@ internal static class TypeSymbolExtensions
 
 		if (typeSymbol.IsType<string>()) return String.Format(stringVariant, memberName);
 
-		if (typeSymbol.IsType("Memory", "System", generic: true)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
-		if (typeSymbol.IsType("ReadOnlyMemory", "System", generic: true)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
-		if (typeSymbol.IsNullable(out var underlyingType) && underlyingType.IsType("Memory", "System", generic: true)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
-		if (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType("ReadOnlyMemory", "System", generic: true)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
+		if (typeSymbol.IsType("Memory", "System", arity: 1)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
+		if (typeSymbol.IsType("ReadOnlyMemory", "System", arity: 1)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
+		if (typeSymbol.IsNullable(out var underlyingType) && underlyingType.IsType("Memory", "System", arity: 1)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
+		if (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType("ReadOnlyMemory", "System", arity: 1)) return $"{ComparisonsNamespace}.EnumerableComparer.GetMemoryHashCode(this.{memberName})";
 
 		// Special-case certain specific collections, provided that they have no custom equality
 		if (!typeSymbol.HasEqualsOverride())
 		{
-			if (typeSymbol.IsType("Dictionary", "System.Collections.Generic", generic: true)) return $"{ComparisonsNamespace}.DictionaryComparer.GetDictionaryHashCode(this.{memberName})";
-			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IDictionary", "System.Collections.Generic", generic: true), out var interf)) return $"{ComparisonsNamespace}.DictionaryComparer.GetDictionaryHashCode(({interf})this.{memberName})"; // Disambiguate
-			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyDictionary", "System.Collections.Generic", generic: true), out _)) return $"{ComparisonsNamespace}.DictionaryComparer.GetDictionaryHashCode(this.{memberName})";
-			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ILookup", "System.Linq", generic: true), out _)) return $"{ComparisonsNamespace}.LookupComparer.GetLookupHashCode(this.{memberName})";
+			if (typeSymbol.IsType("Dictionary", "System.Collections.Generic", arity: 2)) return $"{ComparisonsNamespace}.DictionaryComparer.GetDictionaryHashCode(this.{memberName})";
+			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IDictionary", "System.Collections.Generic", arity: 2), out var interf)) return $"{ComparisonsNamespace}.DictionaryComparer.GetDictionaryHashCode(({interf})this.{memberName})"; // Disambiguate
+			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyDictionary", "System.Collections.Generic", arity: 2), out _)) return $"{ComparisonsNamespace}.DictionaryComparer.GetDictionaryHashCode(this.{memberName})";
+			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ILookup", "System.Linq", arity: 2), out _)) return $"{ComparisonsNamespace}.LookupComparer.GetLookupHashCode(this.{memberName})";
 		}
 
 		// Special-case collections, provided that they either (A) have no custom equality or (B) implement IStructuralEquatable (where the latter tend to override regular Equals() with explicit reference equality)
 		if (typeSymbol.IsEnumerable(out var elementType) &&
-			(!typeSymbol.HasEqualsOverride() || typeSymbol.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", generic: false), out _)))
+			(!typeSymbol.HasEqualsOverride() || typeSymbol.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", arity: 0), out _)))
 		{
 			if (elementType is not null) return $"{ComparisonsNamespace}.EnumerableComparer.GetEnumerableHashCode<{elementType}>(this.{memberName})";
 			else return $"{ComparisonsNamespace}.EnumerableComparer.GetEnumerableHashCode(this.{memberName})";
@@ -523,7 +534,7 @@ internal static class TypeSymbolExtensions
 
 		// Special-case collections wrapped in nullable, provided that they either (A) have no custom equality or (B) implement IStructuralEquatable (where the latter tend to override regular Equals() with explicit reference equality)
 		if (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsEnumerable(out elementType) &&
-			(!underlyingType.HasEqualsOverride() || underlyingType.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", generic: false), out _)))
+			(!underlyingType.HasEqualsOverride() || underlyingType.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", arity: 0), out _)))
 		{
 			if (elementType is not null) return $"{ComparisonsNamespace}.EnumerableComparer.GetEnumerableHashCode<{elementType}>(this.{memberName})";
 			else return $"{ComparisonsNamespace}.EnumerableComparer.GetEnumerableHashCode(this.{memberName})";
@@ -547,27 +558,27 @@ internal static class TypeSymbolExtensions
 
 		if (typeSymbol.IsType<string>()) return String.Format(stringVariant, memberName);
 
-		if (typeSymbol.IsType("Memory", "System", generic: true)) return $"MemoryExtensions.SequenceEqual(this.{memberName}.Span, other.{memberName}.Span)";
-		if (typeSymbol.IsType("ReadOnlyMemory", "System", generic: true)) return $"MemoryExtensions.SequenceEqual(this.{memberName}.Span, other.{memberName}.Span)";
-		if (typeSymbol.IsNullable(out var underlyingType) && underlyingType.IsType("Memory", "System", generic: true)) return $"(this.{memberName} is null || other.{memberName} is null ? this.{memberName} is null & other.{memberName} is null : MemoryExtensions.SequenceEqual(this.{memberName}.Value.Span, other.{memberName}.Value.Span))";
-		if (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType("ReadOnlyMemory", "System", generic: true)) return $"(this.{memberName} is null || other.{memberName} is null ? this.{memberName} is null & other.{memberName} is null : MemoryExtensions.SequenceEqual(this.{memberName}.Value.Span, other.{memberName}.Value.Span))";
+		if (typeSymbol.IsType("Memory", "System", arity: 1)) return $"MemoryExtensions.SequenceEqual(this.{memberName}.Span, other.{memberName}.Span)";
+		if (typeSymbol.IsType("ReadOnlyMemory", "System", arity: 1)) return $"MemoryExtensions.SequenceEqual(this.{memberName}.Span, other.{memberName}.Span)";
+		if (typeSymbol.IsNullable(out var underlyingType) && underlyingType.IsType("Memory", "System", arity: 1)) return $"(this.{memberName} is null || other.{memberName} is null ? this.{memberName} is null & other.{memberName} is null : MemoryExtensions.SequenceEqual(this.{memberName}.Value.Span, other.{memberName}.Value.Span))";
+		if (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsType("ReadOnlyMemory", "System", arity: 1)) return $"(this.{memberName} is null || other.{memberName} is null ? this.{memberName} is null & other.{memberName} is null : MemoryExtensions.SequenceEqual(this.{memberName}.Value.Span, other.{memberName}.Value.Span))";
 
 		// Special-case certain specific collections, provided that they have no custom equality
 		if (!typeSymbol.HasEqualsOverride())
 		{
-			if (typeSymbol.IsType("Dictionary", "System.Collections.Generic", generic: true))
+			if (typeSymbol.IsType("Dictionary", "System.Collections.Generic", arity: 2))
 				return $"{ComparisonsNamespace}.DictionaryComparer.DictionaryEquals(this.{memberName}, other.{memberName})";
-			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IDictionary", "System.Collections.Generic", generic: true), out var interf))
+			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IDictionary", "System.Collections.Generic", arity: 2), out var interf))
 				return $"{ComparisonsNamespace}.DictionaryComparer.DictionaryEquals(this.{memberName}, other.{memberName})";
-			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyDictionary", "System.Collections.Generic", generic: true), out interf))
+			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("IReadOnlyDictionary", "System.Collections.Generic", arity: 2), out interf))
 				return $"{ComparisonsNamespace}.DictionaryComparer.DictionaryEquals(this.{memberName}, other.{memberName})";
-			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ILookup", "System.Linq", generic: true), out interf))
+			if (typeSymbol.IsOrImplementsInterface(type => type.IsType("ILookup", "System.Linq", arity: 2), out interf))
 				return $"{ComparisonsNamespace}.LookupComparer.LookupEquals(this.{memberName}, other.{memberName})";
 		}
 
 		// Special-case collections, provided that they either (A) have no custom equality or (B) implement IStructuralEquatable (where the latter tend to override regular Equals() with explicit reference equality)
 		if (typeSymbol.IsEnumerable(out var elementType) &&
-			(!typeSymbol.HasEqualsOverride() || typeSymbol.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", generic: false), out _)))
+			(!typeSymbol.HasEqualsOverride() || typeSymbol.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", arity: 0), out _)))
 		{
 			if (elementType is not null) return $"{ComparisonsNamespace}.EnumerableComparer.EnumerableEquals<{elementType}>(this.{memberName}, other.{memberName})";
 			else return $"{ComparisonsNamespace}.EnumerableComparer.EnumerableEquals(this.{memberName}, other.{memberName})";
@@ -575,7 +586,7 @@ internal static class TypeSymbolExtensions
 
 		// Special-case collections wrapped in nullable, provided that they either (A) have no custom equality or (B) implement IStructuralEquatable (where the latter tend to override regular Equals() with explicit reference equality)
 		if (typeSymbol.IsNullable(out underlyingType) && underlyingType.IsEnumerable(out elementType) &&
-			(!underlyingType.HasEqualsOverride() || underlyingType.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", generic: false), out _)))
+			(!underlyingType.HasEqualsOverride() || underlyingType.IsOrImplementsInterface(type => type.IsType("IStructuralEquatable", "System.Collections", arity: 0), out _)))
 		{
 			if (elementType is not null) return $"{ComparisonsNamespace}.EnumerableComparer.EnumerableEquals<{elementType}>(this.{memberName}, other.{memberName})";
 			else return $"{ComparisonsNamespace}.EnumerableComparer.EnumerableEquals(this.{memberName}, other.{memberName})";
@@ -646,10 +657,11 @@ internal static class TypeSymbolExtensions
 
 			// Special-case wrapper value objects to use the param name rather than the type name (e.g. "FirstName" and "LastName" instead of "ProperName" and "ProperName")
 			// As a bonus, this also handles constructors generated by this very package (which are not visible to us)
-			if (typeSymbol.IsOrInheritsClass(type => type.IsType(Constants.WrapperValueObjectTypeName, Constants.DomainModelingNamespace), out var wrapperValueObjectType) ||
-				typeSymbol.IsOrImplementsInterface(interf => interf.IsType(Constants.IdentityInterfaceTypeName, Constants.DomainModelingNamespace), out wrapperValueObjectType))
+			if ((typeSymbol.GetAttribute("WrapperValueObjectAttribute", Constants.DomainModelingNamespace, arity: 1) ??
+				typeSymbol.GetAttribute("IdentityValueObjectAttribute", Constants.DomainModelingNamespace, arity: 1))
+				is AttributeData wrapperAttribute)
 			{
-				return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({wrapperValueObjectType.TypeArguments[0].CreateDummyInstantiationExpression(symbolName, customizedTypes, createCustomTypeExpression, seenTypeSymbols)})";
+				return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({wrapperAttribute.AttributeClass!.TypeArguments[0].CreateDummyInstantiationExpression(symbolName, customizedTypes, createCustomTypeExpression, seenTypeSymbols)})";
 			}
 
 			if (typeSymbol.IsType<string>()) return $@"""{symbolName.ToTitleCase()}""";
@@ -673,7 +685,8 @@ internal static class TypeSymbolExtensions
 
 			// TODO Enhancement: We could use an object initializer if there are accessible setters
 
-			var parameters = String.Join(", ", suitableCtor.Parameters.Select(param => param.Type.CreateDummyInstantiationExpression(param.Name == "value" ? param.ContainingType.Name : param.Name, customizedTypes, createCustomTypeExpression, seenTypeSymbols)));
+			// For objects taking a parameter named "value", instead prefer the name of the outer constructor's parameter
+			var parameters = String.Join(", ", suitableCtor.Parameters.Select(param => param.Type.CreateDummyInstantiationExpression(param.Name == "value" ? symbolName : param.Name, customizedTypes, createCustomTypeExpression, seenTypeSymbols)));
 			return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({parameters})";
 		}
 		finally
