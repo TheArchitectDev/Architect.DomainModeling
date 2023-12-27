@@ -107,7 +107,7 @@ public partial class EntityFrameworkConfigurationGenerator : SourceGenerator
 			ReferencedAssembliesWithIdentityConfigurator = assembliesContainingIdentityConfigurator.OrderBy(name => name).ToImmutableArray(),
 			ReferencedAssembliesWithWrapperValueObjectConfigurator = assembliesContainingWrapperValueObjectConfigurator.OrderBy(name => name).ToImmutableArray(),
 			ReferencedAssembliesWithEntityConfigurator = assembliesContainingEntityConfigurator.OrderBy(name => name).ToImmutableArray(),
-			ReferencedAssembliesWithDomainEventConfigurator = assembliesContainingEntityConfigurator.OrderBy(name => name).ToImmutableArray(),
+			ReferencedAssembliesWithDomainEventConfigurator = assembliesContainingDomainEventConfigurator.OrderBy(name => name).ToImmutableArray(),
 		};
 		return result;
 	}

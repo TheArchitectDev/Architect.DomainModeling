@@ -25,6 +25,14 @@ https://github.com/TheArchitectDev/Architect.DomainModeling
 
 Release notes:
 
+3.0.2:
+
+- Bug fix.
+
+3.0.1:
+
+- Bug fix.
+
 3.0.0:
 
 - BREAKING: Platform support: Dropped support for .NET 5.0 (EOL).
