@@ -17,13 +17,17 @@
 	</ItemGroup>
 
 	<PropertyGroup>
-		<VersionPrefix>3.0.2</VersionPrefix>
+		<VersionPrefix>3.0.3</VersionPrefix>
 		<Description>
 A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
 https://github.com/TheArchitectDev/Architect.DomainModeling
 
 Release notes:
+
+3.0.3:
+
+- Enhancement: Upgraded package versions.
 
 3.0.2:
 
