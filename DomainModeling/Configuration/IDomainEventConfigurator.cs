@@ -18,6 +18,6 @@ public interface IDomainEventConfigurator
 
 	public readonly struct Args
 	{
-		public bool HasDefaultConstructor { get; init; }
+		public readonly bool HasDefaultConstructor { get; init; }
 	}
 }

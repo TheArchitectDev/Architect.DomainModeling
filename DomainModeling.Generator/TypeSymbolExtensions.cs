@@ -10,10 +10,7 @@ internal static class TypeSymbolExtensions
 {
 	private const string ComparisonsNamespace = "Architect.DomainModeling.Comparisons";
 
-	private static IReadOnlyCollection<string> ConversionOperatorNames { get; } = new[]
-	{
-		"op_Implicit", "op_Explicit",
-	};
+	private static IReadOnlyCollection<string> ConversionOperatorNames { get; } = ["op_Implicit", "op_Explicit",];
 
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> is of type <typeparamref name="T"/>.
@@ -391,7 +388,7 @@ internal static class TypeSymbolExtensions
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> or a base type has an override of <see cref="Object.Equals(Object)"/> more specific than <see cref="Object"/>'s implementation.
 	/// </summary>
-	public static bool HasEqualsOverride(this ITypeSymbol typeSymbol, bool falseForStructs = false)
+	public static bool HasEqualsOverride(this ITypeSymbol typeSymbol)
 	{
 		// Technically this could match an overridden "new" Equals defined by a base type, but that is a nonsense scenario
 		var result = typeSymbol.GetMembers(nameof(Object.Equals)).OfType<IMethodSymbol>().Any(method => method.IsOverride && !method.IsStatic &&
@@ -623,7 +620,7 @@ internal static class TypeSymbolExtensions
 	/// <param name="symbolName">The name of the member/parameter/... to instantiate an instance for. May be used as the dummy string value if applicable.</param>
 	public static string CreateDummyInstantiationExpression(this ITypeSymbol typeSymbol, string symbolName)
 	{
-		return typeSymbol.CreateDummyInstantiationExpression(symbolName, Array.Empty<ITypeSymbol>(), _ => null!);
+		return typeSymbol.CreateDummyInstantiationExpression(symbolName, [], _ => null!);
 	}
 
 	/// <summary>
