@@ -348,14 +348,10 @@ namespace {containingNamespace}
 		: {Constants.WrapperValueObjectTypeName}<{underlyingTypeFullyQualifiedName}>,
 		IEquatable<{typeName}>,
 		{(isComparable ? "" : "/*")}IComparable<{typeName}>,{(isComparable ? "" : "*/")}
-#if NET7_0_OR_GREATER
 		ISpanFormattable,
 		ISpanParsable<{typeName}>,
-#endif
-#if NET8_0_OR_GREATER
 		IUtf8SpanFormattable,
 		IUtf8SpanParsable<{typeName}>,
-#endif
 		{Constants.SerializableDomainObjectInterfaceTypeName}<{typeName}, {underlyingTypeFullyQualifiedName}>
 	{{
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.StringComparison) ? "/*" : "")}
@@ -439,13 +435,9 @@ namespace {containingNamespace}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.DeserializeFromUnderlying) ? "/*" : "")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
-#if NET8_0_OR_GREATER
 		[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = ""{valueFieldName}"")]
-		private static extern ref {underlyingTypeFullyQualifiedName} GetValueFieldReference({typeName} instance);
-#elif NET7_0_OR_GREATER
-		private static readonly System.Reflection.FieldInfo ValueFieldInfo = typeof({typeName}).GetField(""{valueFieldName}"", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!;
-#endif" : "")}
-#if NET7_0_OR_GREATER
+		private static extern ref {underlyingTypeFullyQualifiedName} GetValueFieldReference({typeName} instance);" : "")}
+
 		/// <summary>
 		/// Deserializes a plain value back into a domain object, without any validation.
 		/// </summary>
@@ -453,16 +445,11 @@ namespace {containingNamespace}
 		{{
 			{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
 			// To instead get syntax that is safe at compile time, make the Value property '{{ get; private init; }}' (or let the source generator implement it)
-#if NET8_0_OR_GREATER
-			var result = new {typeName}(); GetValueFieldReference(result) = value; return result;
-#else
-			var result = new {typeName}(); ValueFieldInfo.SetValue(result, value); return result;
-#endif" : "")}
+			var result = new {typeName}(); GetValueFieldReference(result) = value; return result;" : "")}
 #pragma warning disable CS0618 // Obsolete constructor is intended for us
 			{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? "//" : "")}return new {typeName}() {{ Value = value }};
 #pragma warning restore CS0618
 		}}
-#endif
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.DeserializeFromUnderlying) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOperator) ? "/*" : "")}
@@ -509,8 +496,6 @@ namespace {containingNamespace}
 
 		#region Formatting & Parsing
 
-#if NET7_0_OR_GREATER
-
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.FormattableToStringOverride) ? "/*" : "")}
 		public string ToString(string? format, IFormatProvider? formatProvider) =>
 			FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -545,10 +530,6 @@ namespace {containingNamespace}
 			({typeName})ParsingHelper.Parse<{underlyingTypeFullyQualifiedName}>(s, provider);
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SpanParsableParseMethod) ? "*/" : "")}
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.Utf8SpanFormattableTryFormatMethod) ? "/*" : "")}
 		public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
 			FormattingHelper.TryFormat(this.Value, utf8Destination, out bytesWritten, format, provider);
@@ -565,8 +546,6 @@ namespace {containingNamespace}
 		public static {typeName} Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 			({typeName})ParsingHelper.Parse<{underlyingTypeFullyQualifiedName}>(utf8Text, provider);
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.Utf8SpanParsableParseMethod) ? "*/" : "")}
-
-#endif
 
 		#endregion
 	}}

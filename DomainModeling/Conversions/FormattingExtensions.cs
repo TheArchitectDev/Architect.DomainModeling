@@ -5,7 +5,6 @@ namespace Architect.DomainModeling.Conversions;
 /// </summary>
 public static class FormattingExtensions
 {
-#if NET7_0_OR_GREATER
 	/// <summary>
 	/// <para>
 	/// Formats the <paramref name="value"/> into the provided <paramref name="buffer"/>, returning the segment that was written to.
@@ -26,5 +25,4 @@ public static class FormattingExtensions
 
 		return buffer[..charCount];
 	}
-#endif
 }

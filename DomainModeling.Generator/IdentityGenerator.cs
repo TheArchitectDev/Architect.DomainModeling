@@ -413,14 +413,10 @@ namespace {containingNamespace}
 		: {Constants.IdentityInterfaceTypeName}<{underlyingTypeFullyQualifiedName}>,
 		IEquatable<{idTypeName}>,
 		IComparable<{idTypeName}>,
-#if NET7_0_OR_GREATER
 		ISpanFormattable,
 		ISpanParsable<{idTypeName}>,
-#endif
-#if NET8_0_OR_GREATER
 		IUtf8SpanFormattable,
 		IUtf8SpanParsable<{idTypeName}>,
-#endif
 		{Constants.SerializableDomainObjectInterfaceTypeName}<{idTypeName}, {underlyingTypeFullyQualifiedName}>
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
@@ -493,7 +489,6 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.SerializeToUnderlying) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.DeserializeFromUnderlying) ? "/*" : "")}
-#if NET7_0_OR_GREATER
 		/// <summary>
 		/// Deserializes a plain value back into a domain object, without any validation.
 		/// </summary>
@@ -503,7 +498,6 @@ namespace {containingNamespace}
 			{(existingComponents.HasFlag(IdTypeComponents.UnsettableValue) ? $"return System.Runtime.CompilerServices.Unsafe.As<{underlyingTypeFullyQualifiedName}, {idTypeName}>(ref value);" : "")}
 			{(existingComponents.HasFlag(IdTypeComponents.UnsettableValue) ? "//" : "")}return new {idTypeName}() {{ Value = value }};
 		}}
-#endif
 		{(existingComponents.HasFlags(IdTypeComponents.DeserializeFromUnderlying) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.EqualsOperator) ? "/*" : "")}
@@ -546,8 +540,6 @@ namespace {containingNamespace}
 
 		#region Formatting & Parsing
 
-#if NET7_0_OR_GREATER
-
 		{(existingComponents.HasFlags(IdTypeComponents.FormattableToStringOverride) ? "/*" : "")}
 		public string ToString(string? format, IFormatProvider? formatProvider) =>
 			FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -582,10 +574,6 @@ namespace {containingNamespace}
 			({idTypeName})ParsingHelper.Parse<{underlyingTypeFullyQualifiedName}>(s, provider);
 		{(existingComponents.HasFlags(IdTypeComponents.SpanParsableParseMethod) ? "*/" : "")}
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 		{(existingComponents.HasFlags(IdTypeComponents.Utf8SpanFormattableTryFormatMethod) ? "/*" : "")}
 		public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
 			FormattingHelper.TryFormat(this.Value, utf8Destination, out bytesWritten, format, provider);
@@ -602,8 +590,6 @@ namespace {containingNamespace}
 		public static {idTypeName} Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 			({idTypeName})ParsingHelper.Parse<{underlyingTypeFullyQualifiedName}>(utf8Text, provider);
 		{(existingComponents.HasFlags(IdTypeComponents.Utf8SpanParsableParseMethod) ? "*/" : "")}
-
-#endif
 
 		#endregion
 	}}

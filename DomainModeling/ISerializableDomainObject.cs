@@ -14,10 +14,8 @@ public interface ISerializableDomainObject<
 	/// </summary>
 	TUnderlying? Serialize();
 
-#if NET7_0_OR_GREATER
 	/// <summary>
 	/// Deserializes a <typeparamref name="TModel"/> from a <typeparamref name="TUnderlying"/>.
 	/// </summary>
 	abstract static TModel Deserialize(TUnderlying value);
-#endif
 }

@@ -15,8 +15,6 @@ namespace Architect.DomainModeling.Conversions;
 /// </summary>
 public static class FormattingHelper
 {
-#if NET7_0_OR_GREATER
-
 	/// <summary>
 	/// This overload throws because <see cref="IFormattable"/> is unavailable.
 	/// Implement the interface to have overload resolution pick the functional overload.
@@ -117,10 +115,6 @@ public static class FormattingHelper
 	}
 #pragma warning restore IDE0060 // Remove unused parameter
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 	/// <summary>
 	/// This overload throws because <see cref="IUtf8SpanFormattable"/> is unavailable.
 	/// Implement the interface to have overload resolution pick the functional overload.
@@ -172,6 +166,4 @@ public static class FormattingHelper
 		return Utf8.FromUtf16(instance, utf8Destination, charsRead: out _, bytesWritten: out bytesWritten) == System.Buffers.OperationStatus.Done;
 	}
 #pragma warning restore IDE0060 // Remove unused parameter
-
-#endif
 }

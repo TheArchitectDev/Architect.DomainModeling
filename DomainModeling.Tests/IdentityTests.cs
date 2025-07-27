@@ -754,14 +754,10 @@ namespace Architect.DomainModeling.Tests
 			: IIdentity<int>,
 			IEquatable<FullySelfImplementedIdentity>,
 			IComparable<FullySelfImplementedIdentity>,
-#if NET7_0_OR_GREATER
 			ISpanFormattable,
 			ISpanParsable<FullySelfImplementedIdentity>,
-#endif
-#if NET8_0_OR_GREATER
 			IUtf8SpanFormattable,
 			IUtf8SpanParsable<FullySelfImplementedIdentity>,
-#endif
 			ISerializableDomainObject<FullySelfImplementedIdentity, int>
 		{
 			public int Value { get; private init; }
@@ -830,8 +826,6 @@ namespace Architect.DomainModeling.Tests
 
 			#region Formatting & Parsing
 
-#if NET7_0_OR_GREATER
-
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
 
@@ -854,10 +848,6 @@ namespace Architect.DomainModeling.Tests
 			public static FullySelfImplementedIdentity Parse(ReadOnlySpan<char> s, IFormatProvider? provider) =>
 				(FullySelfImplementedIdentity)ParsingHelper.Parse<int>(s, provider);
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
 				FormattingHelper.TryFormat(this.Value, utf8Destination, out bytesWritten, format, provider);
 
@@ -868,8 +858,6 @@ namespace Architect.DomainModeling.Tests
 
 			public static FullySelfImplementedIdentity Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 				(FullySelfImplementedIdentity)ParsingHelper.Parse<int>(utf8Text, provider);
-
-#endif
 
 			#endregion
 		}

@@ -778,14 +778,10 @@ namespace Architect.DomainModeling.Tests
 		internal sealed partial class FullySelfImplementedWrapperValueObject
 			: WrapperValueObject<int>,
 			IComparable<FullySelfImplementedWrapperValueObject>,
-#if NET7_0_OR_GREATER
 			ISpanFormattable,
 			ISpanParsable<FullySelfImplementedWrapperValueObject>,
-#endif
-#if NET8_0_OR_GREATER
 			IUtf8SpanFormattable,
 			IUtf8SpanParsable<FullySelfImplementedWrapperValueObject>,
-#endif
 			ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>
 		{
 			protected sealed override StringComparison StringComparison => throw new NotSupportedException("This operation applies to string-based value objects only.");
@@ -865,8 +861,6 @@ namespace Architect.DomainModeling.Tests
 
 			#region Formatting & Parsing
 
-#if NET7_0_OR_GREATER
-
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
 
@@ -889,10 +883,6 @@ namespace Architect.DomainModeling.Tests
 			public static FullySelfImplementedWrapperValueObject Parse(ReadOnlySpan<char> s, IFormatProvider? provider) =>
 				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(s, provider);
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
 				FormattingHelper.TryFormat(this.Value, utf8Destination, out bytesWritten, format, provider);
 
@@ -903,8 +893,6 @@ namespace Architect.DomainModeling.Tests
 
 			public static FullySelfImplementedWrapperValueObject Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(utf8Text, provider);
-
-#endif
 
 			#endregion
 		}

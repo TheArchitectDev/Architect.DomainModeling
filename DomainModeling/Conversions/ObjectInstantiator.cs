@@ -27,12 +27,8 @@ internal static class ObjectInstantiator<[DynamicallyAccessedMembers(Dynamically
 		}
 		else if (typeof(T).GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, binder: null, Array.Empty<Type>(), modifiers: null) is ConstructorInfo ctor)
 		{
-#if NET8_0_OR_GREATER
 			var invoker = ConstructorInvoker.Create(ctor);
 			ConstructionFunction = () => (T)invoker.Invoke();
-#else
-			ConstructionFunction = () => (T)Activator.CreateInstance(typeof(T), nonPublic: true)!;
-#endif
 		}
 		else
 		{

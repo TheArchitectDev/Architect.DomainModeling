@@ -135,8 +135,6 @@ public partial class EntityFrameworkConfigurationGenerator : SourceGenerator
 			input.Generatable.ReferencedAssembliesWithDomainEventConfigurator!.Value.Select(assemblyName => $"{assemblyName}.DomainEventDomainModelConfigurator.ConfigureDomainEvents(concreteConfigurator);"));
 
 		var source = $@"
-#if NET7_0_OR_GREATER
-
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
@@ -401,8 +399,6 @@ namespace {ownAssemblyName}
 		}}
 	}}
 }}
-
-#endif
 ";
 
 		AddSource(context, source, "EntityFrameworkDomainModelConfigurationExtensions", $"{Constants.DomainModelingNamespace}.EntityFramework");

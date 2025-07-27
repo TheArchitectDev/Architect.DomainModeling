@@ -9,7 +9,6 @@ namespace Architect.DomainModeling.Conversions;
 /// </summary>
 public static class Utf8JsonReaderExtensions
 {
-#if NET7_0_OR_GREATER
 	/// <summary>
 	/// Reads the next string JSON token from the source and parses it as <typeparamref name="T"/>, which must implement <see cref="ISpanParsable{TSelf}"/>.
 	/// </summary>
@@ -37,9 +36,7 @@ public static class Utf8JsonReaderExtensions
 		var result = T.Parse(chars, provider);
 		return result;
 	}
-#endif
 
-#if NET8_0_OR_GREATER
 	/// <summary>
 	/// Reads the next string JSON token from the source and parses it as <typeparamref name="T"/>, which must implement <see cref="IUtf8SpanParsable{TSelf}"/>.
 	/// </summary>
@@ -69,5 +66,4 @@ public static class Utf8JsonReaderExtensions
 		var result = T.Parse(chars, provider);
 		return result;
 	}
-#endif
 }
