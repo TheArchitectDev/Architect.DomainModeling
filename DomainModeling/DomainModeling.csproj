@@ -1,13 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net8.0;net7.0;net6.0</TargetFrameworks>
+		<TargetFrameworks>net9.0;net8.0</TargetFrameworks>
 		<CheckEolTargetFramework>False</CheckEolTargetFramework>
 		<AssemblyName>Architect.DomainModeling</AssemblyName>
 		<RootNamespace>Architect.DomainModeling</RootNamespace>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
-		<LangVersion>11</LangVersion>
+		<LangVersion>12</LangVersion>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<IsTrimmable>True</IsTrimmable>
 	</PropertyGroup>
@@ -24,6 +24,15 @@ A complete Domain-Driven Design (DDD) toolset for implementing domain models, in
 https://github.com/TheArchitectDev/Architect.DomainModeling
 
 Release notes:
+
+4.0.0:
+
+- BREAKING: Platform support: Dropped support for .NET 6.0 and .NET 7.0 (EOL).
+- Semi-breaking: IIdentity now implements IWrapperValueObject.
+- Bug fix: Fixed a bug where source-generated records would always generate ToString()/Equals()/GetHashCode(), even if you wrote your own.
+- Buf fix: Fixed a bug where the DummyBuilder generator struggled with nested types.
+- Bug fix: Fixed a compile-time bug where the analyzer would not properly warn that source generation on nested types is unsupported.
+- Enhancement: Improved correctness of trimming.
 
 3.0.3:
 

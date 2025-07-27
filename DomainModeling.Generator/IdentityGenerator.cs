@@ -124,12 +124,12 @@ public class IdentityGenerator : SourceGenerator
 				!ctor.IsStatic && ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
 
 			// Records override this, but our implementation is superior
-			existingComponents |= IdTypeComponents.ToStringOverride.If(!result.IsRecord && members.Any(member =>
-				member.Name == nameof(ToString) && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 0));
+			existingComponents |= IdTypeComponents.ToStringOverride.If(members.Any(member =>
+				member.Name == nameof(ToString) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Arity == 0 && method.Parameters.Length == 0));
 
 			// Records override this, but our implementation is superior
-			existingComponents |= IdTypeComponents.GetHashCodeOverride.If(!result.IsRecord && members.Any(member =>
-				member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 0));
+			existingComponents |= IdTypeComponents.GetHashCodeOverride.If(members.Any(member =>
+				member.Name == nameof(GetHashCode) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Arity == 0 && method.Parameters.Length == 0));
 
 			// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.EqualsOverride.If(members.Any(member =>
@@ -137,8 +137,8 @@ public class IdentityGenerator : SourceGenerator
 				method.Parameters[0].Type.IsType<object>()));
 
 			// Records override this, but our implementation is superior
-			existingComponents |= IdTypeComponents.EqualsMethod.If(!result.IsRecord && members.Any(member =>
-				member.Name == nameof(Equals) && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 1 &&
+			existingComponents |= IdTypeComponents.EqualsMethod.If(members.Any(member =>
+				member.Name == nameof(Equals) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Arity == 0 && method.Parameters.Length == 1 &&
 				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 			existingComponents |= IdTypeComponents.CompareToMethod.If(members.Any(member =>

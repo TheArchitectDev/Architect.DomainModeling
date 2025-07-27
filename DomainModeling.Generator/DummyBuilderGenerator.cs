@@ -49,8 +49,8 @@ public class DummyBuilderGenerator : SourceGenerator
 
 		var result = new Builder()
 		{
-			TypeFullyQualifiedName = type.ToString(),
-			ModelTypeFullyQualifiedName = modelType.ToString(),
+			TypeFullMetadataName = type.GetFullMetadataName(),
+			ModelTypeFullMetadataName = modelType is INamedTypeSymbol namedModelType ? namedModelType.GetFullMetadataName() : modelType.ToString(),
 			IsPartial = tds.Modifiers.Any(SyntaxKind.PartialKeyword),
 			IsRecord = type.IsRecord,
 			IsClass = type.TypeKind == TypeKind.Class,
@@ -91,15 +91,15 @@ public class DummyBuilderGenerator : SourceGenerator
 
 		var concreteBuilderTypesByModel = builders
 			.Where(builder => !builder.IsAbstract && !builder.IsGeneric) // Concrete only
-			.GroupBy(builder => builder.ModelTypeFullyQualifiedName) // Deduplicate
-			.Select(group => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(group.Key), group.First().TypeFullyQualifiedName))
-			.Where(pair => pair.Key is not null)
+			.GroupBy(builder => builder.ModelTypeFullMetadataName) // Deduplicate
+			.Select(group => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(group.Key), compilation.GetTypeByMetadataName(group.First().TypeFullMetadataName)?.ToString()!))
+			.Where(pair => pair.Key is not null && pair.Value is not null)
 			.ToDictionary<KeyValuePair<ITypeSymbol?, string>, ITypeSymbol, string>(pair => pair.Key!, pair => pair.Value, SymbolEqualityComparer.Default);
 
 		// Remove models for which multiple builders exist
 		{
 			var buildersWithDuplicateModel = builders
-				.GroupBy(builder => builder.ModelTypeFullyQualifiedName)
+				.GroupBy(builder => builder.ModelTypeFullMetadataName)
 				.Where(group => group.Count() > 1)
 				.ToList();
 
@@ -110,7 +110,7 @@ public class DummyBuilderGenerator : SourceGenerator
 					builders.Remove(type);
 
 				context.ReportDiagnostic("DummyBuilderGeneratorDuplicateBuilders", "Duplicate builders",
-					$"Multiple dummy builders exist for {group.Key}. Source generation for these builders was skipped.", DiagnosticSeverity.Warning, compilation.GetTypeByMetadataName(group.Last().TypeFullyQualifiedName));
+					$"Multiple dummy builders exist for {group.Key}. Source generation for these builders was skipped.", DiagnosticSeverity.Warning, compilation.GetTypeByMetadataName(group.Last().TypeFullMetadataName));
 			}
 		}
 
@@ -118,7 +118,7 @@ public class DummyBuilderGenerator : SourceGenerator
 		{
 			context.CancellationToken.ThrowIfCancellationRequested();
 
-			var type = compilation.GetTypeByMetadataName(builder.TypeFullyQualifiedName);
+			var type = compilation.GetTypeByMetadataName(builder.TypeFullMetadataName);
 			var modelType = type?.GetAttribute("DummyBuilderAttribute", Constants.DomainModelingNamespace, arity: 1) is AttributeData { AttributeClass: not null } attribute
 				? attribute.AttributeClass.TypeArguments[0]
 				: null;
@@ -135,7 +135,7 @@ public class DummyBuilderGenerator : SourceGenerator
 			if (type is null)
 			{
 				context.ReportDiagnostic("DummyBuilderGeneratorUnexpectedType", "Unexpected type",
-					$"Type marked as dummy builder has unexpected type '{builder.TypeFullyQualifiedName}'.", DiagnosticSeverity.Warning, type);
+					$"Type marked as dummy builder has unexpected type '{builder.TypeFullMetadataName}'.", DiagnosticSeverity.Warning, type);
 				continue;
 			}
 
@@ -143,7 +143,7 @@ public class DummyBuilderGenerator : SourceGenerator
 			if (modelType is null)
 			{
 				context.ReportDiagnostic("DummyBuilderGeneratorUnexpectedModelType", "Unexpected model type",
-					$"Type marked as dummy builder has unexpected model type '{builder.ModelTypeFullyQualifiedName}'.", DiagnosticSeverity.Warning, type);
+					$"Type marked as dummy builder has unexpected model type '{builder.ModelTypeFullMetadataName}'.", DiagnosticSeverity.Warning, type);
 				continue;
 			}
 
@@ -218,7 +218,7 @@ public class DummyBuilderGenerator : SourceGenerator
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		private {param.Type.WithNullableAnnotation(NullableAnnotation.None)} {memberName} {{ get; set; }} = {param.Type.CreateDummyInstantiationExpression(param.Name == "value" ? param.ContainingType.Name : param.Name, concreteBuilderTypesByModel.Keys, type => $"new {concreteBuilderTypesByModel[type]}().Build()")};");
 
-					concreteBuilderTypesByModel.Add(modelType, builder.TypeFullyQualifiedName);
+					concreteBuilderTypesByModel.Add(modelType, builder.TypeFullMetadataName);
 				}
 
 				if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.Equals(param.Type, SymbolEqualityComparer.Default)))
@@ -336,8 +336,8 @@ namespace {containingNamespace}
 
 	private sealed record Builder : IGeneratable
 	{
-		public string TypeFullyQualifiedName { get; set; } = null!;
-		public string ModelTypeFullyQualifiedName { get; set; } = null!;
+		public string TypeFullMetadataName { get; set; } = null!;
+		public string ModelTypeFullMetadataName { get; set; } = null!;
 		public bool IsPartial { get; set; }
 		public bool IsRecord { get; set; }
 		public bool IsClass { get; set; }

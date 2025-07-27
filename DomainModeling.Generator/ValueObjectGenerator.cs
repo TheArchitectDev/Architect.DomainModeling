@@ -52,6 +52,7 @@ public class ValueObjectGenerator : SourceGenerator
 		result.IsGeneric = type.IsGenericType;
 		result.IsNested = type.IsNested();
 
+		result.FullMetadataName = type.GetFullMetadataName();
 		result.TypeName = type.Name; // Will be non-generic if we pass the conditions to proceed with generation
 		result.ContainingNamespace = type.ContainingNamespace.ToString();
 
@@ -63,12 +64,12 @@ public class ValueObjectGenerator : SourceGenerator
 			!ctor.IsStatic && ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
 
 		// Records override this, but our implementation is superior
-		existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(!result.IsRecord && members.Any(member =>
-			member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
+		existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
+			member.Name == nameof(ToString) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
 
 		// Records override this, but our implementation is superior
-		existingComponents |= ValueObjectTypeComponents.GetHashCodeOverride.If(!result.IsRecord && members.Any(member =>
-			member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
+		existingComponents |= ValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
+			member.Name == nameof(GetHashCode) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
 
 		// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
@@ -76,8 +77,8 @@ public class ValueObjectGenerator : SourceGenerator
 			method.Parameters[0].Type.IsType<object>()));
 
 		// Records override this, but our implementation is superior
-		existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(!result.IsRecord && members.Any(member =>
-			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+		existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
+			member.Name == nameof(Equals) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 1 &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= ValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>
@@ -152,7 +153,7 @@ public class ValueObjectGenerator : SourceGenerator
 		var generatable = input.Generatable;
 		var compilation = input.Compilation;
 
-		var type = compilation.GetTypeByMetadataName($"{generatable.ContainingNamespace}.{generatable.TypeName}");
+		var type = compilation.GetTypeByMetadataName(generatable.FullMetadataName);
 
 		// Require being able to find the type and attribute
 		if (type is null)
@@ -429,6 +430,7 @@ namespace {containingNamespace}
 		public bool IsGeneric { get; set; }
 		public bool IsNested { get; set; }
 		public bool IsComparable { get; set; }
+		public string FullMetadataName { get; set; } = null!;
 		public string TypeName { get; set; } = null!;
 		public string ContainingNamespace { get; set; } = null!;
 		public ValueObjectTypeComponents ExistingComponents { get; set; }

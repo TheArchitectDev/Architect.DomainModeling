@@ -18,7 +18,9 @@ public interface IWrapperValueObjectConfigurator
 		where TWrapper : IWrapperValueObject<TValue>, ISerializableDomainObject<TWrapper, TValue>
 		where TValue : notnull;
 
+#pragma warning disable IDE0040 // Remove accessibility modifiers -- We always want explicit accessibility for types
 	public readonly struct Args
+#pragma warning restore IDE0040 // Remove accessibility modifiers
 	{
 	}
 }

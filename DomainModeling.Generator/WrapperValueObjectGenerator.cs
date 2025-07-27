@@ -97,12 +97,12 @@ public class WrapperValueObjectGenerator : SourceGenerator
 			!ctor.IsStatic && ctor.Parameters.Length == 0 && ctor.DeclaringSyntaxReferences.Length > 0));
 
 		// Records override this, but our implementation is superior
-		existingComponents |= WrapperValueObjectTypeComponents.ToStringOverride.If(!result.IsRecord && members.Any(member =>
-			member.Name == nameof(ToString) && member is IMethodSymbol method && method.Parameters.Length == 0));
+		existingComponents |= WrapperValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
+			member.Name == nameof(ToString) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
 
 		// Records override this, but our implementation is superior
-		existingComponents |= WrapperValueObjectTypeComponents.GetHashCodeOverride.If(!result.IsRecord && members.Any(member =>
-			member.Name == nameof(GetHashCode) && member is IMethodSymbol method && method.Parameters.Length == 0));
+		existingComponents |= WrapperValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
+			member.Name == nameof(GetHashCode) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
 
 		// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 		existingComponents |= WrapperValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
@@ -110,8 +110,8 @@ public class WrapperValueObjectGenerator : SourceGenerator
 			method.Parameters[0].Type.IsType<object>()));
 
 		// Records override this, but our implementation is superior
-		existingComponents |= WrapperValueObjectTypeComponents.EqualsMethod.If(!result.IsRecord && members.Any(member =>
-			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+		existingComponents |= WrapperValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
+			member.Name == nameof(Equals) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 1 &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>

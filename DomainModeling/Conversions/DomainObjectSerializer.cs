@@ -8,12 +8,23 @@ namespace Architect.DomainModeling.Conversions;
 
 public static class DomainObjectSerializer
 {
-	private static readonly MethodInfo GenericDeserializeMethod = typeof(DomainObjectSerializer).GetMethods().Single(method =>
-		method.Name == nameof(Deserialize) && method.GetParameters() is []);
-	private static readonly MethodInfo GenericDeserializeFromValueMethod = typeof(DomainObjectSerializer).GetMethods().Single(method =>
-		method.Name == nameof(Deserialize) && method.GetParameters().Length == 1);
-	private static readonly MethodInfo GenericSerializeMethod = typeof(DomainObjectSerializer).GetMethods().Single(method =>
-		method.Name == nameof(Serialize) && method.GetParameters().Length == 1);
+	[UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "We rely only on public methods, which we take an explicit dependency on")]
+	[DynamicDependency(DynamicallyAccessedMemberTypes.PublicMethods, typeof(DomainObjectSerializer))]
+	private static readonly MethodInfo GenericDeserializeMethod =
+		typeof(DomainObjectSerializer).GetMethods(BindingFlags.Static | BindingFlags.Public)
+		.Single(method => method.Name == nameof(Deserialize) && method.GetParameters() is []);
+
+	[UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "We rely only on public methods, which we take an explicit dependency on")]
+	[DynamicDependency(DynamicallyAccessedMemberTypes.PublicMethods, typeof(DomainObjectSerializer))]
+	private static readonly MethodInfo GenericDeserializeFromValueMethod =
+		typeof(DomainObjectSerializer).GetMethods(BindingFlags.Static | BindingFlags.Public)
+		.Single(method => method.Name == nameof(Deserialize) && method.GetParameters().Length == 1);
+
+	[UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "We rely only on public methods, which we take an explicit dependency on")]
+	[DynamicDependency(DynamicallyAccessedMemberTypes.PublicMethods, typeof(DomainObjectSerializer))]
+	private static readonly MethodInfo GenericSerializeMethod =
+		typeof(DomainObjectSerializer).GetMethods(BindingFlags.Static | BindingFlags.Public)
+		.Single(method => method.Name == nameof(Serialize) && method.GetParameters().Length == 1);
 
 	#region Deserialize empty
 
@@ -37,6 +48,7 @@ public static class DomainObjectSerializer
 	/// When evaluated, the expression deserializes an empty, uninitialized instance of the <paramref name="modelType"/>.
 	/// </para>
 	/// </summary>
+	[UnconditionalSuppressMessage("Trimming", "IL2060", Justification = "We rely only on constructors, which we take an explicit dependency on")]
 	public static Expression CreateDeserializeExpression([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] Type modelType)
 	{
 		var method = GenericDeserializeMethod.MakeGenericMethod(modelType);
@@ -113,6 +125,7 @@ public static class DomainObjectSerializer
 		return lambda;
 	}
 
+	[UnconditionalSuppressMessage("Trimming", "IL2060", Justification = "We rely only on constructors, which we take an explicit dependency on")]
 	private static MethodCallExpression CreateDeserializeExpressionCore([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] Type modelType, Type underlyingType,
 		out ParameterExpression parameter)
 	{
@@ -171,6 +184,7 @@ public static class DomainObjectSerializer
 		return lambda;
 	}
 
+	[UnconditionalSuppressMessage("Trimming", "IL2060", Justification = "We rely only on constructors, which we take an explicit dependency on")]
 	private static MethodCallExpression CreateSerializeExpressionCore([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] Type modelType, Type underlyingType,
 		out ParameterExpression parameter)
 	{

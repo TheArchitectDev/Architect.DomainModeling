@@ -13,6 +13,21 @@ internal static class TypeSymbolExtensions
 	private static IReadOnlyCollection<string> ConversionOperatorNames { get; } = ["op_Implicit", "op_Explicit",];
 
 	/// <summary>
+	/// Returns the full CLR metadata name of the <see cref="INamedTypeSymbol"/>, e.g. "Namespace.Type+NestedGenericType`1".
+	/// </summary>
+	public static string GetFullMetadataName(this INamedTypeSymbol namedTypeSymbol)
+	{
+		// Recurse until we have a non-nested type
+		if (namedTypeSymbol.IsNested())
+			return $"{GetFullMetadataName(namedTypeSymbol.ContainingType)}+{namedTypeSymbol.MetadataName}";
+
+		// Beware that types may exist in the global namespace
+		return namedTypeSymbol.ContainingNamespace is INamespaceSymbol ns && !ns.IsGlobalNamespace
+			? $"{ns.ToDisplayString()}.{namedTypeSymbol.MetadataName}"
+			: namedTypeSymbol.MetadataName;
+	}
+
+	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> is of type <typeparamref name="T"/>.
 	/// </summary>
 	public static bool IsType<T>(this ITypeSymbol typeSymbol)
