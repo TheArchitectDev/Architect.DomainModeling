@@ -21,6 +21,7 @@ dotnet_diagnostic.CA1822.severity = none # CA1822: Instance member does not acce
 dotnet_diagnostic.CS1573.severity = none # CS1573: Undocumented public symbol while -doc compiler option is used
 dotnet_diagnostic.CS1591.severity = none # CS1591: Missing XML comment for publicly visible type
 dotnet_diagnostic.CA1816.severity = none # CA1816: Dispose() should call GC.SuppressFinalize()
+dotnet_diagnostic.IDE0305.severity = silent # IDE0305: Collection initialization can be simplified -- spoils chained LINQ calls (https://github.com/dotnet/roslyn/issues/70833)
 
 # Indentation and spacing
 indent_size = 4

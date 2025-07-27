@@ -69,8 +69,8 @@ public class LookupComparerTests
 	[Fact]
 	public void LookupEquals_WithoutTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateLookupWithEqualityComparer(new[] { "A", "a", }, StringComparer.Ordinal);
-		var right = CreateLookupWithEqualityComparer(new[] { "A", }, StringComparer.Ordinal);
+		var left = CreateLookupWithEqualityComparer(["A", "a",], StringComparer.Ordinal);
+		var right = CreateLookupWithEqualityComparer(["A",], StringComparer.Ordinal);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer
@@ -84,8 +84,8 @@ public class LookupComparerTests
 	[Fact]
 	public void LookupEquals_WithIgnoreCaseWithTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateLookupWithEqualityComparer(new[] { "A", "a", }, StringComparer.OrdinalIgnoreCase);
-		var right = CreateLookupWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+		var left = CreateLookupWithEqualityComparer(["A", "a",], StringComparer.OrdinalIgnoreCase);
+		var right = CreateLookupWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer
@@ -98,8 +98,8 @@ public class LookupComparerTests
 	[Fact]
 	public void LookupEquals_WithDifferentCaseComparersWithoutTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateLookupWithEqualityComparer(new[] { "a", }, StringComparer.Ordinal);
-		var right = CreateLookupWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+		var left = CreateLookupWithEqualityComparer(["a",], StringComparer.Ordinal);
+		var right = CreateLookupWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer
@@ -113,8 +113,8 @@ public class LookupComparerTests
 	[Fact]
 	public void LookupEquals_WithDifferentCaseComparersWithTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateLookupWithEqualityComparer(new[] { "A", "a", }, StringComparer.Ordinal);
-		var right = CreateLookupWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+		var left = CreateLookupWithEqualityComparer(["A", "a",], StringComparer.Ordinal);
+		var right = CreateLookupWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer

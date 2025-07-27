@@ -549,11 +549,11 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void GetHashCode_WithImmutableArray_ShouldReturnExpectedResult()
 		{
-			var one = new ImmutableArrayValueObject(new[] { "A" }).GetHashCode();
-			var two = new ImmutableArrayValueObject(new[] { "A" }).GetHashCode();
+			var one = new ImmutableArrayValueObject(["A"]).GetHashCode();
+			var two = new ImmutableArrayValueObject(["A"]).GetHashCode();
 			Assert.Equal(one, two);
 
-			var three = new ImmutableArrayValueObject(new[] { "a" }).GetHashCode();
+			var three = new ImmutableArrayValueObject(["a"]).GetHashCode();
 			Assert.NotEqual(one, three); // Note that the collection elements define their own GetHashCode() and do not care about the parent ValueObject's StringComparison value, by design
 		}
 
@@ -628,8 +628,8 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "B", false)]
 		public void Equals_WithImmutableArray_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
 		{
-			var left = new ImmutableArrayValueObject(new[] { one });
-			var right = new ImmutableArrayValueObject(new[] { two });
+			var left = new ImmutableArrayValueObject([one]);
+			var right = new ImmutableArrayValueObject([two]);
 			Assert.Equal(expectedResult, left.Equals(right));
 			Assert.Equal(expectedResult, right.Equals(left));
 		}
@@ -810,6 +810,7 @@ namespace Architect.DomainModeling.Tests
 		{
 			var nullValued = new DefaultComparingStringValue(value: null);
 
+#pragma warning disable IDE0079 // Remove unnecessary suppressions -- The suppression below is often wrongfully flagged as unnecessary
 #pragma warning disable xUnit2024 // Do not use boolean asserts for simple equality tests -- We are testing overloaded operators
 			Assert.False(null == nullValued);
 			Assert.True(null != nullValued);
@@ -824,6 +825,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.True(nullValued > null);
 			Assert.True(nullValued >= null);
 #pragma warning restore xUnit2024 // Do not use boolean asserts for simple equality tests
+#pragma warning restore IDE0079 // Remove unnecessary suppressions
 		}
 
 		[Theory]

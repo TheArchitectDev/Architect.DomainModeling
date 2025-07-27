@@ -5,11 +5,17 @@
 		<CheckEolTargetFramework>False</CheckEolTargetFramework>
 		<AssemblyName>Architect.DomainModeling</AssemblyName>
 		<RootNamespace>Architect.DomainModeling</RootNamespace>
+		<NuGetAudit>True</NuGetAudit>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
-		<LangVersion>12</LangVersion>
+		<LangVersion>13</LangVersion>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<IsTrimmable>True</IsTrimmable>
+	</PropertyGroup>
+	
+	<PropertyGroup>
+		<!-- IDE0290: Use primary constructor - domain objects tend to have complex ctor logic, and we want to be consistent even when ctors are simple -->
+		<NoWarn>IDE0290</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

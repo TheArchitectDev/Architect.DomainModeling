@@ -25,7 +25,7 @@ internal static class ObjectInstantiator<[DynamicallyAccessedMembers(Dynamically
 		{
 			ConstructionFunction = () => throw new NotSupportedException("Uninitialized instantiation of arrays and strings is not supported.");
 		}
-		else if (typeof(T).GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, binder: null, Array.Empty<Type>(), modifiers: null) is ConstructorInfo ctor)
+		else if (typeof(T).GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, binder: null, [], modifiers: null) is ConstructorInfo ctor)
 		{
 			var invoker = ConstructorInvoker.Create(ctor);
 			ConstructionFunction = () => (T)invoker.Invoke();

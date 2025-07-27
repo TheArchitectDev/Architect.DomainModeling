@@ -19,7 +19,9 @@ public static class Utf8JsonReaderExtensions
 		[CallerLineNumber] int callerLineNumber = -1)
 		where T : ISpanParsable<T>
 	{
+#pragma warning disable IDE0302 // Simplify collection initialization -- Analyzer fails to see that that does not work here
 		ReadOnlySpan<char> chars = stackalloc char[0];
+#pragma warning restore IDE0302 // Simplify collection initialization
 
 		var maxCharLength = reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length;
 		if (maxCharLength > 2048) // Avoid oversized stack allocations
@@ -45,9 +47,11 @@ public static class Utf8JsonReaderExtensions
 	public static T GetParsedString<T>(this Utf8JsonReader reader, IFormatProvider? provider)
 		where T : IUtf8SpanParsable<T>
 	{
+#pragma warning disable IDE0302 // Simplify collection initialization -- Analyzer fails to see that that does not work here
 		ReadOnlySpan<byte> chars = reader.HasValueSequence
 			? stackalloc byte[0]
 			: reader.ValueSpan;
+#pragma warning restore IDE0302 // Simplify collection initialization
 
 		if (reader.HasValueSequence)
 		{

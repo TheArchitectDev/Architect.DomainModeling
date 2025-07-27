@@ -64,8 +64,8 @@ public class DictionaryComparerTests
 	[Fact]
 	public void DictionaryEquals_WithoutTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateDictionaryWithEqualityComparer(new[] { "A", "a", }, StringComparer.Ordinal);
-		var right = CreateDictionaryWithEqualityComparer(new[] { "A", }, StringComparer.Ordinal);
+		var left = CreateDictionaryWithEqualityComparer(["A", "a",], StringComparer.Ordinal);
+		var right = CreateDictionaryWithEqualityComparer(["A",], StringComparer.Ordinal);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer
@@ -80,8 +80,8 @@ public class DictionaryComparerTests
 	[Fact]
 	public void DictionaryEquals_WithIgnoreCaseWithTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateDictionaryWithEqualityComparer(new[] { "A", "a", }, StringComparer.OrdinalIgnoreCase);
-		var right = CreateDictionaryWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+		var left = CreateDictionaryWithEqualityComparer(["A", "a",], StringComparer.OrdinalIgnoreCase);
+		var right = CreateDictionaryWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer
@@ -95,8 +95,8 @@ public class DictionaryComparerTests
 	[Fact]
 	public void DictionaryEquals_WithDifferentCaseComparersWithoutTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateDictionaryWithEqualityComparer(new[] { "a", }, StringComparer.Ordinal);
-		var right = CreateDictionaryWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+		var left = CreateDictionaryWithEqualityComparer(["a",], StringComparer.Ordinal);
+		var right = CreateDictionaryWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer
@@ -111,8 +111,8 @@ public class DictionaryComparerTests
 	[Fact]
 	public void DictionaryEquals_WithDifferentCaseComparersWithTwoWayEquality_ShouldReturnExpectedResult()
 	{
-		var left = CreateDictionaryWithEqualityComparer(new[] { "A", "a", }, StringComparer.Ordinal);
-		var right = CreateDictionaryWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+		var left = CreateDictionaryWithEqualityComparer(["A", "a",], StringComparer.Ordinal);
+		var right = CreateDictionaryWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 		if (left is null || right is null)
 			return; // Implementation does not support custom comparer
