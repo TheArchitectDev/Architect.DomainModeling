@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling.Conversions;
+using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 using Xunit;
 
@@ -772,8 +773,8 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[WrapperValueObject<int>]
-		[System.Text.Json.Serialization.JsonConverter(typeof(JsonConverter))]
-		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftJsonConverter))]
+		[System.Text.Json.Serialization.JsonConverter(typeof(WrapperJsonConverter<FullySelfImplementedIdentity, int>))]
+		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftWrapperJsonConverter<FullySelfImplementedIdentity, int>))]
 		internal sealed partial class FullySelfImplementedWrapperValueObject
 			: WrapperValueObject<int>,
 			IComparable<FullySelfImplementedWrapperValueObject>,
@@ -906,38 +907,6 @@ namespace Architect.DomainModeling.Tests
 #endif
 
 			#endregion
-
-			private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<FullySelfImplementedWrapperValueObject>
-			{
-				public override FullySelfImplementedWrapperValueObject Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
-					DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options)!);
-
-				public override void Write(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options) =>
-					System.Text.Json.JsonSerializer.Serialize(writer, DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(value), options);
-
-				public override FullySelfImplementedWrapperValueObject ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
-					DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(
-						((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).ReadAsPropertyName(ref reader, typeToConvert, options));
-
-				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options) =>
-					((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).WriteAsPropertyName(
-						writer,
-						DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(value)!, options);
-			}
-
-			private sealed class NewtonsoftJsonConverter : Newtonsoft.Json.JsonConverter
-			{
-				public override bool CanConvert(Type objectType) =>
-					objectType == typeof(FullySelfImplementedWrapperValueObject);
-
-				public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer) =>
-					reader.Value is null && (!typeof(FullySelfImplementedWrapperValueObject).IsValueType || objectType != typeof(FullySelfImplementedWrapperValueObject)) // Null data for a reference type or nullable value type
-						? (FullySelfImplementedWrapperValueObject?)null
-						: DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(serializer.Deserialize<int>(reader)!);
-
-				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer) =>
-					serializer.Serialize(writer, value is not FullySelfImplementedWrapperValueObject instance ? (object?)null : DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(instance));
-			}
 		}
 	}
 }

@@ -401,11 +401,11 @@ namespace {containingNamespace}
 	{summary}
 
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
-	{JsonSerializationGenerator.WriteJsonConverterAttribute(idTypeName)}
+	{JsonSerializationGenerator.WriteJsonConverterAttribute(idTypeName, underlyingTypeFullyQualifiedName, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
 
 	{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "/*" : "")}
-	{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(idTypeName)}
+	{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(idTypeName, underlyingTypeFullyQualifiedName, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
 	{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 
 	{(hasIdentityValueObjectAttribute ? "" : $"[IdentityValueObject<{underlyingTypeFullyQualifiedName}>]")}
@@ -606,14 +606,6 @@ namespace {containingNamespace}
 #endif
 
 		#endregion
-
-		{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
-		{JsonSerializationGenerator.WriteJsonConverter(idTypeName, underlyingTypeFullyQualifiedName, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
-		{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
-
-		{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "/*" : "")}
-		{JsonSerializationGenerator.WriteNewtonsoftJsonConverter(idTypeName, underlyingTypeFullyQualifiedName, isStruct: true, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
-		{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 	}}
 }}
 ";

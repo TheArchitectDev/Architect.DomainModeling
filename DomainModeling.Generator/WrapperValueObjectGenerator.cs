@@ -337,11 +337,11 @@ using {Constants.DomainModelingNamespace}.Conversions;
 namespace {containingNamespace}
 {{
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
-	{JsonSerializationGenerator.WriteJsonConverterAttribute(typeName)}
+	{JsonSerializationGenerator.WriteJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
 
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "/*" : "")}
-	{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(typeName)}
+	{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 
 	/* Generated */ {generatable.Accessibility.ToCodeString()} sealed partial{(generatable.IsRecord ? " record" : "")} class {typeName}
@@ -569,14 +569,6 @@ namespace {containingNamespace}
 #endif
 
 		#endregion
-
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
-		{JsonSerializationGenerator.WriteJsonConverter(typeName, underlyingTypeFullyQualifiedName, numericAsString: false)}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
-
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "/*" : "")}
-		{JsonSerializationGenerator.WriteNewtonsoftJsonConverter(typeName, underlyingTypeFullyQualifiedName, isStruct: false, numericAsString: false)}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
 	}}
 }}
 ";
