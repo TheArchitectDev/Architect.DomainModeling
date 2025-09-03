@@ -5,7 +5,9 @@ namespace Architect.DomainModeling.Generator.Configurators;
 
 public partial class DomainModelConfiguratorGenerator
 {
-	internal static void GenerateSourceForWrapperValueObjects(SourceProductionContext context, (ImmutableArray<WrapperValueObjectGenerator.Generatable> Generatables, (bool HasConfigureConventions, string AssemblyName) Metadata) input)
+	internal static void GenerateSourceForWrapperValueObjects(
+		SourceProductionContext context,
+		(ImmutableArray<ValueWrapperGenerator.BasicGeneratable> Generatables, (bool HasConfigureConventions, string AssemblyName) Metadata) input)
 	{
 		context.CancellationToken.ThrowIfCancellationRequested();
 

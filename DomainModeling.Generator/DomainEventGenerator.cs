@@ -39,6 +39,8 @@ public class DomainEventGenerator : SourceGenerator
 
 	private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 	{
+		cancellationToken.ThrowIfCancellationRequested();
+
 		var model = context.SemanticModel;
 		var tds = (TypeDeclarationSyntax)context.Node;
 		var type = model.GetDeclaredSymbol(tds);
@@ -101,7 +103,7 @@ public class DomainEventGenerator : SourceGenerator
 		DefaultConstructor = 1 << 1,
 	}
 
-	internal sealed record Generatable : IGeneratable
+	internal sealed record Generatable
 	{
 		public bool IsDomainObject { get; set; }
 		public string TypeName { get; set; } = null!;

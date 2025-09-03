@@ -31,6 +31,8 @@ public class ValueObjectGenerator : SourceGenerator
 
 	private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 	{
+		cancellationToken.ThrowIfCancellationRequested();
+
 		var result = new Generatable();
 
 		var model = context.SemanticModel;
@@ -420,7 +422,7 @@ namespace {containingNamespace}
 		DefaultConstructor = 1 << 14,
 	}
 
-	private sealed record Generatable : IGeneratable
+	private sealed record Generatable
 	{
 		public bool IsValueObject { get; set; }
 		public bool IsPartial { get; set; }

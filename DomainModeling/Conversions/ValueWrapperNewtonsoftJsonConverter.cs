@@ -4,9 +4,9 @@ using System.Numerics;
 namespace Architect.DomainModeling.Conversions;
 
 /// <summary>
-/// A generic System.Text JSON converter for wrapper types, which serializes like the wrapped value itself.
+/// A generic Newtonsoft JSON converter for wrapper types, which serializes like the wrapped value itself.
 /// </summary>
-public sealed class NewtonsoftWrapperJsonConverter<
+public sealed class ValueWrapperNewtonsoftJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: Newtonsoft.Json.JsonConverter
@@ -45,7 +45,7 @@ public sealed class NewtonsoftWrapperJsonConverter<
 /// This variant is intended for numeric types whose larger values risk truncation in languages such as JavaScript.
 /// It serializes to and from string.
 /// </summary>
-public sealed class NewtonsoftLargeNumberWrapperJsonConverter<
+public sealed class LargeNumberValueWrapperNewtonsoftJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: Newtonsoft.Json.JsonConverter

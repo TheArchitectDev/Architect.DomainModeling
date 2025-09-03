@@ -13,6 +13,9 @@ namespace Architect.DomainModeling.Conversions;
 /// This type is intended for use by source-generated code, to avoid compiler errors in situations where the presence of the required interfaces is extremely likely but cannot be guaranteed.
 /// </para>
 /// </summary>
+//#if NET10_0_OR_GREATER
+//[Obsolete("New default interface implementations and extension members alleviate the need for this helper.")]
+//#endif
 public static class FormattingHelper
 {
 	/// <summary>
@@ -30,14 +33,23 @@ public static class FormattingHelper
 	/// <summary>
 	/// Delegates to <see cref="IFormattable.ToString"/>.
 	/// </summary>
+	[return: NotNullIfNotNull(nameof(instance))]
 	public static string ToString<T>(T? instance,
 		string? format, IFormatProvider? formatProvider)
 		where T : IFormattable
 	{
-		if (instance is null)
-			return "";
+		// We exist to help fulfill IFormattable.ToString()
+		// We imitate its false promise that the string will be non-null if there is an instance
 
-		return instance.ToString(format, formatProvider);
+		// This is tricky if the underlying value is null, such as when a struct wraps a reference type and it is spawned with the "default" keyword
+		// TryFormat() does not have an issue: it is correct to write 0 chars when there is nothing to write
+		// ToString() does have an issue: it is incorrect to represent nothing as any string other than null
+
+		// The problem originates from the interface: IFormattable.ToString() returning a non-nullable string is a false promise, as not every scenario can fulfill this with a correct answer
+		// Either this was an oversight by the .NET team, or they made a trade-off: a very occasional incorrectness of the nullability in exchange for simplicity for the vast majority of cases
+		// Either way, the most correct and accurate resolution is to return null after all (thus acknowledging the oversight or trade-off)
+
+		return instance?.ToString(format, formatProvider)!;
 	}
 
 #pragma warning disable IDE0060 // Remove unused parameter -- Required to let generated code make use of overload resolution
@@ -52,10 +64,10 @@ public static class FormattingHelper
 	/// <param name="format">Ignored.</param>
 	/// <param name="formatProvider">Ignored.</param>
 	[return: NotNullIfNotNull(nameof(instance))]
-	public static string ToString(string? instance,
+	public static string? ToString(string? instance,
 		string? format, IFormatProvider? formatProvider)
 	{
-		return instance ?? "";
+		return instance;
 	}
 #pragma warning restore IDE0060 // Remove unused parameter
 
@@ -81,7 +93,7 @@ public static class FormattingHelper
 		if (instance is null)
 		{
 			charsWritten = 0;
-			return true;
+			return true; // We succeeded at doing all we must - false is only for insufficient space
 		}
 
 		return instance.TryFormat(destination, out charsWritten, format, provider);
@@ -104,7 +116,7 @@ public static class FormattingHelper
 		charsWritten = 0;
 
 		if (instance is null)
-			return true;
+			return true; // We succeeded at doing all we must - false is only for insufficient space
 
 		if (instance.Length > destination.Length)
 			return false;
@@ -137,7 +149,7 @@ public static class FormattingHelper
 		if (instance is null)
 		{
 			bytesWritten = 0;
-			return true;
+			return true; // We succeeded at doing all we must - false is only for insufficient space
 		}
 
 		return instance.TryFormat(utf8Destination, out bytesWritten, format, provider);
@@ -160,7 +172,7 @@ public static class FormattingHelper
 		if (instance is null)
 		{
 			bytesWritten = 0;
-			return true;
+			return true; // We succeeded at doing all we must - false is only for insufficient space
 		}
 
 		return Utf8.FromUtf16(instance, utf8Destination, charsRead: out _, bytesWritten: out bytesWritten) == System.Buffers.OperationStatus.Done;

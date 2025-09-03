@@ -5,7 +5,9 @@ namespace Architect.DomainModeling.Generator.Configurators;
 
 public partial class DomainModelConfiguratorGenerator
 {
-	internal static void GenerateSourceForIdentities(SourceProductionContext context, (ImmutableArray<IdentityGenerator.Generatable> Generatables, (bool HasConfigureConventions, string AssemblyName) Metadata) input)
+	internal static void GenerateSourceForIdentities(
+		SourceProductionContext context,
+		(ImmutableArray<ValueWrapperGenerator.BasicGeneratable> Generatables, (bool HasConfigureConventions, string AssemblyName) Metadata) input)
 	{
 		context.CancellationToken.ThrowIfCancellationRequested();
 
@@ -16,7 +18,7 @@ public partial class DomainModelConfiguratorGenerator
 		var targetNamespace = input.Metadata.AssemblyName;
 
 		var configurationText = String.Join($"{Environment.NewLine}\t\t\t", input.Generatables.Select(generatable => $"""
-			configurator.ConfigureIdentity<{generatable.ContainingNamespace}.{generatable.IdTypeName}, {generatable.UnderlyingTypeFullyQualifiedName}>({Environment.NewLine}				new {Constants.DomainModelingNamespace}.Configuration.IIdentityConfigurator.Args());
+			configurator.ConfigureIdentity<{generatable.ContainingNamespace}.{generatable.TypeName}, {generatable.UnderlyingTypeFullyQualifiedName}>({Environment.NewLine}				new {Constants.DomainModelingNamespace}.Configuration.IIdentityConfigurator.Args());
 			"""));
 
 		var source = $@"

@@ -34,6 +34,8 @@ public class DummyBuilderGenerator : SourceGenerator
 
 	private static Builder? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 	{
+		cancellationToken.ThrowIfCancellationRequested();
+
 		var model = context.SemanticModel;
 		var tds = (TypeDeclarationSyntax)context.Node;
 		var type = model.GetDeclaredSymbol((TypeDeclarationSyntax)context.Node);
@@ -334,7 +336,7 @@ namespace {containingNamespace}
 		return result;
 	}
 
-	private sealed record Builder : IGeneratable
+	private sealed record Builder
 	{
 		public string TypeFullMetadataName { get; set; } = null!;
 		public string ModelTypeFullMetadataName { get; set; } = null!;

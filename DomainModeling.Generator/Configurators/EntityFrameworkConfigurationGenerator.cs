@@ -404,7 +404,7 @@ namespace {ownAssemblyName}
 		AddSource(context, source, "EntityFrameworkDomainModelConfigurationExtensions", $"{Constants.DomainModelingNamespace}.EntityFramework");
 	}
 
-	internal sealed record Generatable : IGeneratable
+	internal sealed record Generatable
 	{
 		public bool UsesEntityFrameworkConventions { get; set; }
 		/// <summary>

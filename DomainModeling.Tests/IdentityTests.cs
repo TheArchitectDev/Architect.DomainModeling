@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.IdentityTestTypes;
+using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests
@@ -537,7 +538,8 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("5", new FullySelfImplementedIdentity(5).ToString(format: null, formatProvider: null));
 			Assert.Equal("5", new FormatAndParseTestingIntId(5).ToString(format: null, formatProvider: null));
 
-			Assert.Equal("", ((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).ToString(format: null, formatProvider: null));
+			// Cannot be helped - see comments in IFormattableWrapper
+			Assert.Null(((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).ToString(format: null, formatProvider: null));
 		}
 
 		[Fact]
@@ -561,6 +563,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, charsWritten);
 			Assert.Equal("5".AsSpan(), result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).TryFormat(result, out charsWritten, format: null, provider: null));
 			Assert.Equal(0, charsWritten);
 		}
@@ -586,6 +589,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, bytesWritten);
 			Assert.Equal("5"u8, result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).TryFormat(result, out bytesWritten, format: null, provider: null));
 			Assert.Equal(0, bytesWritten);
 		}
@@ -655,6 +659,16 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(5, result4.Value?.Value.Value);
 			Assert.Equal(result4, FormatAndParseTestingIntId.Parse(input, provider: null));
 		}
+
+		[Fact]
+		public void ParsabilityAndFormattability_InAllScenarios_ShouldBeGeneratedAccordingToTransitiveAvailability()
+		{
+			var interfaces = typeof(FormatAndParseTestingUriWrapperId).GetInterfaces();
+			Assert.Contains(interfaces, interf => interf.Name == "ISpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable");
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -671,6 +685,9 @@ namespace Architect.DomainModeling.Tests
 
 		[IdentityValueObject<string>]
 		internal partial record struct StringId;
+
+		[IdentityValueObject<FullySelfImplementedWrapperValueObject>]
+		internal partial record struct WrapperId;
 
 		[IdentityValueObject<string>]
 		internal partial struct IgnoreCaseStringId
@@ -693,6 +710,10 @@ namespace Architect.DomainModeling.Tests
 			{
 				this.Value = new IntId(value);
 			}
+		}
+		[IdentityValueObject<FormatAndParseTestingUriWrapper>]
+		internal partial struct FormatAndParseTestingUriWrapperId
+		{
 		}
 
 		[IdentityValueObject<JsonTestingIntWrapper>]
@@ -748,8 +769,8 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[IdentityValueObject<int>]
-		[System.Text.Json.Serialization.JsonConverter(typeof(WrapperJsonConverter<FullySelfImplementedIdentity, int>))]
-		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftWrapperJsonConverter<FullySelfImplementedIdentity, int>))]
+		[System.Text.Json.Serialization.JsonConverter(typeof(ValueWrapperJsonConverter<FullySelfImplementedIdentity, int>))]
+		[Newtonsoft.Json.JsonConverter(typeof(ValueWrapperNewtonsoftJsonConverter<FullySelfImplementedIdentity, int>))]
 		internal readonly partial struct FullySelfImplementedIdentity
 			: IIdentity<int>,
 			IEquatable<FullySelfImplementedIdentity>,
@@ -765,6 +786,27 @@ namespace Architect.DomainModeling.Tests
 			public FullySelfImplementedIdentity(int value)
 			{
 				this.Value = value;
+			}
+
+			public static FullySelfImplementedIdentity Create(int value)
+			{
+				return new FullySelfImplementedIdentity(value);
+			}
+
+			/// <summary>
+			/// Serializes a domain object as a plain value.
+			/// </summary>
+			int ISerializableDomainObject<FullySelfImplementedIdentity, int>.Serialize()
+			{
+				return this.Value;
+			}
+
+			/// <summary>
+			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+			/// </summary>
+			static FullySelfImplementedIdentity ISerializableDomainObject<FullySelfImplementedIdentity, int>.Deserialize(int value)
+			{
+				return new FullySelfImplementedIdentity() { Value = value };
 			}
 
 			public override int GetHashCode()
@@ -792,22 +834,6 @@ namespace Architect.DomainModeling.Tests
 				return this.Value.ToString("0.#");
 			}
 
-			/// <summary>
-			/// Serializes a domain object as a plain value.
-			/// </summary>
-			int ISerializableDomainObject<FullySelfImplementedIdentity, int>.Serialize()
-			{
-				return this.Value;
-			}
-
-			/// <summary>
-			/// Deserializes a plain value back into a domain object without any validation.
-			/// </summary>
-			static FullySelfImplementedIdentity ISerializableDomainObject<FullySelfImplementedIdentity, int>.Deserialize(int value)
-			{
-				return new FullySelfImplementedIdentity() { Value = value };
-			}
-
 			public static bool operator ==(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.Equals(right);
 			public static bool operator !=(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => !(left == right);
 
@@ -825,6 +851,8 @@ namespace Architect.DomainModeling.Tests
 			public static implicit operator int?(FullySelfImplementedIdentity? id) => id?.Value;
 
 			#region Formatting & Parsing
+
+#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
 
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -858,6 +886,8 @@ namespace Architect.DomainModeling.Tests
 
 			public static FullySelfImplementedIdentity Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 				(FullySelfImplementedIdentity)ParsingHelper.Parse<int>(utf8Text, provider);
+
+#endif
 
 			#endregion
 		}

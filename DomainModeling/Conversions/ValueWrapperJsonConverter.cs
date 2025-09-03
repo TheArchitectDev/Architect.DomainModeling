@@ -10,7 +10,7 @@ namespace Architect.DomainModeling.Conversions;
 	"Trimming", "IL2046",
 	Justification = "JsonConverter read/write methods are not marked with RequiresUnreferencedCode, but overrides require unreferenced code due to serialization."
 )]
-public sealed class WrapperJsonConverter<
+public sealed class ValueWrapperJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: System.Text.Json.Serialization.JsonConverter<TWrapper>
@@ -64,7 +64,7 @@ public sealed class WrapperJsonConverter<
 	"Trimming", "IL2046",
 	Justification = "JsonConverter read/write methods are not marked with RequiresUnreferencedCode, but overrides require unreferenced code due to serialization."
 )]
-public sealed class LargeNumberWrapperJsonConverter<
+public sealed class LargeNumberValueWrapperJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: System.Text.Json.Serialization.JsonConverter<TWrapper>

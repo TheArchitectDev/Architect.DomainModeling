@@ -467,7 +467,8 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("5", new FullySelfImplementedWrapperValueObject(5).ToString(format: null, formatProvider: null));
 			Assert.Equal("5", new FormatAndParseTestingStringWrapper("5").ToString(format: null, formatProvider: null));
 
-			Assert.Equal("", ((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).ToString(format: null, formatProvider: null));
+			// Cannot be helped - see comments in IFormattableWrapper
+			Assert.Null(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).ToString(format: null, formatProvider: null));
 		}
 
 		[Fact]
@@ -491,6 +492,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, charsWritten);
 			Assert.Equal("5".AsSpan(), result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).TryFormat(result, out charsWritten, format: null, provider: null));
 			Assert.Equal(0, charsWritten);
 		}
@@ -516,6 +518,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, bytesWritten);
 			Assert.Equal("5"u8, result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).TryFormat(result, out bytesWritten, format: null, provider: null));
 			Assert.Equal(0, bytesWritten);
 		}
@@ -584,6 +587,16 @@ namespace Architect.DomainModeling.Tests
 			Assert.True(FormatAndParseTestingStringWrapper.TryParse(input, provider: null, out var result4));
 			Assert.Equal("5", result4.Value?.Value.Value?.Value);
 			Assert.Equal(result4, FormatAndParseTestingStringWrapper.Parse(input, provider: null));
+		}
+
+		[Fact]
+		public void ParsabilityAndFormattability_InAllScenarios_ShouldBeGeneratedAccordingToTransitiveAvailability()
+		{
+			var interfaces = typeof(FormatAndParseTestingUriWrapper).GetInterfaces();
+			Assert.Contains(interfaces, interf => interf.Name == "ISpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable");
 		}
 	}
 
@@ -695,6 +708,14 @@ namespace Architect.DomainModeling.Tests
 		internal partial struct FormatAndParseTestingStringId : IComparable<FormatAndParseTestingStringId>
 		{
 		}
+		[WrapperValueObject<Uri>]
+		internal partial class FormatAndParseTestingUriWrapper : IComparable<FormatAndParseTestingUriWrapper>
+		{
+			public int CompareTo(FormatAndParseTestingUriWrapper? other)
+			{
+				throw new NotImplementedException("This exists only to allow an identity type based on this type.");
+			}
+		}
 
 		[WrapperValueObject<JsonTestingNestedStringWrapper>]
 		internal partial class JsonTestingStringWrapper
@@ -773,10 +794,11 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[WrapperValueObject<int>]
-		[System.Text.Json.Serialization.JsonConverter(typeof(WrapperJsonConverter<FullySelfImplementedIdentity, int>))]
-		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftWrapperJsonConverter<FullySelfImplementedIdentity, int>))]
+		[System.Text.Json.Serialization.JsonConverter(typeof(ValueWrapperJsonConverter<FullySelfImplementedIdentity, int>))]
+		[Newtonsoft.Json.JsonConverter(typeof(ValueWrapperNewtonsoftJsonConverter<FullySelfImplementedIdentity, int>))]
 		internal sealed partial class FullySelfImplementedWrapperValueObject
 			: WrapperValueObject<int>,
+			IValueWrapper<FullySelfImplementedWrapperValueObject, int>,
 			IComparable<FullySelfImplementedWrapperValueObject>,
 			ISpanFormattable,
 			ISpanParsable<FullySelfImplementedWrapperValueObject>,
@@ -796,6 +818,31 @@ namespace Architect.DomainModeling.Tests
 			[Obsolete("This constructor exists for deserialization purposes only.")]
 			private FullySelfImplementedWrapperValueObject()
 			{
+			}
+
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, int>.Create(int value)
+			{
+				return new FullySelfImplementedWrapperValueObject(value);
+			}
+
+			/// <summary>
+			/// Serializes a domain object as a plain value.
+			/// </summary>
+			int ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Serialize()
+			{
+				return this.Value;
+			}
+
+			/// <summary>
+			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+			/// </summary>
+			static FullySelfImplementedWrapperValueObject ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Deserialize(int value)
+			{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable CS0618 // Obsolete constructor is intended for us
+				return new FullySelfImplementedWrapperValueObject() { Value = value };
+#pragma warning restore CS0618
+#pragma warning restore IDE0079
 			}
 
 			public sealed override int GetHashCode()
@@ -825,24 +872,6 @@ namespace Architect.DomainModeling.Tests
 				return this.Value.ToString();
 			}
 
-			/// <summary>
-			/// Serializes a domain object as a plain value.
-			/// </summary>
-			int ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Serialize()
-			{
-				return this.Value;
-			}
-
-			/// <summary>
-			/// Deserializes a plain value back into a domain object without any validation.
-			/// </summary>
-			static FullySelfImplementedWrapperValueObject ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Deserialize(int value)
-			{
-#pragma warning disable CS0618 // Obsolete constructor is intended for us
-				return new FullySelfImplementedWrapperValueObject() { Value = value };
-#pragma warning restore CS0618
-			}
-
 			public static bool operator ==(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => left is null ? right is null : left.Equals(right);
 			public static bool operator !=(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => !(left == right);
 
@@ -860,6 +889,8 @@ namespace Architect.DomainModeling.Tests
 			public static implicit operator int?(FullySelfImplementedWrapperValueObject? instance) => instance?.Value;
 
 			#region Formatting & Parsing
+
+#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
 
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -893,6 +924,8 @@ namespace Architect.DomainModeling.Tests
 
 			public static FullySelfImplementedWrapperValueObject Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(utf8Text, provider);
+
+#endif
 
 			#endregion
 		}
