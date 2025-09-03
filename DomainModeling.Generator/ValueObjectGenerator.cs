@@ -43,10 +43,10 @@ public class ValueObjectGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("ValueObjectAttribute", Constants.DomainModelingNamespace, arity: 0) is null)
+		if (type.GetAttribute("ValueObjectAttribute", "Architect.DomainModeling", arity: 0) is null)
 			return null;
 
-		result.IsValueObject = type.IsOrImplementsInterface(type => type.IsType(Constants.ValueObjectInterfaceTypeName, Constants.DomainModelingNamespace, arity: 0), out _);
+		result.IsValueObject = type.IsOrImplementsInterface(type => type.IsType("IValueObject", "Architect", "DomainModeling", arity: 0), out _);
 		result.IsPartial = tds.Modifiers.Any(SyntaxKind.PartialKeyword);
 		result.IsRecord = type.IsRecord;
 		result.IsClass = type.TypeKind == TypeKind.Class;
@@ -76,7 +76,7 @@ public class ValueObjectGenerator : SourceGenerator
 		// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
 			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
-			method.Parameters[0].Type.IsType<object>()));
+			method.Parameters[0].Type.SpecialType == SpecialType.System_Object));
 
 		// Records override this, but our implementation is superior
 		existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
@@ -142,7 +142,7 @@ public class ValueObjectGenerator : SourceGenerator
 		result.DataMemberHashCode = dataMemberHashCode;
 
 		// IComparable is implemented on-demand, if the type implements IComparable against itself and all data members are self-comparable
-		result.IsComparable = type.IsOrImplementsInterface(interf => interf.IsType("IComparable", "System", arity: 1) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default), out _);
+		result.IsComparable = type.IsOrImplementsInterface(interf => interf.IsSystemType("IComparable", arity: 1) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default), out _);
 		result.IsComparable = result.IsComparable && dataMembers.All(tuple => tuple.Type.IsComparable(seeThroughNullable: true));
 
 		return result;
@@ -263,7 +263,7 @@ public class ValueObjectGenerator : SourceGenerator
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using {Constants.DomainModelingNamespace};
+using Architect.DomainModeling;
 
 #nullable enable
 
@@ -272,7 +272,7 @@ namespace {containingNamespace}
 	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial{(isRecord ? " record" : "")} class {typeName} : ValueObject, IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "/*" : "")}
-		{(dataMembers.Any(member => member.Type.IsType<string>())
+		{(dataMembers.Any(member => member.Type.SpecialType == SpecialType.System_String)
 			? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"
 			: @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "*/" : "")}

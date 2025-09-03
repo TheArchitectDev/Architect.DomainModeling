@@ -18,11 +18,11 @@ public partial class DomainModelConfiguratorGenerator
 		var targetNamespace = input.Metadata.AssemblyName;
 
 		var configurationText = String.Join($"{Environment.NewLine}\t\t\t", input.Generatables.Select(generatable => $"""
-			configurator.ConfigureWrapperValueObject<{generatable.ContainingNamespace}.{generatable.TypeName}, {generatable.UnderlyingTypeFullyQualifiedName}>({Environment.NewLine}				new {Constants.DomainModelingNamespace}.Configuration.IWrapperValueObjectConfigurator.Args());
+			configurator.ConfigureWrapperValueObject<{generatable.ContainingNamespace}.{generatable.TypeName}, {generatable.UnderlyingTypeFullyQualifiedName}>({Environment.NewLine}				new Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator.Args());
 			"""));
 
 		var source = $@"
-using {Constants.DomainModelingNamespace};
+using Architect.DomainModeling;
 
 #nullable enable
 
@@ -38,7 +38,7 @@ namespace {targetNamespace}
 		/// For example, this can be used to have Entity Framework configure a convention for every matching type in the domain model, in a trim-safe way.
 		/// </para>
 		/// </summary>
-		public static void ConfigureWrapperValueObjects({Constants.DomainModelingNamespace}.Configuration.IWrapperValueObjectConfigurator configurator)
+		public static void ConfigureWrapperValueObjects(Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator configurator)
 		{{
 			{configurationText}
 		}}

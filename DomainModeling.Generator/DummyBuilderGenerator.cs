@@ -44,7 +44,7 @@ public class DummyBuilderGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("DummyBuilderAttribute", Constants.DomainModelingNamespace, arity: 1) is not AttributeData { AttributeClass: not null } attribute)
+		if (type.GetAttribute("DummyBuilderAttribute", "Architect.DomainModeling", arity: 1) is not AttributeData { AttributeClass: not null } attribute)
 			return null;
 
 		var modelType = attribute.AttributeClass.TypeArguments[0];
@@ -121,7 +121,7 @@ public class DummyBuilderGenerator : SourceGenerator
 			context.CancellationToken.ThrowIfCancellationRequested();
 
 			var type = compilation.GetTypeByMetadataName(builder.TypeFullMetadataName);
-			var modelType = type?.GetAttribute("DummyBuilderAttribute", Constants.DomainModelingNamespace, arity: 1) is AttributeData { AttributeClass: not null } attribute
+			var modelType = type?.GetAttribute("DummyBuilderAttribute", "Architect.DomainModeling", arity: 1) is AttributeData { AttributeClass: not null } attribute
 				? attribute.AttributeClass.TypeArguments[0]
 				: null;
 
@@ -227,48 +227,48 @@ public class DummyBuilderGenerator : SourceGenerator
 					componentBuilder.Append("// ");
 				componentBuilder.AppendLine($"		public {typeName} With{memberName}({param.Type.WithNullableAnnotation(NullableAnnotation.None)} value) => this.With(b => b.{memberName} = value);");
 
-				foreach (var primitiveType in param.Type.GetAvailableConversionsFromPrimitives(skipForSystemTypes: true))
+				foreach (var (primitiveSpecialType, primitiveType) in param.Type.EnumerateAvailableConversionsFromPrimitives(skipForSpecialTypes: true))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType(primitiveType)))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == primitiveSpecialType))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}({primitiveType} value, bool _ = false) => this.With{memberName}(({param.Type.WithNullableAnnotation(NullableAnnotation.None)})value);");
 				}
 
-				if (param.Type.IsType<DateTime>() || param.Type.IsType<DateTimeOffset>())
+				if (param.Type.SpecialType == SpecialType.System_DateTime || param.Type.IsSystemType("DateTimeOffset"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));");
 				}
-				if (param.Type.IsNullable(out var underlyingType) && (underlyingType.IsType<DateTime>() || underlyingType.IsType<DateTimeOffset>()))
+				if (param.Type.IsNullable(out var underlyingType) && (underlyingType.SpecialType == SpecialType.System_DateTime || underlyingType.IsSystemType("DateTimeOffset")))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));");
 				}
 
-				if (param.Type.IsType("DateOnly", "System"))
+				if (param.Type.IsSystemType("DateOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(DateOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}
-				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsType("DateOnly", "System"))
+				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsSystemType("DateOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : DateOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}
 
-				if (param.Type.IsType("TimeOnly", "System"))
+				if (param.Type.IsSystemType("TimeOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(TimeOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}
-				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsType("TimeOnly", "System"))
+				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsSystemType("TimeOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : TimeOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}

@@ -16,10 +16,10 @@ public partial class DomainModelConfiguratorGenerator
 		var targetNamespace = input.Metadata.AssemblyName;
 
 		var configurationText = String.Join($"{Environment.NewLine}\t\t\t", input.Generatables.Select(generatable =>
-			$"configurator.ConfigureEntity<{generatable.ContainingNamespace}.{generatable.TypeName}>({Environment.NewLine}				new {Constants.DomainModelingNamespace}.Configuration.IEntityConfigurator.Args() {{ HasDefaultConstructor = {(generatable.ExistingComponents.HasFlag(EntityGenerator.EntityTypeComponents.DefaultConstructor) ? "true" : "false")} }});"));
+			$"configurator.ConfigureEntity<{generatable.ContainingNamespace}.{generatable.TypeName}>({Environment.NewLine}				new Architect.DomainModeling.Configuration.IEntityConfigurator.Args() {{ HasDefaultConstructor = {(generatable.ExistingComponents.HasFlag(EntityGenerator.EntityTypeComponents.DefaultConstructor) ? "true" : "false")} }});"));
 
 		var source = $@"
-using {Constants.DomainModelingNamespace};
+using Architect.DomainModeling;
 
 #nullable enable
 
@@ -35,7 +35,7 @@ namespace {targetNamespace}
 		/// For example, this can be used to have Entity Framework configure a convention for every matching type in the domain model, in a trim-safe way.
 		/// </para>
 		/// </summary>
-		public static void ConfigureEntities({Constants.DomainModelingNamespace}.Configuration.IEntityConfigurator configurator)
+		public static void ConfigureEntities(Architect.DomainModeling.Configuration.IEntityConfigurator configurator)
 		{{
 			{configurationText}
 		}}

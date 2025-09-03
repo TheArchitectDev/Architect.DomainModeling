@@ -49,7 +49,7 @@ public class EntityGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("EntityAttribute", Constants.DomainModelingNamespace, arity: 0) is null)
+		if (type.GetAttribute("EntityAttribute", "Architect.DomainModeling", arity: 0) is null)
 			return null;
 
 		// Only concrete
@@ -67,7 +67,7 @@ public class EntityGenerator : SourceGenerator
 		var result = new Generatable()
 		{
 			TypeLocation = type.Locations.FirstOrDefault(),
-			IsEntity = type.IsOrImplementsInterface(type => type.IsType(Constants.EntityInterfaceName, Constants.DomainModelingNamespace, arity: 0), out _),
+			IsEntity = type.IsOrImplementsInterface(type => type.IsType("IEntity", "Architect", "DomainModeling", arity: 0), out _),
 			TypeName = type.Name, // Non-generic by filter
 			ContainingNamespace = type.ContainingNamespace.ToString(),
 		};

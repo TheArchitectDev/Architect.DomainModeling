@@ -57,7 +57,7 @@ public partial class EntityFrameworkConfigurationGenerator : SourceGenerator
 			methodSymbol.Name == "ConfigureConventions" &&
 			methodSymbol.IsOverride &&
 			methodSymbol.Parameters.Length == 1 &&
-			methodSymbol.Parameters[0].Type.IsType("ModelConfigurationBuilder", "Microsoft.EntityFrameworkCore"))
+			methodSymbol.Parameters[0].Type.IsType("ModelConfigurationBuilder", "Microsoft", "EntityFrameworkCore"))
 			return true;
 
 		return false;
@@ -140,8 +140,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using {Constants.DomainModelingNamespace};
-using {Constants.DomainModelingNamespace}.Conversions;
+using Architect.DomainModeling;
+using Architect.DomainModeling.Conversions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -257,10 +257,10 @@ namespace {ownAssemblyName}
 		: IDomainModelConfigurator;
 
 	file sealed record class EntityFrameworkIdentityConfigurator(ModelConfigurationBuilder ConfigurationBuilder)
-		: {Constants.DomainModelingNamespace}.Configuration.IIdentityConfigurator
+		: Architect.DomainModeling.Configuration.IIdentityConfigurator
 	{{
 		public void ConfigureIdentity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity, TUnderlying>(
-			in {Constants.DomainModelingNamespace}.Configuration.IIdentityConfigurator.Args _)
+			in Architect.DomainModeling.Configuration.IIdentityConfigurator.Args _)
 			where TIdentity : IIdentity<TUnderlying>, ISerializableDomainObject<TIdentity, TUnderlying>
 			where TUnderlying : notnull, IEquatable<TUnderlying>, IComparable<TUnderlying>
 		{{
@@ -294,10 +294,10 @@ namespace {ownAssemblyName}
 
 	file sealed record class EntityFrameworkWrapperValueObjectConfigurator(
 		ModelConfigurationBuilder ConfigurationBuilder)
-		: {Constants.DomainModelingNamespace}.Configuration.IWrapperValueObjectConfigurator
+		: Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator
 	{{
 		public void ConfigureWrapperValueObject<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TValue>(
-			in {Constants.DomainModelingNamespace}.Configuration.IWrapperValueObjectConfigurator.Args _)
+			in Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator.Args _)
 			where TWrapper : IWrapperValueObject<TValue>, ISerializableDomainObject<TWrapper, TValue>
 			where TValue : notnull
 		{{
@@ -325,7 +325,7 @@ namespace {ownAssemblyName}
 
 	file sealed record class EntityFrameworkEntityConfigurator(
 		Action InvokeConfigurationCallbacks)
-		: {Constants.DomainModelingNamespace}.Configuration.IEntityConfigurator, {Constants.DomainModelingNamespace}.Configuration.IDomainEventConfigurator, IEntityTypeAddedConvention, IModelFinalizingConvention
+		: Architect.DomainModeling.Configuration.IEntityConfigurator, Architect.DomainModeling.Configuration.IDomainEventConfigurator, IEntityTypeAddedConvention, IModelFinalizingConvention
 	{{
 		private Dictionary<Type, IConventionEntityType> EntityTypeConventionsByType {{ get; }} = new Dictionary<Type, IConventionEntityType>();
 
@@ -342,7 +342,7 @@ namespace {ownAssemblyName}
 		}}
 
 		public void ConfigureEntity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TEntity>(
-			in {Constants.DomainModelingNamespace}.Configuration.IEntityConfigurator.Args args)
+			in Architect.DomainModeling.Configuration.IEntityConfigurator.Args args)
 			where TEntity : IEntity
 		{{
 			if (!this.EntityTypeConventionsByType.TryGetValue(typeof(TEntity), out var entityTypeConvention))
@@ -355,7 +355,7 @@ namespace {ownAssemblyName}
 		}}
 
 		public void ConfigureDomainEvent<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TDomainEvent>(
-			in {Constants.DomainModelingNamespace}.Configuration.IDomainEventConfigurator.Args args)
+			in Architect.DomainModeling.Configuration.IDomainEventConfigurator.Args args)
 			where TDomainEvent : IDomainObject
 		{{
 			if (!this.EntityTypeConventionsByType.TryGetValue(typeof(TDomainEvent), out var entityTypeConvention))
@@ -401,7 +401,7 @@ namespace {ownAssemblyName}
 }}
 ";
 
-		AddSource(context, source, "EntityFrameworkDomainModelConfigurationExtensions", $"{Constants.DomainModelingNamespace}.EntityFramework");
+		AddSource(context, source, "EntityFrameworkDomainModelConfigurationExtensions", $"Architect.DomainModeling.EntityFramework");
 	}
 
 	internal sealed record Generatable

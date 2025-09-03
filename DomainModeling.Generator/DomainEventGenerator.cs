@@ -49,7 +49,7 @@ public class DomainEventGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("DomainEventAttribute", Constants.DomainModelingNamespace, arity: 0) is null)
+		if (type.GetAttribute("DomainEventAttribute", "Architect.DomainModeling", arity: 0) is null)
 			return null;
 
 		// Only concrete
@@ -67,7 +67,7 @@ public class DomainEventGenerator : SourceGenerator
 		var result = new Generatable()
 		{
 			TypeLocation = type.Locations.FirstOrDefault(),
-			IsDomainObject = type.IsOrImplementsInterface(type => type.IsType(Constants.DomainObjectInterfaceName, Constants.DomainModelingNamespace, arity: 0), out _),
+			IsDomainObject = type.IsOrImplementsInterface(type => type.IsType("IDomainObject", "Architect", "DomainModeling", arity: 0), out _),
 			TypeName = type.Name, // Non-generic by filter
 			ContainingNamespace = type.ContainingNamespace.ToString(),
 		};

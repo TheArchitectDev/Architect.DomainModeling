@@ -81,20 +81,20 @@ public class IdentityGenerator : SourceGenerator
 
 	private static bool LooksLikeEntity(INamedTypeSymbol type)
 	{
-		var result = type.IsOrInheritsClass(baseType => baseType.Name == Constants.EntityTypeName, out _);
+		var result = type.IsOrInheritsClass(baseType => baseType.Name == "Entity", out _);
 		return result;
 	}
 
 	private static bool IsEntity(INamedTypeSymbol type, out INamedTypeSymbol entityInterface)
 	{
-		var result = type.IsOrInheritsClass(baseType => baseType.Arity == 2 && baseType.IsType(Constants.EntityTypeName, Constants.DomainModelingNamespace), out entityInterface);
+		var result = type.IsOrInheritsClass(baseType => baseType.Arity == 2 && baseType.IsType("Entity", "Architect", "DomainModeling"), out entityInterface);
 		return result;
 	}
 
 	private static bool HasRequiredAttribute(INamedTypeSymbol type, out AttributeData attribute)
 	{
 		attribute = null!;
-		if (type.GetAttribute("IdentityValueObjectAttribute", Constants.DomainModelingNamespace, arity: 1) is AttributeData { AttributeClass: not null } attributeOutput)
+		if (type.GetAttribute("IdentityValueObjectAttribute", "Architect.DomainModeling", arity: 1) is AttributeData { AttributeClass: not null } attributeOutput)
 			attribute = attributeOutput;
 		return attribute != null;
 	}
@@ -115,7 +115,7 @@ public class IdentityGenerator : SourceGenerator
 			// Consider any type with SOME 2-param generic "Entity" inheritance/implementation
 			foreach (var baseType in cds.BaseList.Types)
 			{
-				if (baseType.Type.HasArityAndName(2, Constants.EntityTypeName))
+				if (baseType.Type.HasArityAndName(2, "Entity"))
 					return true;
 			}
 		}
@@ -176,8 +176,8 @@ public class IdentityGenerator : SourceGenerator
 
 			result.IdTypeExists = true;
 			result.IdTypeLocation = type.Locations.FirstOrDefault();
-			result.IsIIdentity = type.IsOrImplementsInterface(interf => interf.IsType(Constants.IdentityInterfaceTypeName, Constants.DomainModelingNamespace, arity: 1), out _);
-			result.IsSerializableDomainObject = type.IsOrImplementsInterface(type => type.IsType(Constants.SerializableDomainObjectInterfaceTypeName, Constants.DomainModelingNamespace, arity: 2), out _);
+			result.IsIIdentity = type.IsOrImplementsInterface(interf => interf.IsType("IIdentity", "Architect", "DomainModeling", arity: 1), out _);
+			result.IsSerializableDomainObject = type.IsOrImplementsInterface(type => type.IsType("ISerializableDomainObject", "Architect", "DomainModeling", arity: 2), out _);
 			result.IsPartial = tds.Modifiers.Any(SyntaxKind.PartialKeyword);
 			result.IsRecord = type.IsRecord;
 			result.IsStruct = type.TypeKind == TypeKind.Struct;
@@ -211,7 +211,7 @@ public class IdentityGenerator : SourceGenerator
 			// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 			existingComponents |= IdTypeComponents.EqualsOverride.If(members.Any(member =>
 				member.Name == nameof(Equals) && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 1 &&
-				method.Parameters[0].Type.IsType<object>()));
+				method.Parameters[0].Type.SpecialType == SpecialType.System_Object));
 
 			// Records override this, but our implementation is superior
 			existingComponents |= IdTypeComponents.EqualsMethod.If(members.Any(member =>
@@ -275,90 +275,90 @@ public class IdentityGenerator : SourceGenerator
 			existingComponents |= IdTypeComponents.NullableConvertToOperator.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 1 &&
 				(member.HasNameOrExplicitInterfaceImplementationName("op_Implicit") || member.HasNameOrExplicitInterfaceImplementationName("op_Explicit")) &&
-				method.ReturnType.IsType(nameof(Nullable<int>), "System") && method.ReturnType.HasSingleGenericTypeArgument(type) &&
+				method.ReturnType.IsNullableOf(type) &&
 				(underlyingType.IsReferenceType
 					? method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)
-					: method.Parameters[0].Type.IsType(nameof(Nullable<int>), "System") && method.Parameters[0].Type.HasSingleGenericTypeArgument(underlyingType))));
+					: method.Parameters[0].Type.IsNullableOf(underlyingType))));
 
 			existingComponents |= IdTypeComponents.NullableConvertFromOperator.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 1 &&
 				(member.HasNameOrExplicitInterfaceImplementationName("op_Implicit") || member.HasNameOrExplicitInterfaceImplementationName("op_Explicit")) &&
 				(underlyingType.IsReferenceType
 					? method.ReturnType.Equals(underlyingType, SymbolEqualityComparer.Default)
-					: method.ReturnType.IsType(nameof(Nullable<int>), "System") && method.ReturnType.HasSingleGenericTypeArgument(underlyingType)) &&
-				method.Parameters[0].Type.IsType(nameof(Nullable<int>), "System") && method.Parameters[0].Type.HasSingleGenericTypeArgument(type)));
+					: method.ReturnType.IsNullableOf(underlyingType) &&
+				method.Parameters[0].Type.IsNullableOf(type))));
 
 			existingComponents |= IdTypeComponents.SerializeToUnderlying.If(members.Any(member =>
-				member.Name.EndsWith($".{Constants.SerializeDomainObjectMethodName}") && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 0));
+				member.HasNameOrExplicitInterfaceImplementationName("Serialize") && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 0));
 
 			existingComponents |= IdTypeComponents.DeserializeFromUnderlying.If(members.Any(member =>
-				member.Name.EndsWith($".{Constants.DeserializeDomainObjectMethodName}") && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 1 &&
+				member.HasNameOrExplicitInterfaceImplementationName("Deserialize") && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 1 &&
 				method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
 
 			existingComponents |= IdTypeComponents.SystemTextJsonConverter.If(type.GetAttributes().Any(attribute =>
-				attribute.AttributeClass?.IsType("JsonConverterAttribute", "System.Text.Json.Serialization") == true));
+				attribute.AttributeClass?.IsTypeWithNamespace("JsonConverterAttribute", "System.Text.Json.Serialization") == true));
 
 			existingComponents |= IdTypeComponents.NewtonsoftJsonConverter.If(type.GetAttributes().Any(attribute =>
-				attribute.AttributeClass?.IsType("JsonConverterAttribute", "Newtonsoft.Json") == true));
+				attribute.AttributeClass?.IsType("JsonConverterAttribute", "Newtonsoft", "Json") == true));
 
 			existingComponents |= IdTypeComponents.StringComparison.If(members.Any(member =>
 				member.Name == "StringComparison"));
 
 			existingComponents |= IdTypeComponents.FormattableToStringOverride.If(members.Any(member =>
 				member.Name == nameof(IFormattable.ToString) && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
-				method.Parameters[0].Type.IsType<string>() && method.Parameters[1].Type.IsType<IFormatProvider>()));
+				method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
 			existingComponents |= IdTypeComponents.ParsableTryParseMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 3 &&
 				member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
-				method.Parameters[0].Type.IsType<string>() && method.Parameters[1].Type.IsType<IFormatProvider>() && method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
+				method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider") && method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
 
 			existingComponents |= IdTypeComponents.ParsableParseMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
 				member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
-				method.Parameters[0].Type.IsType<string>() && method.Parameters[1].Type.IsType<IFormatProvider>()));
+				method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
 			existingComponents |= IdTypeComponents.SpanFormattableTryFormatMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 4 &&
 				member.HasNameOrExplicitInterfaceImplementationName("TryFormat") &&
-				method.Parameters[0].Type.IsType(typeof(Span<char>)) &&
-				method.Parameters[1].Type.IsType<int>() && method.Parameters[1].RefKind == RefKind.Out &&
-				method.Parameters[2].Type.IsType(typeof(ReadOnlySpan<char>)) &&
-				method.Parameters[3].Type.IsType<IFormatProvider>()));
+				method.Parameters[0].Type.IsSpanOfSpecialType(SpecialType.System_Char) &&
+				method.Parameters[1].Type.SpecialType == SpecialType.System_Int32 && method.Parameters[1].RefKind == RefKind.Out &&
+				method.Parameters[2].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+				method.Parameters[3].Type.IsSystemType("IFormatProvider")));
 
 			existingComponents |= IdTypeComponents.SpanParsableTryParseMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 3 &&
 				member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
-				method.Parameters[0].Type.IsType(typeof(ReadOnlySpan<char>)) &&
-				method.Parameters[1].Type.IsType(typeof(IFormatProvider)) &&
+				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+				method.Parameters[1].Type.IsSystemType("IFormatProvider") &&
 				method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
 
 			existingComponents |= IdTypeComponents.SpanParsableParseMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
 				member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
-				method.Parameters[0].Type.IsType(typeof(ReadOnlySpan<char>)) &&
-				method.Parameters[1].Type.IsType(typeof(IFormatProvider))));
+				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+				method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
 			existingComponents |= IdTypeComponents.Utf8SpanFormattableTryFormatMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 4 &&
 				member.HasNameOrExplicitInterfaceImplementationName("TryFormat") &&
-				method.Parameters[0].Type.IsType(typeof(Span<byte>)) &&
-				method.Parameters[1].Type.IsType<int>() && method.Parameters[1].RefKind == RefKind.Out &&
-				method.Parameters[2].Type.IsType(typeof(ReadOnlySpan<char>)) &&
-				method.Parameters[3].Type.IsType<IFormatProvider>()));
+				method.Parameters[0].Type.IsSpanOfSpecialType(SpecialType.System_Byte) &&
+				method.Parameters[1].Type.SpecialType == SpecialType.System_Int32 && method.Parameters[1].RefKind == RefKind.Out &&
+				method.Parameters[2].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+				method.Parameters[3].Type.IsSystemType("IFormatProvider")));
 
 			existingComponents |= IdTypeComponents.Utf8SpanParsableTryParseMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 3 &&
 				member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
-				method.Parameters[0].Type.IsType(typeof(ReadOnlySpan<byte>)) &&
-				method.Parameters[1].Type.IsType(typeof(IFormatProvider)) &&
+				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Byte) &&
+				method.Parameters[1].Type.IsSystemType("IFormatProvider") &&
 				method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
 
 			existingComponents |= IdTypeComponents.Utf8SpanParsableParseMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
 				member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
-				method.Parameters[0].Type.IsType(typeof(ReadOnlySpan<byte>)) &&
-				method.Parameters[1].Type.IsType(typeof(IFormatProvider))));
+				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Byte) &&
+				method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
 			existingComponents |= IdTypeComponents.CreateMethod.If(members.Any(member =>
 				member is IMethodSymbol method && method.IsStatic && method.Arity == 0 && method.Parameters.Length == 1 &&
@@ -368,17 +368,17 @@ public class IdentityGenerator : SourceGenerator
 			result.ExistingComponents = existingComponents;
 		}
 
-		result.ToStringExpression = underlyingType.CreateStringExpression("Value");
+		result.ToStringExpression = underlyingType.CreateValueToStringExpression();
 		result.HashCodeExpression = underlyingType.CreateHashCodeExpression("Value", stringVariant: "(this.{0} is null ? 0 : String.GetHashCode(this.{0}, this.StringComparison))");
 		result.EqualityExpression = underlyingType.CreateEqualityExpression("Value", stringVariant: "String.Equals(this.{0}, other.{0}, this.StringComparison)");
 		result.ComparisonExpression = underlyingType.CreateComparisonExpression("Value", stringVariant: "String.Compare(this.{0}, other.{0}, this.StringComparison)");
 		result.UnderlyingTypeFullyQualifiedName = underlyingType.ToString();
 		result.IsToStringNullable = underlyingType.IsToStringNullable() || result.ToStringExpression.Contains('?');
-		result.UnderlyingTypeIsINumber = underlyingType.IsOrImplementsInterface(interf => interf.IsType("INumber", "System.Numerics", arity: 1), out _);
-		result.UnderlyingTypeIsString = underlyingType.IsType<string>();
+		result.UnderlyingTypeIsINumber = underlyingType.IsOrImplementsInterface(interf => interf.IsSystemType("INumber", "Numerics", arity: 1), out _);
+		result.UnderlyingTypeIsString = underlyingType.SpecialType == SpecialType.System_String;
 		result.UnderlyingTypeIsNonNullString = result.UnderlyingTypeIsString && underlyingType.NullableAnnotation != NullableAnnotation.Annotated;
-		result.UnderlyingTypeIsNumericUnsuitableForJson = underlyingType.IsType<decimal>() || underlyingType.IsType<ulong>() || underlyingType.IsType<long>() || underlyingType.IsType<System.Numerics.BigInteger>() ||
-			underlyingType.IsType("UInt128", "System") || underlyingType.IsType("Int128", "System");
+		result.UnderlyingTypeIsNumericUnsuitableForJson = underlyingType.SpecialType is SpecialType.System_Decimal or SpecialType.System_UInt64 or SpecialType.System_Int64 ||
+			underlyingType.IsSystemType("BigInteger", "Numerics") || underlyingType.IsSystemType("UInt128") || underlyingType.IsSystemType("Int128");
 		result.UnderlyingTypeIsStruct = underlyingType.IsValueType;
 
 		return result;
@@ -502,8 +502,8 @@ public class IdentityGenerator : SourceGenerator
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using {Constants.DomainModelingNamespace};
-using {Constants.DomainModelingNamespace}.Conversions;
+using Architect.DomainModeling;
+using Architect.DomainModeling.Conversions;
 
 #nullable enable
 
@@ -521,7 +521,7 @@ namespace {containingNamespace}
 
 	{(hasIdentityValueObjectAttribute ? "" : $"[IdentityValueObject<{underlyingTypeFullyQualifiedName}>]")}
 	{(entityTypeName is null ? "/* Generated */ " : "")}{accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")}{(isRecord ? " record" : "")} struct {idTypeName} :
-		{Constants.IdentityInterfaceTypeName}<{underlyingTypeFullyQualifiedName}>,
+		IIdentity<{underlyingTypeFullyQualifiedName}>,
 		IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>,
 		IEquatable<{idTypeName}>,
 		IComparable<{idTypeName}>,
@@ -529,7 +529,7 @@ namespace {containingNamespace}
 		{(isSpanParsable ? "" : "//")}ISpanParsable<{idTypeName}>, ISpanParsable{formattableParsableWrapperSuffix},
 		{(isUtf8SpanFormattable ? "" : "//")}IUtf8SpanFormattable, IUtf8SpanFormattable{formattableParsableWrapperSuffix},
 		{(isUtf8SpanParsable ? "" : "//")}IUtf8SpanParsable<{idTypeName}>, IUtf8SpanParsable{formattableParsableWrapperSuffix},
-		{Constants.SerializableDomainObjectInterfaceTypeName}<{idTypeName}, {underlyingTypeFullyQualifiedName}>
+		ISerializableDomainObject<{idTypeName}, {underlyingTypeFullyQualifiedName}>
 	{{
 		{(existingComponents.HasFlags(IdTypeComponents.Value) ? "/*" : "")}
 		{nonNullStringSummary}
@@ -555,7 +555,7 @@ namespace {containingNamespace}
 		/// <summary>
 		/// Serializes a domain object as a plain value.
 		/// </summary>
-		{underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")} {Constants.SerializableDomainObjectInterfaceTypeName}<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
+		{underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")} ISerializableDomainObject<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
 		{{
 			return this.Value;
 		}}
@@ -565,7 +565,7 @@ namespace {containingNamespace}
 		/// <summary>
 		/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
 		/// </summary>
-		static {idTypeName} {Constants.SerializableDomainObjectInterfaceTypeName}<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
+		static {idTypeName} ISerializableDomainObject<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
 		{{
 			{(existingComponents.HasFlag(IdTypeComponents.UnsettableValue) ? "// To instead get safe syntax, make the Value property '{ get; private init; }' (or let the source generator implement it)" : "")}
 			{(existingComponents.HasFlag(IdTypeComponents.UnsettableValue) ? $"return System.Runtime.CompilerServices.Unsafe.As<{underlyingTypeFullyQualifiedName}, {idTypeName}>(ref value);" : "")}

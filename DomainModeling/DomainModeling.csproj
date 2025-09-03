@@ -11,6 +11,7 @@
 		<LangVersion>13</LangVersion>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<IsTrimmable>True</IsTrimmable>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 	
 	<PropertyGroup>
@@ -97,10 +98,8 @@ Misc improvements
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Include="..\LICENSE">
-			<Pack>True</Pack>
-			<PackagePath></PackagePath>
-		</None>
+		<None Include="../LICENSE" Pack="True" PackagePath="/" />
+		<None Include="../README.md" Pack="True" PackagePath="/" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -108,17 +107,10 @@ Misc improvements
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\DomainModeling.Generator\DomainModeling.Generator.csproj" Pack="false">
-			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-			<OutputItemType>Content</OutputItemType>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</ProjectReference>
-	</ItemGroup>
-
-	<ItemGroup>
-		<!-- Package the generator in the analyzer directory of the nuget package -->
-		<None Remove="$(OutputPath)/net6.0/$(AssemblyName).Generator.dll" />
-		<None Include="$(OutputPath)/net6.0/$(AssemblyName).Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+		<!-- Take build dependency on the generator -->
+		<ProjectReference Include="..\DomainModeling.Generator\DomainModeling.Generator.csproj" Pack="False" ReferenceOutputAssembly="False" Private="False" />
+		<!-- Package the generator in the analyzer directory of the NuGet package -->
+		<None Include="$(MSBuildProjectDirectory)/../DomainModeling.Generator/bin/$(Configuration)/netstandard2.0/Architect.DomainModeling.Generator.dll" Pack="True" PackagePath="analyzers/dotnet/cs" Visible="False" />
 	</ItemGroup>
 
 </Project>
