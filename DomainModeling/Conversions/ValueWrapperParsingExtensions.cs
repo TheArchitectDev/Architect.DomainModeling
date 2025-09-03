@@ -22,9 +22,6 @@ using Architect.DomainModeling.Conversions;
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class ArchitectDomainModelingValueWrapperParsingExtensions
 {
-	// #TODO: Remove outcommented!!! And simplify region names, if need regions at all.
-	#region IParsable - Preferred
-
 	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
 		where TWrapper : IParsable<TWrapper>, IValueWrapper<TWrapper, TValue>
 	{
@@ -43,10 +40,6 @@ public static class ArchitectDomainModelingValueWrapperParsingExtensions
 		}
 	}
 
-	#endregion
-
-	#region ISpanParsable - Preferred
-
 	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
 		where TWrapper : ISpanParsable<TWrapper>, IValueWrapper<TWrapper, TValue>
 	{
@@ -63,36 +56,6 @@ public static class ArchitectDomainModelingValueWrapperParsingExtensions
 		}
 	}
 
-	#endregion
-
-//	#region ISpanParsable - Without ISpanParsable underlying value
-
-//	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
-//		where TWrapper : ISpanParsable<TWrapper>, IValueWrapper<TWrapper, TValue>
-//	{
-//#pragma warning disable IDE0060 // Remove unused parameter -- Required for less-preferred overload resolution
-//		[Obsolete("This type must manually implement ISpanParsable<T>, since the wrapped underlying type does not implement ISpanParsable<T>.", error: true)]
-//		[OverloadResolutionPriority(Int32.MinValue)]
-//		public static bool TryParse(ReadOnlySpan<char> s, IFormatProvider? provider, [MaybeNullWhen(false)] out TWrapper result,
-//			[CallerLineNumber] int callerLineNumber = -1)
-//		{
-//			throw new NotSupportedException($"Type {typeof(TWrapper).Name} does not support span parsing.");
-//		}
-
-//		[Obsolete("ISpanParsable<T> was not properly implemented on this type.", error: true)]
-//		[OverloadResolutionPriority(Int32.MinValue)]
-//		public static TWrapper Parse(ReadOnlySpan<char> s, IFormatProvider? provider,
-//			[CallerLineNumber] int callerLineNumber = -1)
-//		{
-//			throw new NotSupportedException($"Type {typeof(TWrapper).Name} does not support span parsing.");
-//		}
-//#pragma warning restore IDE0060 // Remove unused parameter
-//	}
-
-//	#endregion
-
-	#region IUtf8SpanParsable - Preferred
-
 	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
 		where TWrapper : IUtf8SpanParsable<TWrapper>, IValueWrapper<TWrapper, TValue>
 	{
@@ -108,52 +71,6 @@ public static class ArchitectDomainModelingValueWrapperParsingExtensions
 			return TWrapper.Parse(utf8Text, provider);
 		}
 	}
-
-	#endregion
-
-	//#region IUtf8SpanParsable - String
-
-	//extension<TWrapper>(IValueWrapper<TWrapper, string> wrapper)
-	//	where TWrapper : IUtf8SpanParsable<TWrapper>, IValueWrapper<TWrapper, string>
-	//{
-	//	public static bool TryParse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider, [MaybeNullWhen(false)] out TWrapper result)
-	//	{
-	//		return TWrapper.TryParse(utf8Text, provider, out result);
-	//	}
-
-	//	public static TWrapper Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider)
-	//	{
-	//		return TWrapper.Parse(utf8Text, provider);
-	//	}
-	//}
-
-	//#endregion
-
-//	#region IUtf8SpanParsable - Without IUtf8SpanParsable underlying value
-
-//	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
-//		where TWrapper : IUtf8SpanParsable<TWrapper>, IValueWrapper<TWrapper, TValue>
-//	{
-//#pragma warning disable IDE0060 // Remove unused parameter -- Required for less-preferred overload resolution
-//		[Obsolete("This type must manually implement IUtf8SpanParsable<T>, since the wrapped underlying type does not implement IUtf8SpanParsable<T>.", error: true)]
-//		[OverloadResolutionPriority(Int32.MinValue)]
-//		public static bool TryParse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider, [MaybeNullWhen(false)] out TWrapper result,
-//			[CallerLineNumber] int callerLineNumber = -1)
-//		{
-//			throw new NotSupportedException($"Type {typeof(TWrapper).Name} does not support UTF-8 span parsing.");
-//		}
-
-//		[Obsolete("This type must manually implement IUtf8SpanParsable<T>, since the wrapped underlying type does not implement IUtf8SpanParsable<T>.", error: true)]
-//		[OverloadResolutionPriority(Int32.MinValue)]
-//		public static TWrapper Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider,
-//			[CallerLineNumber] int callerLineNumber = -1)
-//		{
-//			throw new NotSupportedException($"Type {typeof(TWrapper).Name} does not support UTF-8 span parsing.");
-//		}
-//#pragma warning restore IDE0060 // Remove unused parameter
-//	}
-
-//	#endregion
 }
 
 #endif

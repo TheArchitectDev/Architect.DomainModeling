@@ -23,9 +23,6 @@ using Architect.DomainModeling.Conversions;
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class ArchitectDomainModelingValueWrapperFormattingExtensions
 {
-	// #TODO: Remove outcommented!!! And simplify region names, if need regions at all.
-	#region IFormattable - Preferred
-
 	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
 		where TWrapper : IFormattable, IValueWrapper<TWrapper, TValue>
 	{
@@ -40,41 +37,6 @@ public static class ArchitectDomainModelingValueWrapperFormattingExtensions
 		}
 	}
 
-	#endregion
-	
-	//#region IFormattable - String
-
-	//extension<TWrapper>(IValueWrapper<TWrapper, string> wrapper)
-	//	where TWrapper : IFormattable, IValueWrapper<TWrapper, string>
-	//{
-	//	public string ToString(string? format, IFormatProvider? formatProvider)
-	//	{
-	//		return ((TWrapper)wrapper).ToString(format, formatProvider);
-	//	}
-	//}
-
-	//#endregion
-
-//	#region IFormattable - Without IFormattable underlying value
-
-//	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
-//		where TWrapper : ISpanFormattable, IValueWrapper<TWrapper, TValue>
-//	{
-//#pragma warning disable IDE0060 // Remove unused parameter -- Required for less-preferred overload resolution
-//		[Obsolete("This type must manually implement IFormattable, since the wrapped underlying type does not implement IFormattable.", error: true)]
-//		[OverloadResolutionPriority(Int32.MinValue)]
-//		public string ToString(string? format, IFormatProvider? formatProvider,
-//			[CallerLineNumber] int callerLineNumber = -1)
-//		{
-//			throw new NotSupportedException($"Type {typeof(TWrapper).Name} does not support formatting.");
-//		}
-//#pragma warning restore IDE0060 // Remove unused parameter
-//	}
-
-//	#endregion
-	
-	#region ISpanFormattable - Preferred
-
 	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
 		where TWrapper : ISpanFormattable, IValueWrapper<TWrapper, TValue>
 	{
@@ -85,41 +47,6 @@ public static class ArchitectDomainModelingValueWrapperFormattingExtensions
 		}
 	}
 
-	#endregion
-
-	//#region ISpanFormattable - String
-
-	//extension<TWrapper>(IValueWrapper<TWrapper, string> wrapper)
-	//	where TWrapper : ISpanFormattable, IValueWrapper<TWrapper, string>
-	//{
-	//	public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
-	//	{
-	//		return ((TWrapper)wrapper).TryFormat(destination, out charsWritten, format, provider);
-	//	}
-	//}
-
-	//#endregion
-
-//	#region ISpanFormattable - Without ISpanFormattable underlying value
-
-//	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
-//		where TWrapper : ISpanFormattable, IValueWrapper<TWrapper, TValue>
-//	{
-//#pragma warning disable IDE0060 // Remove unused parameter -- Required for less-preferred overload resolution
-//		[Obsolete("This type must manually implement ISpanFormattable, since the wrapped underlying type does not implement ISpanFormattable.", error: true)]
-//		[OverloadResolutionPriority(Int32.MinValue)]
-//		public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider,
-//			[CallerLineNumber] int callerLineNumber = -1)
-//		{
-//			throw new NotSupportedException($"Type {typeof(TWrapper).Name} does not support span formatting.");
-//		}
-//#pragma warning restore IDE0060 // Remove unused parameter
-//	}
-
-//	#endregion
-
-	#region IUtf8SpanFormattable - Preferred
-
 	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
 		where TWrapper : IUtf8SpanFormattable, IValueWrapper<TWrapper, TValue>
 	{
@@ -129,39 +56,6 @@ public static class ArchitectDomainModelingValueWrapperFormattingExtensions
 			return ((TWrapper)wrapper).TryFormat(utf8Destination, out bytesWritten, format, provider);
 		}
 	}
-
-	#endregion
-
-	//#region IUtf8SpanFormattable - String
-
-	//extension<TWrapper>(IValueWrapper<TWrapper, string> wrapper)
-	//	where TWrapper : IUtf8SpanFormattable, IValueWrapper<TWrapper, string>
-	//{
-	//	public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
-	//	{
-	//		return ((TWrapper)wrapper).TryFormat(utf8Destination, out bytesWritten, format, provider);
-	//	}
-	//}
-
-	//#endregion
-
-//	#region IUtf8SpanFormattable - Without IUtf8SpanFormattable underlying value
-
-//	extension<TWrapper, TValue>(IValueWrapper<TWrapper, TValue> wrapper)
-//		where TWrapper : IUtf8SpanFormattable, IValueWrapper<TWrapper, TValue>
-//	{
-//#pragma warning disable IDE0060 // Remove unused parameter -- Required for less-preferred overload resolution
-//		[Obsolete("This type must manually implement IUtf8SpanFormattable, since the wrapped underlying type does not implement IUtf8SpanFormattable.", error: true)]
-//		[OverloadResolutionPriority(Int32.MinValue)]
-//		public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider,
-//			[CallerLineNumber] int callerLineNumber = -1)
-//		{
-//			throw new NotSupportedException($"Type {typeof(TWrapper).Name} does not support UTF-8 span formatting.");
-//		}
-//#pragma warning restore IDE0060 // Remove unused parameter
-//	}
-
-//	#endregion
 }
 
 #endif
