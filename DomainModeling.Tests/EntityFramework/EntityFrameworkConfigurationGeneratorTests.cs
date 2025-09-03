@@ -108,7 +108,7 @@ internal sealed class TestDbContext(
 internal sealed class DomainEventForEF : IDomainObject
 {
 	/// <summary>
-	/// This lets us test if a constructor as used or not.
+	/// This lets us test if a constructor is used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -131,7 +131,7 @@ public readonly partial record struct DomainEventForEFId;
 internal sealed class EntityForEF : Entity<EntityForEFId, int>
 {
 	/// <summary>
-	/// This lets us test if a constructor as used or not.
+	/// This lets us test if a constructor is used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -146,12 +146,14 @@ internal sealed class EntityForEF : Entity<EntityForEFId, int>
 		this.Values = values;
 	}
 
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
 #pragma warning disable CS8618 // Reconstitution constructor
 	private EntityForEF()
 		: base(default)
 	{
 	}
 #pragma warning restore CS8618
+#pragma warning restore IDE0079
 }
 
 [WrapperValueObject<string>]
@@ -160,7 +162,7 @@ internal sealed partial class Wrapper1ForEF
 	protected override StringComparison StringComparison => StringComparison.Ordinal;
 
 	/// <summary>
-	/// This lets us test if a constructor as used or not.
+	/// This lets us test if a constructor is used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -177,7 +179,7 @@ internal sealed partial class Wrapper1ForEF
 internal sealed partial class Wrapper2ForEF
 {
 	/// <summary>
-	/// This lets us test if a constructor as used or not.
+	/// This lets us test if a constructor is used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun { get; } = true;
 
@@ -194,7 +196,7 @@ internal sealed partial class Wrapper2ForEF
 internal sealed partial class ValueObjectForEF
 {
 	/// <summary>
-	/// This lets us test if a constructor as used or not.
+	/// This lets us test if a constructor is used or not.
 	/// </summary>
 	public bool HasFieldInitializerRun = true;
 
