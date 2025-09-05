@@ -4,6 +4,7 @@
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Architect.DomainModeling;
 using Architect.DomainModeling.Conversions;
 
 /// <summary>

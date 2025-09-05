@@ -293,6 +293,98 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Value_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			ICoreValueWrapper<FormatAndParseTestingIntWrapper, int> intInstance =
+				new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<int>(intInstance.Value);
+			Assert.Equal(value, intInstance.Serialize());
+
+			ICoreValueWrapper<FormatAndParseTestingStringWrapper, string> stringInstance =
+				new FormatAndParseTestingStringWrapper(new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString()))));
+			Assert.IsType<string>(stringInstance.Value);
+			Assert.Equal(value.ToString(), stringInstance.Value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromDirectUnderlyingValue<TWrapper, TValue>(TValue value)
+			where TWrapper : IDirectValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromCoreValue<TWrapper, TValue>(TValue value)
+			where TWrapper : ICoreValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaDirectUnderlyingValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new IntId(value);
+			Assert.IsType<FormatAndParseTestingIntWrapper>(CreateFromDirectUnderlyingValue<FormatAndParseTestingIntWrapper, IntId>(intInstance));
+			Assert.Equal(value, CreateFromDirectUnderlyingValue<FormatAndParseTestingIntWrapper, IntId>(intInstance).Value.Value);
+
+			var stringInstance = new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString())));
+			Assert.IsType<FormatAndParseTestingStringWrapper>(CreateFromDirectUnderlyingValue<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance));
+			Assert.Equal(value.ToString(), CreateFromDirectUnderlyingValue<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance).Value.Value.Value?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntWrapper>(CreateFromCoreValue<FormatAndParseTestingIntWrapper, int>(value));
+			Assert.Equal(value, CreateFromCoreValue<FormatAndParseTestingIntWrapper, int>(value).Value.Value);
+
+			Assert.IsType<FormatAndParseTestingStringWrapper>(CreateFromCoreValue<FormatAndParseTestingStringWrapper, string>(value.ToString()));
+			Assert.Equal(value.ToString(), CreateFromCoreValue<FormatAndParseTestingStringWrapper, string>(value.ToString()).Value.Value.Value?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntWrapper, IntId> intInstance =
+				new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<IntId>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize().Value);
+
+			IValueWrapper<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper> stringInstance =
+				new FormatAndParseTestingStringWrapper(new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString()))));
+			Assert.IsType<FormatAndParseTestingNestedStringWrapper>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize()?.Value.Value?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToCoreType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntWrapper, int> intInstance =
+				new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<int>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize());
+
+			IValueWrapper<FormatAndParseTestingStringWrapper, string> stringInstance =
+				new FormatAndParseTestingStringWrapper(new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString()))));
+			Assert.IsType<string>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize());
+		}
+
+		[Theory]
 		[InlineData(null)]
 		[InlineData(0)]
 		[InlineData(1)]
@@ -361,6 +453,41 @@ namespace Architect.DomainModeling.Tests
 
 			// Newtonsoft appends ".0" for some reason
 			Assert.Equal(value is null ? "null" : $"{value}.0", Newtonsoft.Json.JsonConvert.SerializeObject(instance));
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper Deserialize<TWrapper, TValue>(TValue value)
+			where TWrapper : IValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Deserialize(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new IntId(value);
+			Assert.IsType<FormatAndParseTestingIntWrapper>(Deserialize<FormatAndParseTestingIntWrapper, IntId>(intInstance));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntWrapper, IntId>(intInstance).Value.Value);
+
+			var stringInstance = new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString())));
+			Assert.IsType<FormatAndParseTestingStringWrapper>(Deserialize<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance).Value.Value.Value?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromCoreType_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntWrapper>(Deserialize<FormatAndParseTestingIntWrapper, int>(value));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntWrapper, int>(value).Value.Value);
+			
+			Assert.IsType<FormatAndParseTestingStringWrapper>(Deserialize<FormatAndParseTestingStringWrapper, string>(value.ToString()));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringWrapper, string>(value.ToString()).Value.Value.Value?.Value);
 		}
 
 		[Theory]
@@ -798,13 +925,14 @@ namespace Architect.DomainModeling.Tests
 		[Newtonsoft.Json.JsonConverter(typeof(ValueWrapperNewtonsoftJsonConverter<FullySelfImplementedIdentity, int>))]
 		internal sealed partial class FullySelfImplementedWrapperValueObject
 			: WrapperValueObject<int>,
-			IValueWrapper<FullySelfImplementedWrapperValueObject, int>,
+			IEquatable<FullySelfImplementedWrapperValueObject>,
 			IComparable<FullySelfImplementedWrapperValueObject>,
 			ISpanFormattable,
 			ISpanParsable<FullySelfImplementedWrapperValueObject>,
 			IUtf8SpanFormattable,
 			IUtf8SpanParsable<FullySelfImplementedWrapperValueObject>,
-			ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>
+			IDirectValueWrapper<FullySelfImplementedWrapperValueObject, int>,
+			ICoreValueWrapper<FullySelfImplementedWrapperValueObject, long>
 		{
 			protected sealed override StringComparison StringComparison => throw new NotSupportedException("This operation applies to string-based value objects only.");
 
@@ -828,7 +956,7 @@ namespace Architect.DomainModeling.Tests
 			/// <summary>
 			/// Serializes a domain object as a plain value.
 			/// </summary>
-			int ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Serialize()
+			int IValueWrapper<FullySelfImplementedWrapperValueObject, int>.Serialize()
 			{
 				return this.Value;
 			}
@@ -836,7 +964,7 @@ namespace Architect.DomainModeling.Tests
 			/// <summary>
 			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
 			/// </summary>
-			static FullySelfImplementedWrapperValueObject ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Deserialize(int value)
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, int>.Deserialize(int value)
 			{
 #pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
 #pragma warning disable CS0618 // Obsolete constructor is intended for us
@@ -844,6 +972,12 @@ namespace Architect.DomainModeling.Tests
 #pragma warning restore CS0618
 #pragma warning restore IDE0079
 			}
+
+			// Manual interface implementation to support custom core value
+			long IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Value => (long)this.Value;
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Create(long value) => new FullySelfImplementedWrapperValueObject((int)value);
+			long IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Serialize() => (long)this.Value;
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Deserialize(long value) => DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>((int)value);
 
 			public sealed override int GetHashCode()
 			{
@@ -890,7 +1024,7 @@ namespace Architect.DomainModeling.Tests
 
 			#region Formatting & Parsing
 
-#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
+//#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
 
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -925,7 +1059,7 @@ namespace Architect.DomainModeling.Tests
 			public static FullySelfImplementedWrapperValueObject Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(utf8Text, provider);
 
-#endif
+//#endif
 
 			#endregion
 		}

@@ -6,7 +6,7 @@ namespace Architect.DomainModeling.Generator;
 /// <summary>
 /// Defines extension methods on <see cref="SourceProductionContext"/>.
 /// </summary>
-internal static class SourceProductionContextExtensions
+internal static class DiagnosticReportingExtensions
 {
 	/// <summary>
 	/// Shorthand extension method to report a diagnostic, with less boilerplate code.

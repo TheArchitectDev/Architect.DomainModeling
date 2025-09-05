@@ -14,7 +14,7 @@ public sealed class ValueWrapperJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: System.Text.Json.Serialization.JsonConverter<TWrapper>
-	where TWrapper : ISerializableDomainObject<TWrapper, TValue>
+	where TWrapper : IValueWrapper<TWrapper, TValue>
 {
 	private const string RequiresUnreferencedCodeMessage = "Serialization requires unreferenced code.";
 	private const string RequiresDynamicCodeMessage = "Serialization requires dynamic code.";
@@ -68,7 +68,7 @@ public sealed class LargeNumberValueWrapperJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: System.Text.Json.Serialization.JsonConverter<TWrapper>
-	where TWrapper : ISerializableDomainObject<TWrapper, TValue>
+	where TWrapper : IValueWrapper<TWrapper, TValue>
 	where TValue : INumber<TValue>, ISpanParsable<TValue>, ISpanFormattable
 {
 	private const string RequiresUnreferencedCodeMessage = "Serialization requires unreferenced code.";

@@ -59,10 +59,14 @@ internal static class EnumExtensions
 	/// <code>myEnum |= MyEnum.SomeFlag.If(1 == 2);</code>
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static T If<T>(this T enumValue, bool condition)
 		where T : unmanaged, Enum
 	{
-		return condition ? enumValue : default;
+		// Branch-free implementation
+		ReadOnlySpan<T> values = stackalloc T[] { default, enumValue, };
+		var index = Unsafe.As<bool, byte>(ref condition);
+		return values[index];
 	}
 
 	/// <summary>
@@ -77,15 +81,20 @@ internal static class EnumExtensions
 	/// <code>myEnum |= MyEnum.SomeFlag.Unless(1 == 2);</code>
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static T Unless<T>(this T enumValue, bool condition)
 		where T : unmanaged, Enum
 	{
-		return condition ? default : enumValue;
+		// Branch-free implementation
+		ReadOnlySpan<T> values = stackalloc T[] { enumValue, default, };
+		var index = Unsafe.As<bool, byte>(ref condition);
+		return values[index];
 	}
 
 	/// <summary>
-	/// Efficiently returns whether the <paramref name="enumValue"/> has the given <paramref name="flag"/> set.
+	/// Efficiently returns whether the <paramref name="subject"/> has the given <paramref name="flag"/>(s) set.
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool HasFlags<T>(this T subject, T flag)
 		where T : unmanaged, Enum
 	{
@@ -107,11 +116,8 @@ internal static class EnumExtensions
 	private static ulong GetNumericValue<T>(T enumValue)
 		where T : unmanaged, Enum
 	{
-		Span<ulong> ulongSpan = stackalloc ulong[] { 0UL };
-		var span = MemoryMarshal.Cast<ulong, T>(ulongSpan);
-
-		span[0] = enumValue;
-
-		return ulongSpan[0];
+		var result = 0UL;
+		Unsafe.WriteUnaligned(ref Unsafe.As<ulong, byte>(ref result), enumValue);
+		return result;
 	}
 }

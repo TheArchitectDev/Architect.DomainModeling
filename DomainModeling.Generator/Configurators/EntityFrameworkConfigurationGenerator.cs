@@ -259,34 +259,36 @@ namespace {ownAssemblyName}
 	file sealed record class EntityFrameworkIdentityConfigurator(ModelConfigurationBuilder ConfigurationBuilder)
 		: Architect.DomainModeling.Configuration.IIdentityConfigurator
 	{{
-		public void ConfigureIdentity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity, TUnderlying>(
-			in Architect.DomainModeling.Configuration.IIdentityConfigurator.Args _)
-			where TIdentity : IIdentity<TUnderlying>, ISerializableDomainObject<TIdentity, TUnderlying>
+		private static readonly ConverterMappingHints DecimalIdConverterMappingHints = new ConverterMappingHints(precision: 28, scale: 0); // For decimal IDs
+
+		public void ConfigureIdentity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity, TUnderlying, TCore>(
+			in Architect.DomainModeling.Configuration.IIdentityConfigurator.Args args)
+			where TIdentity : IIdentity<TUnderlying>, IDirectValueWrapper<TIdentity, TUnderlying>, ICoreValueWrapper<TIdentity, TCore>
 			where TUnderlying : notnull, IEquatable<TUnderlying>, IComparable<TUnderlying>
 		{{
 			// Configure properties of the type
 			this.ConfigurationBuilder.Properties<TIdentity>()
-				.HaveConversion<IdentityValueObjectConverter<TIdentity, TUnderlying>>();
+				.HaveConversion<IdentityValueObjectConverter<TIdentity, TCore>>();
 
 			// Configure non-property occurrences of the type, such as in CAST(), SUM(), AVG(), etc.
 			this.ConfigurationBuilder.DefaultTypeMapping<TIdentity>()
-				.HasConversion<IdentityValueObjectConverter<TIdentity, TUnderlying>>();
+				.HasConversion<IdentityValueObjectConverter<TIdentity, TCore>>();
 
 			// The converter's mapping hints are currently ignored by DefaultTypeMapping<T>, which is probably a bug: https://github.com/dotnet/efcore/issues/32533
-			if (typeof(TUnderlying) == typeof(decimal))
+			if (typeof(TCore) == typeof(decimal))
 				this.ConfigurationBuilder.DefaultTypeMapping<TIdentity>()
 					.HasPrecision(28, 0);
 		}}
 
 		private sealed class IdentityValueObjectConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
 			: ValueConverter<TModel, TProvider>
-			where TModel : ISerializableDomainObject<TModel, TProvider>
+			where TModel : IValueWrapper<TModel, TProvider>
 		{{
 			public IdentityValueObjectConverter()
 				: base(
-					DomainObjectSerializer.CreateSerializeExpression<TModel, TProvider>(),
-					DomainObjectSerializer.CreateDeserializeExpression<TModel, TProvider>(),
-					new ConverterMappingHints(precision: 28, scale: 0)) // For decimal IDs
+					model => DomainObjectSerializer.Serialize<TModel, TProvider>(model)!,
+					provider => DomainObjectSerializer.Deserialize<TModel, TProvider>(provider)!,
+					typeof(TProvider) == typeof(decimal) ? DecimalIdConverterMappingHints : null)
 			{{
 			}}
 		}}
@@ -296,28 +298,28 @@ namespace {ownAssemblyName}
 		ModelConfigurationBuilder ConfigurationBuilder)
 		: Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator
 	{{
-		public void ConfigureWrapperValueObject<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TValue>(
-			in Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator.Args _)
-			where TWrapper : IWrapperValueObject<TValue>, ISerializableDomainObject<TWrapper, TValue>
+		public void ConfigureWrapperValueObject<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TValue, TCore>(
+			in Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator.Args args)
+			where TWrapper : IWrapperValueObject<TValue>, IDirectValueWrapper<TWrapper, TValue>, ICoreValueWrapper<TWrapper, TCore>
 			where TValue : notnull
 		{{
 			// Configure properties of the type
 			this.ConfigurationBuilder.Properties<TWrapper>()
-				.HaveConversion<WrapperValueObjectConverter<TWrapper, TValue>>();
+				.HaveConversion<WrapperValueObjectConverter<TWrapper, TCore>>();
 
 			// Configure non-property occurrences of the type, such as in CAST(), SUM(), AVG(), etc.
 			this.ConfigurationBuilder.DefaultTypeMapping<TWrapper>()
-				.HasConversion<WrapperValueObjectConverter<TWrapper, TValue>>();
+				.HasConversion<WrapperValueObjectConverter<TWrapper, TCore>>();
 		}}
 
 		private sealed class WrapperValueObjectConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
 			: ValueConverter<TModel, TProvider>
-			where TModel : ISerializableDomainObject<TModel, TProvider>
+			where TModel : IValueWrapper<TModel, TProvider>
 		{{
 			public WrapperValueObjectConverter()
 				: base(
-					DomainObjectSerializer.CreateSerializeExpression<TModel, TProvider>(),
-					DomainObjectSerializer.CreateDeserializeExpression<TModel, TProvider>())
+					model => DomainObjectSerializer.Serialize<TModel, TProvider>(model)!,
+					provider => DomainObjectSerializer.Deserialize<TModel, TProvider>(provider)!)
 			{{
 			}}
 		}}
@@ -350,7 +352,7 @@ namespace {ownAssemblyName}
 
 #pragma warning disable EF1001 // Internal EF Core API usage -- No public APIs are available for this yet, and interceptors do not work because EF demands a usable ctor even the interceptor would prevent ctor usage
 			var entityType = entityTypeConvention as EntityType ?? throw new NotImplementedException($""{{entityTypeConvention.GetType().Name}} was received when {{nameof(EntityType)}} was expected. Either a non-entity was passed or internal changes to Entity Framework have broken this code."");
-			entityType.ConstructorBinding = new UninitializedInstantiationBinding(typeof(TEntity), DomainObjectSerializer.CreateDeserializeExpression(typeof(TEntity)));
+			entityType.ConstructorBinding = UninitializedInstantiationBinding.Create(() => DomainObjectSerializer.Deserialize<TEntity>());
 #pragma warning restore EF1001 // Internal EF Core API usage
 		}}
 
@@ -363,7 +365,7 @@ namespace {ownAssemblyName}
 
 #pragma warning disable EF1001 // Internal EF Core API usage -- No public APIs are available for this yet, and interceptors do not work because EF demands a usable ctor even the interceptor would prevent ctor usage
 			var entityType = entityTypeConvention as EntityType ?? throw new NotImplementedException($""{{entityTypeConvention.GetType().Name}} was received when {{nameof(EntityType)}} was expected. Either a non-entity was passed or internal changes to Entity Framework have broken this code."");
-			entityType.ConstructorBinding = new UninitializedInstantiationBinding(typeof(TDomainEvent), DomainObjectSerializer.CreateDeserializeExpression(typeof(TDomainEvent)));
+			entityType.ConstructorBinding = UninitializedInstantiationBinding.Create(() => DomainObjectSerializer.Deserialize<TDomainEvent>());
 #pragma warning restore EF1001 // Internal EF Core API usage
 		}}
 
@@ -373,7 +375,13 @@ namespace {ownAssemblyName}
 			private static readonly MethodInfo GetUninitializedObjectMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetUninitializedObject))!;
 
 			public override Type RuntimeType {{ get; }}
-			private Expression? Expression {{ get; }}
+			private Expression Expression {{ get; }}
+
+			public static UninitializedInstantiationBinding Create<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] T>(
+				Expression<Func<T>> expression)
+			{{
+				return new UninitializedInstantiationBinding(typeof(T), expression.Body);
+			}}
 
 			public UninitializedInstantiationBinding(
 				[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] Type runtimeType,
@@ -381,15 +389,15 @@ namespace {ownAssemblyName}
 				: base(Array.Empty<ParameterBinding>())
 			{{
 				this.RuntimeType = runtimeType;
-				this.Expression = expression;
+				this.Expression = expression ??
+					Expression.Convert(
+						Expression.Call(method: GetUninitializedObjectMethod, arguments: Expression.Constant(this.RuntimeType)),
+						this.RuntimeType);
 			}}
 
 			public override Expression CreateConstructorExpression(ParameterBindingInfo bindingInfo)
 			{{
-				return this.Expression ??
-					Expression.Convert(
-						Expression.Call(method: GetUninitializedObjectMethod, arguments: Expression.Constant(this.RuntimeType)),
-						this.RuntimeType);
+				return this.Expression;
 			}}
 
 			public override InstantiationBinding With(IReadOnlyList<ParameterBinding> parameterBindings)

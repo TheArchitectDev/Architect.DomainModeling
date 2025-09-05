@@ -34,23 +34,30 @@ Release notes:
 
 4.0.0:
 
-Platform support
+Platform support:
 - BREAKING: Platform support: Dropped support for .NET 6.0 and .NET 7.0 (EOL).
 
 The base class is dead. Long live the interface!
 
-Performance
-- Enhancement: Reduced assembly size by having source-generated WrapperValueObject/Identity types use generic JSON serializers instead of generating their own.
-- Enhancement: Reduced assembly size by having source-generated WrapperValueObject/Identity types use default interface implementations and/or extension members instead of generating various components.
-- Enhancement: Improved (compile-time) source generator performance.
+Completed support for nested wrappers:
+- Feature: Nested WrapperValueObject/Identity types can now also wrap/unwrap and serialize/deserialize directly to/from their core (deepest) underlying type.
+- Feature: EF conversions for such types now automatically map to and from the core type.
+- Feature: A deeper underlying type can be simulated, e.g. LazyStringId : IIdentity&lt;Lazy&lt;string&gt;&gt;, ICoreValueWrapper&lt;LazyStringId, string&gt;.
+- BREAKING: ISerializableDomainObject is deprecated in favor of IValueWrapper, a clear and comprehensive type to represented generic value wrappers.
+- BREAKING: IIdentityConfigurator and IWrapperValueObjectConfigurator now receive an additional type parameter on their methods, namely the core type.
 
-Misc improvements
+Performance:
+- Enhancement: Reduced assembly size by having source-generated WrapperValueObject/Identity types use generic JSON serializers instead of generating their own.
+- Enhancement: Improved source generator performance.
+
+Misc improvements:
 - Semi-breaking: IIdentity now implements IWrapperValueObject.
 - Semi-breaking: I[Utf8][Span]Formattable implementations based on strings have stopped treating null strings as "", as this could cover up mistakes instead of revealing them.
 - Bug fix: Fixed a bug where source-generated records would always generate ToString()/Equals()/GetHashCode(), even if you wrote your own.
 - Bug fix: Fixed a bug where source-generated WrapperValueObject/Identity types would not recognize manual member implementations if they were explicit interface implementations.
-- Buf fix: Fixed a bug where the DummyBuilder generator struggled with nested types.
+- Bug fix: Fixed a bug where the DummyBuilder generator struggled with nested types.
 - Bug fix: Fixed a bug where the analyzer would not properly warn that source generation on nested types is unsupported.
+- Enhancement: Improved clarity of analyzer warnings, by stopping before subsequent problems occur.
 - Enhancement: Improved correctness of trimming.
 
 3.0.3:

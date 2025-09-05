@@ -1,5 +1,8 @@
+using Architect.DomainModeling.Conversions;
+using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests.EntityFramework;
@@ -25,7 +28,13 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 	[Fact]
 	public void ConfigureConventions_WithAllExtensionsCalled_ShouldBeAbleToWorkWithAllDomainObjects()
 	{
-		var values = new ValueObjectForEF((Wrapper1ForEF)"One", (Wrapper2ForEF)2);
+		var values = new ValueObjectForEF(
+			(Wrapper1ForEF)"One",
+			(Wrapper2ForEF)2,
+			new FormatAndParseTestingIntId(3),
+			new LazyStringWrapper(new Lazy<string>("4")),
+			new LazyIntWrapper(new Lazy<int>(5)),
+			new NumericStringId("6"));
 		var entity = new EntityForEF(values);
 		var domainEvent = new DomainEventForEF(id: 2, ignored: null!);
 
@@ -55,6 +64,18 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 		Assert.Equal(2, reloadedEntity.Id.Value);
 		Assert.Equal("One", reloadedEntity.Values.One);
 		Assert.Equal(2m, reloadedEntity.Values.Two);
+		Assert.Equal(3, reloadedEntity.Values.Three.Value?.Value.Value);
+		Assert.Equal("4", reloadedEntity.Values.Four.Value.Value);
+		Assert.Equal(5, reloadedEntity.Values.Five.Value.Value);
+		Assert.Equal("6", reloadedEntity.Values.Six.Value);
+
+		// This property should be mapped to int via ICoreValueWrapper<NumericStringId, int>
+		var mappingForStringWithCustomIntCore = this.DbContext.Model.FindEntityType(typeof(EntityForEF))?.FindNavigation(nameof(EntityForEF.Values))?.TargetEntityType
+			.FindProperty(nameof(EntityForEF.Values.Six));
+		var columnTypeForStringWrapperWithCustomIntCore = mappingForStringWithCustomIntCore?.GetColumnType();
+		var providerClrTypeForStringWrapperWithCustomIntCore = mappingForStringWithCustomIntCore?.GetValueConverter()?.ProviderClrType;
+		Assert.Equal("INTEGER", columnTypeForStringWrapperWithCustomIntCore);
+		Assert.Equal(typeof(int), providerClrTypeForStringWrapperWithCustomIntCore);
 	}
 }
 
@@ -75,6 +96,22 @@ internal sealed class TestDbContext(
 			domainModel.ConfigureEntityConventions();
 			domainModel.ConfigureDomainEventConventions();
 		});
+
+		// For a wrapper whose core type EF does not support, overwriting the conventions with our own should work
+		configurationBuilder.Properties<LazyStringWrapper>()
+			.HaveConversion<LazyStringWrapperConverter>();
+		configurationBuilder.DefaultTypeMapping<LazyStringWrapper>()
+			.HasConversion<LazyStringWrapperConverter>();
+	}
+
+	private class LazyStringWrapperConverter : ValueConverter<LazyStringWrapper, string>
+	{
+		public LazyStringWrapperConverter()
+			: base(
+				v => v.Value.Value,
+				v => new LazyStringWrapper(new Lazy<string>(v)))
+		{
+		}
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -90,6 +127,10 @@ internal sealed class TestDbContext(
 			{
 				values.Property(x => x.One);
 				values.Property(x => x.Two);
+				values.Property(x => x.Three);
+				values.Property(x => x.Four);
+				values.Property(x => x.Five);
+				values.Property(x => x.Six);
 			});
 
 			builder.HasKey(x => x.Id);
@@ -192,6 +233,31 @@ internal sealed partial class Wrapper2ForEF
 	}
 }
 
+[WrapperValueObject<Lazy<string>>]
+internal sealed partial class LazyStringWrapper
+{
+}
+
+[WrapperValueObject<Lazy<int>>]
+internal sealed partial class LazyIntWrapper : ICoreValueWrapper<LazyIntWrapper, int> // Custom core value
+{
+	// Manual interface implementation to support custom core value
+	int IValueWrapper<LazyIntWrapper, int>.Value => this.Value.Value;
+	static LazyIntWrapper IValueWrapper<LazyIntWrapper, int>.Create(int value) => new LazyIntWrapper(new Lazy<int>(value));
+	int IValueWrapper<LazyIntWrapper, int>.Serialize() => this.Value.Value;
+	static LazyIntWrapper IValueWrapper<LazyIntWrapper, int>.Deserialize(int value) => DomainObjectSerializer.Deserialize<LazyIntWrapper, Lazy<int>>(new Lazy<int>(value));
+}
+
+[IdentityValueObject<string>]
+internal partial struct NumericStringId : ICoreValueWrapper<NumericStringId, int> // Custom core value
+{
+	// Manual interface implementation to support custom core value
+	int IValueWrapper<NumericStringId, int>.Value => Int32.Parse(this.Value);
+	static NumericStringId IValueWrapper<NumericStringId, int>.Create(int value) => new NumericStringId(value.ToString());
+	int IValueWrapper<NumericStringId, int>.Serialize() => Int32.Parse(this.Value);
+	static NumericStringId IValueWrapper<NumericStringId, int>.Deserialize(int value) => DomainObjectSerializer.Deserialize<NumericStringId, string>(value.ToString());
+}
+
 [ValueObject]
 internal sealed partial class ValueObjectForEF
 {
@@ -202,13 +268,21 @@ internal sealed partial class ValueObjectForEF
 
 	public Wrapper1ForEF One { get; private init; }
 	public Wrapper2ForEF Two { get; private init; }
+	public FormatAndParseTestingIntId Three { get; private init; }
+	public LazyStringWrapper Four { get; private init; }
+	public LazyIntWrapper Five { get; private init; }
+	public NumericStringId Six { get; private init; }
 
-	public ValueObjectForEF(Wrapper1ForEF one, Wrapper2ForEF two)
+	public ValueObjectForEF(Wrapper1ForEF one, Wrapper2ForEF two, FormatAndParseTestingIntId three, LazyStringWrapper four, LazyIntWrapper five, NumericStringId six)
 	{
 		if (!EntityFrameworkConfigurationGeneratorTests.AllowParameterizedConstructors)
 			throw new InvalidOperationException("Deserialization was not allowed to use the parameterized constructors.");
 
 		this.One = one;
 		this.Two = two;
+		this.Three = three;
+		this.Four = four;
+		this.Five = five;
+		this.Six = six;
 	}
 }

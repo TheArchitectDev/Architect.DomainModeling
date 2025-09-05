@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Architect.DomainModeling.Conversions;
 
 namespace Architect.DomainModeling.Configuration;
 
@@ -13,14 +14,14 @@ public interface IWrapperValueObjectConfigurator
 	/// </summary>
 	void ConfigureWrapperValueObject<
 		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
-	TValue>(
+	TValue,
+	TCore>(
 			in Args args)
-		where TWrapper : IWrapperValueObject<TValue>, ISerializableDomainObject<TWrapper, TValue>
+		where TWrapper : IWrapperValueObject<TValue>, IDirectValueWrapper<TWrapper, TValue>, ICoreValueWrapper<TWrapper, TCore>
 		where TValue : notnull;
 
-#pragma warning disable IDE0040 // Remove accessibility modifiers -- We always want explicit accessibility for types
+	[SuppressMessage("Style", "IDE0040:Remove accessibility modifiers", Justification = "We always want explicit accessibility for types")]
 	public readonly struct Args
-#pragma warning restore IDE0040 // Remove accessibility modifiers
 	{
 	}
 }

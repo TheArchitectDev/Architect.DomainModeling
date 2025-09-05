@@ -5,6 +5,7 @@ namespace Architect.DomainModeling;
 /// <summary>
 /// A domain object of type <typeparamref name="TModel"/> that can be serialized to and deserialized from underlying type <typeparamref name="TUnderlying"/>.
 /// </summary>
+[Obsolete("Use IValueWrapper<TWrapper, TValue> instead.", error: true)]
 public interface ISerializableDomainObject<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel,
 	TUnderlying>

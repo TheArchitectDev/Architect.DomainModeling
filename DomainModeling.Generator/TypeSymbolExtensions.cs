@@ -11,8 +11,6 @@ internal static class TypeSymbolExtensions
 {
 	private const string ComparisonsNamespace = "Architect.DomainModeling.Comparisons";
 
-	private static IReadOnlyCollection<string> ConversionOperatorNames { get; } = ["op_Implicit", "op_Explicit",];
-
 	/// <summary>
 	/// Returns the full CLR metadata name of the <see cref="INamedTypeSymbol"/>, e.g. "Namespace.Type+NestedGenericType`1".
 	/// </summary>
@@ -554,7 +552,7 @@ internal static class TypeSymbolExtensions
 	public static bool HasConversionTo(this ITypeSymbol typeSymbol, SpecialType specialType)
 	{
 		var result = typeSymbol.SpecialType != specialType && typeSymbol.GetMembers().Any(member =>
-			member is IMethodSymbol method && ConversionOperatorNames.Contains(method.Name) && member.DeclaredAccessibility == Accessibility.Public &&
+			member is IMethodSymbol { Name: WellKnownMemberNames.ExplicitConversionName or WellKnownMemberNames.ImplicitConversionName, DeclaredAccessibility: Accessibility.Public, } method &&
 			method.ReturnType.SpecialType == specialType);
 		return result;
 	}
@@ -565,8 +563,8 @@ internal static class TypeSymbolExtensions
 	public static bool HasConversionFrom(this ITypeSymbol typeSymbol, SpecialType specialType)
 	{
 		var result = typeSymbol.SpecialType != specialType && typeSymbol.GetMembers().Any(member =>
-			member is IMethodSymbol method && ConversionOperatorNames.Contains(method.Name) && member.DeclaredAccessibility == Accessibility.Public &&
-			method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == specialType);
+			member is IMethodSymbol { Name: WellKnownMemberNames.ExplicitConversionName or WellKnownMemberNames.ImplicitConversionName, DeclaredAccessibility: Accessibility.Public, Parameters.Length: 1, } method &&
+			method.Parameters[0].Type.SpecialType == specialType);
 		return result;
 	}
 

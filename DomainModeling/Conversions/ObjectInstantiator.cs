@@ -44,8 +44,12 @@ internal static class ObjectInstantiator<[DynamicallyAccessedMembers(Dynamically
 	/// Throws a <see cref="NotSupportedException"/> for arrays, strings, and unbound generic types.
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static T Instantiate()
 	{
+		if (typeof(T).IsValueType)
+			return default!;
+
 		return ConstructionFunction();
 	}
 }

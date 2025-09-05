@@ -27,18 +27,22 @@ public class WrapperValueObjectGenerator : SourceGenerator
 				(context, ct) => context.SemanticModel.GetDeclaredSymbol((TypeDeclarationSyntax)context.Node) switch
 				{
 					INamedTypeSymbol type when HasRequiredAttribute(type, out var attribute) && attribute.AttributeClass!.TypeArguments[0] is ITypeSymbol underlyingType =>
-						new ValueWrapperGenerator.BasicGeneratable(
-							typeName: type.Name,
-							containingNamespace: type.ContainingNamespace.ToString(),
-							underlyingTypeFullyQualifiedName: underlyingType.ToString() is string underlyingTypeName ? underlyingTypeName : (underlyingTypeName = null!),
-							isSpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "ISpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
-							isSpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "ISpanParsable", ContainingNamespace.Name: "System", Arity: 1, }),
-							isUtf8SpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "IUtf8SpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
-							isUtf8SpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "IUtf8SpanParsable", ContainingNamespace.Name: "System", Arity: 1, })),
+						GetFirstProblem((TypeDeclarationSyntax)context.Node, type, underlyingType) is { }
+							? default
+							: new ValueWrapperGenerator.BasicGeneratable(
+								isIdentity: false,
+								typeName: type.Name,
+								containingNamespace: type.ContainingNamespace.ToString(),
+								underlyingTypeFullyQualifiedName: underlyingType.ToString() is string underlyingTypeName ? underlyingTypeName : (underlyingTypeName = null!),
+								customCoreTypeFullyQualifiedName: type.AllInterfaces.FirstOrDefault(interf => interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2))?.TypeArguments[1].ToString(),
+								isSpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+									interf is { Name: "ISpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
+								isSpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+									interf is { Name: "ISpanParsable", ContainingNamespace.Name: "System", Arity: 1, }),
+								isUtf8SpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+									interf is { Name: "IUtf8SpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
+								isUtf8SpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+									interf is { Name: "IUtf8SpanParsable", ContainingNamespace.Name: "System", Arity: 1, })),
 					_ => default,
 				})
 			.Where(generatable => generatable != default)
@@ -50,8 +54,8 @@ public class WrapperValueObjectGenerator : SourceGenerator
 	/// Additionally gathers detailed info per individual wrapper value object.
 	/// Generates source based on all of the above.
 	/// </summary>
-	internal void Generate(IncrementalGeneratorInitializationContext context,
-		IncrementalValueProvider<ImmutableArray<ValueWrapperGenerator.BasicGeneratable>> wrapperValueObjects,
+	internal void Generate(
+		IncrementalGeneratorInitializationContext context,
 		IncrementalValueProvider<ImmutableArray<ValueWrapperGenerator.BasicGeneratable>> valueWrappers)
 	{
 		var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
@@ -60,7 +64,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 
 		context.RegisterSourceOutput(provider.Combine(valueWrappers), GenerateSource!);
 
-		var aggregatedProvider = wrapperValueObjects.Combine(EntityFrameworkConfigurationGenerator.CreateMetadataProvider(context));
+		var aggregatedProvider = valueWrappers.Combine(EntityFrameworkConfigurationGenerator.CreateMetadataProvider(context));
 
 		context.RegisterSourceOutput(aggregatedProvider, DomainModelConfiguratorGenerator.GenerateSourceForWrapperValueObjects);
 	}
@@ -71,6 +75,70 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		if (type.GetAttribute("WrapperValueObjectAttribute", "Architect.DomainModeling", arity: 1) is AttributeData { AttributeClass: not null } attributeOutput)
 			attribute = attributeOutput;
 		return attribute != null;
+	}
+
+	private static Diagnostic? GetFirstProblem(TypeDeclarationSyntax tds, INamedTypeSymbol type, ITypeSymbol underlyingType)
+	{
+		var isPartial = tds.Modifiers.Any(SyntaxKind.PartialKeyword);
+
+		// Require the expected inheritance
+		if (!isPartial && !type.IsOrImplementsInterface(type => type.IsType("IWrapperValueObject", "Architect", "DomainModeling", arity: 1), out _))
+			return CreateDiagnostic("WrapperValueObjectGeneratorUnexpectedInheritance", "Unexpected inheritance",
+				"Type marked as wrapper value object lacks IWrapperValueObject<TValue> interface. Did you forget the 'partial' keyword and elude source generation?", DiagnosticSeverity.Warning);
+
+		// Require IDirectValueWrapper
+		var hasDirectValueWrapperInterface = type.AllInterfaces.Any(interf =>
+			interf.IsType("IDirectValueWrapper", "Architect", "DomainModeling", arity: 2) && !interf.IsImplicitlyDeclared &&
+			interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default) && interf.TypeArguments[1].Equals(underlyingType, SymbolEqualityComparer.Default));
+		if (!isPartial && !hasDirectValueWrapperInterface)
+			return CreateDiagnostic("WrapperValueObjectGeneratorMissingDirectValueWrapper", "Missing interface",
+				$"Type marked as identity value object lacks IDirectValueWrapper<{type.Name}, {underlyingType.Name}> interface.", DiagnosticSeverity.Warning);
+
+		// Require ICoreValueWrapper
+		var hasCoreValueWrapperInterface = type.AllInterfaces.Any(interf =>
+			interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2) && !interf.IsImplicitlyDeclared &&
+			interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default));
+		if (!isPartial && !hasCoreValueWrapperInterface)
+			return CreateDiagnostic("WrapperValueObjectGeneratorMissingCoreValueWrapper", "Missing interface",
+				$"Type marked as identity value object lacks ICoreValueWrapper<{type.Name}, {underlyingType.Name}> interface.", DiagnosticSeverity.Warning);
+
+		if (isPartial)
+		{
+			// Only if class
+			if (tds is not ClassDeclarationSyntax)
+				return CreateDiagnostic("WrapperValueObjectGeneratorValueType", "Source-generated struct wrapper value object",
+					"The type was not source-generated because it is a struct, while a class was expected. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning);
+
+			// Only if non-record
+			if (type.IsRecord)
+				return CreateDiagnostic("WrapperValueObjectGeneratorRecordType", "Source-generated record wrapper value object",
+					"The type was not source-generated because it is a record, which cannot inherit from a non-record base class. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning);
+
+			// Only if non-abstract
+			if (type.IsAbstract)
+				return CreateDiagnostic("WrapperValueObjectGeneratorAbstractType", "Source-generated abstract type",
+					"The type was not source-generated because it is abstract. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning);
+
+			// Only if non-generic
+			if (type.IsGeneric())
+				return CreateDiagnostic("WrapperValueObjectGeneratorGenericType", "Source-generated generic type",
+					"The type was not source-generated because it is generic. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning);
+
+			// Only if non-nested
+			if (type.IsNested())
+				return CreateDiagnostic("WrapperValueObjectGeneratorNestedType", "Source-generated nested type",
+					"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning);
+		}
+
+		return null;
+
+		// Local shorthand to create a diagnostic
+		Diagnostic CreateDiagnostic(string id, string title, string description, DiagnosticSeverity severity)
+		{
+			return Diagnostic.Create(
+				new DiagnosticDescriptor(id, title, description, "Architect.DomainModeling", severity, isEnabledByDefault: true),
+				type.Locations.FirstOrDefault());
+		}
 	}
 
 	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
@@ -104,9 +172,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		var underlyingType = attribute.AttributeClass!.TypeArguments[0];
 
 		var result = new Generatable();
-		result.TypeLocation = type.Locations.FirstOrDefault();
 		result.IsWrapperValueObject = type.IsOrImplementsInterface(type => type.IsType("IWrapperValueObject", "Architect", "DomainModeling", arity: 1), out _);
-		result.IsSerializableDomainObject = type.IsOrImplementsInterface(type => type.IsType("ISerializableDomainObject", "Architect", "DomainModeling", arity: 2), out _);
 		result.IsPartial = tds.Modifiers.Any(SyntaxKind.PartialKeyword);
 		result.IsRecord = type.IsRecord;
 		result.IsClass = type.TypeKind == TypeKind.Class;
@@ -128,8 +194,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		result.UnderlyingTypeIsNullable = underlyingType.IsNullable();
 		result.UnderlyingTypeIsString = underlyingType.SpecialType == SpecialType.System_String;
 
-		result.ValueFieldName = type.GetMembers().FirstOrDefault(member => member is IFieldSymbol field && (field.Name == "<Value>k__BackingField" || field.Name.Equals("value") || field.Name.Equals("_value")))?.Name ??
-			"_value";
+		result.ValueFieldName = type.GetMembers().FirstOrDefault(member => member is IFieldSymbol { Name: "<Value>k__BackingField" or "value" or "_value" })?.Name ?? "_value";
 		// IComparable is implemented on-demand, if the type implements IComparable against itself and the underlying type is self-comparable
 		// It is also implemented if the underlying type is an annotated identity
 		result.IsComparable = type.AllInterfaces.Any(interf => interf.IsSystemType("IComparable", arity: 1) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default)) &&
@@ -152,98 +217,88 @@ public class WrapperValueObjectGenerator : SourceGenerator
 
 		// Records override this, but our implementation is superior
 		existingComponents |= WrapperValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
-			member.Name == nameof(ToString) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
+			member is IMethodSymbol { Name: nameof(ToString), IsImplicitlyDeclared: false, IsOverride: true, Parameters.Length: 0, }));
 
 		// Records override this, but our implementation is superior
 		existingComponents |= WrapperValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
-			member.Name == nameof(GetHashCode) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
+			member is IMethodSymbol { Name: nameof(GetHashCode), IsImplicitlyDeclared: false, IsOverride: true, Parameters.Length: 0, }));
 
 		// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 		existingComponents |= WrapperValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
-			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			member is IMethodSymbol { Name: nameof(Equals), IsOverride: true, Parameters.Length: 1, } method &&
 			method.Parameters[0].Type.SpecialType == SpecialType.System_Object));
 
 		// Records override this, but our implementation is superior
 		existingComponents |= WrapperValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
-			member.Name == nameof(Equals) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 1 &&
+			member.HasNameOrExplicitInterfaceImplementationName(nameof(Equals)) && member is IMethodSymbol { IsImplicitlyDeclared: false, IsOverride: false, Parameters.Length: 1, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>
-			member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			member.HasNameOrExplicitInterfaceImplementationName(nameof(IComparable.CompareTo)) && member is IMethodSymbol { Arity: 0, Parameters.Length: 1, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 		existingComponents |= WrapperValueObjectTypeComponents.EqualsOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 2 &&
-			member.HasNameOrExplicitInterfaceImplementationName("op_Equality") &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.EqualityOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 		existingComponents |= WrapperValueObjectTypeComponents.NotEqualsOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 2 &&
-			member.HasNameOrExplicitInterfaceImplementationName("op_Inequality") &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.InequalityOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.GreaterThanOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 2 &&
-			member.HasNameOrExplicitInterfaceImplementationName("op_GreaterThan") &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.GreaterThanOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.LessThanOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 2 &&
-			member.HasNameOrExplicitInterfaceImplementationName("op_LessThan") &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.LessThanOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.GreaterEqualsOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 2 &&
-			member.HasNameOrExplicitInterfaceImplementationName("op_GreaterThanOrEqual") &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.GreaterThanOrEqualOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.LessEqualsOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 2 &&
-			member.HasNameOrExplicitInterfaceImplementationName("op_LessThanOrEqual") &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.LessThanOrEqualOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.ConvertToOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 1 &&
-			(member.HasNameOrExplicitInterfaceImplementationName("op_Implicit") || member.HasNameOrExplicitInterfaceImplementationName("op_Explicit")) &&
+			member is IMethodSymbol { MethodKind: MethodKind.Conversion, IsStatic: true, Parameters.Length: 1, } method &&
 			method.ReturnType.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.ConvertFromOperator.If(members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 1 &&
-			(member.HasNameOrExplicitInterfaceImplementationName("op_Implicit") || member.HasNameOrExplicitInterfaceImplementationName("op_Explicit")) &&
+			member is IMethodSymbol { MethodKind: MethodKind.Conversion, IsStatic: true, Parameters.Length: 1, } method &&
 			method.ReturnType.Equals(underlyingType, SymbolEqualityComparer.Default) &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		// Consider having a reference-typed underlying type as already having the operator (though actually it does not apply at all)
 		existingComponents |= WrapperValueObjectTypeComponents.NullableConvertToOperator.If(!underlyingType.IsValueType || members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 1 &&
-			(member.HasNameOrExplicitInterfaceImplementationName("op_Implicit") || member.HasNameOrExplicitInterfaceImplementationName("op_Explicit")) &&
+			member is IMethodSymbol { MethodKind: MethodKind.Conversion, IsStatic: true, Parameters.Length: 1, } method &&
 			method.ReturnType.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[0].Type.IsNullableOf(underlyingType)));
 
 		// Consider having a reference-typed underlying type as already having the operator (though actually it does not apply at all)
 		existingComponents |= WrapperValueObjectTypeComponents.NullableConvertFromOperator.If(!underlyingType.IsValueType || members.Any(member =>
-			member is IMethodSymbol method && method.Parameters.Length == 1 &&
-			(member.HasNameOrExplicitInterfaceImplementationName("op_Implicit") || member.HasNameOrExplicitInterfaceImplementationName("op_Explicit")) &&
+			member is IMethodSymbol { MethodKind: MethodKind.Conversion, IsStatic: true, Parameters.Length: 1, } method &&
 			method.ReturnType.IsNullableOf(underlyingType) &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.SerializeToUnderlying.If(members.Any(member =>
-			member.HasNameOrExplicitInterfaceImplementationName("Serialize") && member is IMethodSymbol method && method.Parameters.Length == 0 &&
-			method.Arity == 0));
+			member.HasNameOrExplicitInterfaceImplementationName("Serialize") && member is IMethodSymbol { Arity: 0, IsStatic: false, Parameters.Length: 0, } method &&
+			method.ReturnType.Equals(underlyingType, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.DeserializeFromUnderlying.If(members.Any(member =>
-			member.HasNameOrExplicitInterfaceImplementationName("Deserialize") && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			member.HasNameOrExplicitInterfaceImplementationName("Deserialize") && member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 1, } method &&
 			method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default) &&
-			method.Arity == 0));
+			method.ReturnType.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= WrapperValueObjectTypeComponents.SystemTextJsonConverter.If(type.GetAttributes().Any(attribute =>
 			attribute.AttributeClass?.IsTypeWithNamespace("JsonConverterAttribute", "System.Text.Json.Serialization") == true));
@@ -254,75 +309,75 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		existingComponents |= WrapperValueObjectTypeComponents.StringComparison.If(members.Any(member =>
 			member.Name == "StringComparison" && member.IsOverride));
 
-		existingComponents |= WrapperValueObjectTypeComponents.FormattableToStringOverride.If(
-			members.Any(member =>
-				member.Name == nameof(IFormattable.ToString) && member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
-				method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider")));
+		existingComponents |= WrapperValueObjectTypeComponents.FormattableToStringOverride.If(members.Any(member =>
+			member.HasNameOrExplicitInterfaceImplementationName("ToString") && member is IMethodSymbol { Arity: 0, IsStatic: false, Parameters.Length: 2, } method &&
+			method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
-		existingComponents |= WrapperValueObjectTypeComponents.ParsableTryParseMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 3 &&
-				member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
-				method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider") && method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
+		existingComponents |= WrapperValueObjectTypeComponents.ParsableTryParseMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 3, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
+			method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider") && method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
 
-		existingComponents |= WrapperValueObjectTypeComponents.ParsableParseMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
-				member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
-				method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider")));
+		existingComponents |= WrapperValueObjectTypeComponents.ParsableParseMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 2, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
+			method.Parameters[0].Type.SpecialType == SpecialType.System_String && method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
-		existingComponents |= WrapperValueObjectTypeComponents.SpanFormattableTryFormatMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 4 &&
-				member.HasNameOrExplicitInterfaceImplementationName("TryFormat") &&
-				method.Parameters[0].Type.IsSpanOfSpecialType(SpecialType.System_Char) &&
-				method.Parameters[1].Type.SpecialType == SpecialType.System_Int32 && method.Parameters[1].RefKind == RefKind.Out &&
-				method.Parameters[2].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
-				method.Parameters[3].Type.IsSystemType("IFormatProvider")));
+		existingComponents |= WrapperValueObjectTypeComponents.SpanFormattableTryFormatMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: false, Parameters.Length: 4, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("TryFormat") &&
+			method.Parameters[0].Type.IsSpanOfSpecialType(SpecialType.System_Char) &&
+			method.Parameters[1].Type.SpecialType == SpecialType.System_Int32 && method.Parameters[1].RefKind == RefKind.Out &&
+			method.Parameters[2].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+			method.Parameters[3].Type.IsSystemType("IFormatProvider")));
 
-		existingComponents |= WrapperValueObjectTypeComponents.SpanParsableTryParseMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 3 &&
-				member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
-				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
-				method.Parameters[1].Type.IsSystemType("IFormatProvider") &&
-				method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
+		existingComponents |= WrapperValueObjectTypeComponents.SpanParsableTryParseMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 3, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
+			method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+			method.Parameters[1].Type.IsSystemType("IFormatProvider") &&
+			method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
 
-		existingComponents |= WrapperValueObjectTypeComponents.SpanParsableParseMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
-				member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
-				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
-				method.Parameters[1].Type.IsSystemType("IFormatProvider")));
+		existingComponents |= WrapperValueObjectTypeComponents.SpanParsableParseMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 2, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
+			method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+			method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
-		existingComponents |= WrapperValueObjectTypeComponents.Utf8SpanFormattableTryFormatMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 4 &&
-				member.HasNameOrExplicitInterfaceImplementationName("TryFormat") &&
-				method.Parameters[0].Type.IsSpanOfSpecialType(SpecialType.System_Byte) &&
-				method.Parameters[1].Type.SpecialType == SpecialType.System_Int32 && method.Parameters[1].RefKind == RefKind.Out &&
-				method.Parameters[2].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
-				method.Parameters[3].Type.IsSystemType("IFormatProvider")));
+		existingComponents |= WrapperValueObjectTypeComponents.Utf8SpanFormattableTryFormatMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: false, Parameters.Length: 4, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("TryFormat") &&
+			method.Parameters[0].Type.IsSpanOfSpecialType(SpecialType.System_Byte) &&
+			method.Parameters[1].Type.SpecialType == SpecialType.System_Int32 && method.Parameters[1].RefKind == RefKind.Out &&
+			method.Parameters[2].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Char) &&
+			method.Parameters[3].Type.IsSystemType("IFormatProvider")));
 
-		existingComponents |= WrapperValueObjectTypeComponents.Utf8SpanParsableTryParseMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 3 &&
-				member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
-				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Byte) &&
-				method.Parameters[1].Type.IsSystemType("IFormatProvider") &&
-				method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
+		existingComponents |= WrapperValueObjectTypeComponents.Utf8SpanParsableTryParseMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 3, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("TryParse") &&
+			method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Byte) &&
+			method.Parameters[1].Type.IsSystemType("IFormatProvider") &&
+			method.Parameters[2].Type.Equals(type, SymbolEqualityComparer.Default) && method.Parameters[2].RefKind == RefKind.Out));
 
-		existingComponents |= WrapperValueObjectTypeComponents.Utf8SpanParsableParseMethod.If(
-			members.Any(member =>
-				member is IMethodSymbol method && method.Arity == 0 && method.Parameters.Length == 2 &&
-				member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
-				method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Byte) &&
-				method.Parameters[1].Type.IsSystemType("IFormatProvider")));
+		existingComponents |= WrapperValueObjectTypeComponents.Utf8SpanParsableParseMethod.If(members.Any(member =>
+			member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 2, } method &&
+			member.HasNameOrExplicitInterfaceImplementationName("Parse") &&
+			method.Parameters[0].Type.IsReadOnlySpanOfSpecialType(SpecialType.System_Byte) &&
+			method.Parameters[1].Type.IsSystemType("IFormatProvider")));
 
 		existingComponents |= WrapperValueObjectTypeComponents.CreateMethod.If(members.Any(member =>
-			member is IMethodSymbol method && method.IsStatic && method.Arity == 0 && method.Parameters.Length == 1 &&
+			member is IMethodSymbol { Arity: 0, IsStatic: true, Parameters.Length: 1, } method &&
 			member.HasNameOrExplicitInterfaceImplementationName("Create") &&
-			method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
+			method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default) &&
+			method.ReturnType.Equals(type, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.DirectValueWrapperInterface.If(type.AllInterfaces.Any(interf =>
+			interf.IsType("IDirectValueWrapper", "Architect", "DomainModeling", arity: 2) && !interf.IsImplicitlyDeclared &&
+			interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default) && interf.TypeArguments[1].Equals(underlyingType, SymbolEqualityComparer.Default)));
+
+		existingComponents |= WrapperValueObjectTypeComponents.CoreValueWrapperInterface.If(type.AllInterfaces.Any(interf =>
+			interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2) && !interf.IsImplicitlyDeclared &&
+			interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default)));
 
 		result.ExistingComponents = existingComponents;
 		result.ValueMemberLocation = members.FirstOrDefault(member => member.Name == "Value" && member is IFieldSymbol or IPropertySymbol)?.Locations.FirstOrDefault();
@@ -330,6 +385,8 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		if (result.UnderlyingTypeIsString && result.ValueMemberLocation is not null) // Special-case string wrappers with a hand-written Value member
 			result.IsToStringNullable = !members.Any(member =>
 				member.Name == "Value" && member is IPropertySymbol { GetMethod.ReturnType: { SpecialType: SpecialType.System_String, NullableAnnotation: NullableAnnotation.NotAnnotated, } });
+
+		result.Problem = GetFirstProblem(tds, type, underlyingType);
 
 		return result;
 	}
@@ -341,69 +398,17 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		var generatable = input.Generatable;
 		var valueWrappers = input.ValueWrappers;
 
+		if (generatable.Problem is not null)
+			context.ReportDiagnostic(generatable.Problem);
+
+		if (generatable.Problem is not null || !generatable.IsPartial)
+			return;
+
+		var coreTypeFullyQualifiedName = ValueWrapperGenerator.GetCoreTypeFullyQualifiedName(valueWrappers, generatable.TypeName, generatable.ContainingNamespace);
+
 		(var isSpanFormattable, var isSpanParsable, var isUtf8SpanFormattable, var isUtf8SpanParsable) = ValueWrapperGenerator.GetFormattabilityAndParsabilityRecursively(
 			valueWrappers,
-			typeName: generatable.TypeName, containingNamespace: generatable.ContainingNamespace, underlyingTypeFullyQualifiedName: generatable.UnderlyingTypeFullyQualifiedName);
-
-		// Require the expected inheritance
-		if (!generatable.IsPartial && !generatable.IsWrapperValueObject)
-		{
-			context.ReportDiagnostic("WrapperValueObjectGeneratorUnexpectedInheritance", "Unexpected inheritance",
-				"Type marked as wrapper value object lacks IWrapperValueObject<TValue> interface. Did you forget the 'partial' keyword and elude source generation?", DiagnosticSeverity.Warning, generatable.TypeLocation);
-			return;
-		}
-
-		// Require ISerializableDomainObject
-		if (!generatable.IsPartial && !generatable.IsSerializableDomainObject)
-		{
-			context.ReportDiagnostic("WrapperValueObjectGeneratorMissingSerializableDomainObject", "Missing interface",
-				"Type marked as wrapper value object lacks ISerializableDomainObject<TModel, TUnderlying> interface.", DiagnosticSeverity.Warning, generatable.TypeLocation);
-			return;
-		}
-
-		// No source generation, only above analyzers
-		if (!generatable.IsPartial)
-			return;
-
-		// Only if class
-		if (!generatable.IsClass)
-		{
-			context.ReportDiagnostic("WrapperValueObjectGeneratorValueType", "Source-generated struct wrapper value object",
-				"The type was not source-generated because it is a struct, while a class was expected. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, generatable.TypeLocation);
-			return;
-		}
-
-		// Only if non-record
-		if (generatable.IsRecord)
-		{
-			context.ReportDiagnostic("WrapperValueObjectGeneratorRecordType", "Source-generated record wrapper value object",
-				"The type was not source-generated because it is a record, which cannot inherit from a non-record base class. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, generatable.TypeLocation);
-			return;
-		}
-
-		// Only if non-abstract
-		if (generatable.IsAbstract)
-		{
-			context.ReportDiagnostic("WrapperValueObjectGeneratorAbstractType", "Source-generated abstract type",
-				"The type was not source-generated because it is abstract. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, generatable.TypeLocation);
-			return;
-		}
-
-		// Only if non-generic
-		if (generatable.IsGeneric)
-		{
-			context.ReportDiagnostic("WrapperValueObjectGeneratorGenericType", "Source-generated generic type",
-				"The type was not source-generated because it is generic. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, generatable.TypeLocation);
-			return;
-		}
-
-		// Only if non-nested
-		if (generatable.IsNested)
-		{
-			context.ReportDiagnostic("WrapperValueObjectGeneratorNestedType", "Source-generated nested type",
-				"The type was not source-generated because it is a nested type. To get source generation, avoid nesting it inside another type. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, generatable.TypeLocation);
-			return;
-		}
+			typeName: generatable.TypeName, containingNamespace: generatable.ContainingNamespace);
 
 		var typeName = generatable.TypeName;
 		var containingNamespace = generatable.ContainingNamespace;
@@ -417,7 +422,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 			: $"Wrapper<{typeName}, {underlyingTypeFullyQualifiedName}>";
 
 		// Warn if Value is not settable
-		if (existingComponents.HasFlag(WrapperValueObjectTypeComponents.UnsettableValue))
+		if (existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue))
 			context.ReportDiagnostic("WrapperValueObjectGeneratorUnsettableValue", "WrapperValueObject has Value property without init",
 				"The WrapperValueObject's Value property is missing 'private init' and is using a workaround to be deserializable. To support deserialization more cleanly, use '{ get; private init; }' or let the source generator implement the property.",
 				DiagnosticSeverity.Warning, generatable.ValueMemberLocation);
@@ -426,6 +431,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Architect.DomainModeling;
 using Architect.DomainModeling.Conversions;
 
@@ -433,24 +439,18 @@ using Architect.DomainModeling.Conversions;
 
 namespace {containingNamespace}
 {{
-	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "/*" : "")}
-	{JsonSerializationGenerator.WriteJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
-	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "*/" : "")}
-
-	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "/*" : "")}
-	{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
-	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "*/" : "")}
-
+	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
+	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
 	/* Generated */ {generatable.Accessibility.ToCodeString()} sealed partial{(generatable.IsRecord ? " record" : "")} class {typeName} :
 		WrapperValueObject<{underlyingTypeFullyQualifiedName}>,
-		IValueWrapper<{typeName}, {underlyingTypeFullyQualifiedName}>,
 		IEquatable<{typeName}>,
 		{(isComparable ? "" : "//")}IComparable<{typeName}>,
 		{(isSpanFormattable ? "" : "//")}ISpanFormattable, ISpanFormattable{formattableParsableWrapperSuffix},
 		{(isSpanParsable ? "" : "//")}ISpanParsable<{typeName}>, ISpanParsable{formattableParsableWrapperSuffix},
 		{(isUtf8SpanFormattable ? "" : "//")}IUtf8SpanFormattable, IUtf8SpanFormattable{formattableParsableWrapperSuffix},
 		{(isUtf8SpanParsable ? "" : "//")}IUtf8SpanParsable<{typeName}>, IUtf8SpanParsable{formattableParsableWrapperSuffix},
-		ISerializableDomainObject<{typeName}, {underlyingTypeFullyQualifiedName}>
+		IDirectValueWrapper<{typeName}, {underlyingTypeFullyQualifiedName}>,
+		ICoreValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>
 	{{
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.StringComparison) ? "/*" : "")}
 		{(generatable.UnderlyingTypeIsString ? "" : @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
@@ -477,6 +477,7 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.DefaultConstructor) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.CreateMethod) ? "/*" : "")}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		static {typeName} IValueWrapper<{typeName}, {underlyingTypeFullyQualifiedName}>.Create({underlyingTypeFullyQualifiedName} value)
 		{{
 			return new {typeName}(value);
@@ -487,7 +488,9 @@ namespace {containingNamespace}
 		/// <summary>
 		/// Serializes a domain object as a plain value.
 		/// </summary>
-		{underlyingTypeFullyQualifiedName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")} ISerializableDomainObject<{typeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		[return: MaybeNull]
+		{underlyingTypeFullyQualifiedName} IValueWrapper<{typeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
 		{{
 			return this.Value;
 		}}
@@ -501,7 +504,8 @@ namespace {containingNamespace}
 		/// <summary>
 		/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
 		/// </summary>
-		static {typeName} ISerializableDomainObject<{typeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static {typeName} IValueWrapper<{typeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
 		{{
 			{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
 			// To instead get syntax that is safe at compile time, make the Value property '{{ get; private init; }}' (or let the source generator implement it)
@@ -511,6 +515,39 @@ namespace {containingNamespace}
 #pragma warning restore CS0618
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.DeserializeFromUnderlying) ? "*/" : "")}
+
+		{(generatable.ExistingComponents.HasFlags(WrapperValueObjectTypeComponents.CoreValueWrapperInterface) ? "/* Core manually specified" : coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "/* For nested wrapper types only" : "")}
+		[MaybeNull]
+		{coreTypeFullyQualifiedName} IValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>.Value => ValueWrapperUnwrapper.Unwrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(this.Value);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static {typeName} IValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>.Create({coreTypeFullyQualifiedName} value)
+		{{
+			var intermediateValue = ValueWrapperUnwrapper.Wrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(value);
+			return ValueWrapperUnwrapper.Wrap<{typeName}, {underlyingTypeFullyQualifiedName}>(intermediateValue);
+		}}
+
+		/// <summary>
+		/// Serializes a domain object as a plain value.
+		/// </summary>
+		[return: MaybeNull]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		{coreTypeFullyQualifiedName} IValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>.Serialize()
+		{{
+			return DomainObjectSerializer.Serialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(
+				DomainObjectSerializer.Serialize<{typeName}, {underlyingTypeFullyQualifiedName}>(this));
+		}}
+
+		/// <summary>
+		/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static {typeName} IValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>.Deserialize({coreTypeFullyQualifiedName} value)
+		{{
+			var intermediateValue = DomainObjectSerializer.Deserialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(value);
+			return DomainObjectSerializer.Deserialize<{typeName}, {underlyingTypeFullyQualifiedName}>(intermediateValue);
+		}}
+		{(coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "*/" : generatable.ExistingComponents.HasFlags(WrapperValueObjectTypeComponents.CoreValueWrapperInterface) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
 		public sealed override string{(generatable.IsToStringNullable ? "?" : "")} ToString()
@@ -555,47 +592,26 @@ namespace {containingNamespace}
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.CompareToMethod) || !isComparable ? "*/" : "")}
 
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOperator) ? "/*" : "")}
-		public static bool operator ==({typeName}? left, {typeName}? right) => left is null ? right is null : left.Equals(right);
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NotEqualsOperator) ? "/*" : "")}
-		public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NotEqualsOperator) ? "*/" : "")}
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.EqualsOperator) ? "//" : "")}public static bool operator ==({typeName}? left, {typeName}? right) => left is null ? right is null : left.Equals(right);
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
 
 		{(isComparable ? "" : "/*")}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterThanOperator) ? "/*" : "")}
-		public static bool operator >({typeName}? left, {typeName}? right) => left is null ? false : left.CompareTo(right) > 0;
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterThanOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessThanOperator) ? "/*" : "")}
-		public static bool operator <({typeName}? left, {typeName}? right) => left is null ? right is not null : left.CompareTo(right) < 0;
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessThanOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterEqualsOperator) ? "/*" : "")}
-		public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterEqualsOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessEqualsOperator) ? "/*" : "")}
-		public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessEqualsOperator) ? "*/" : "")}
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({typeName}? left, {typeName}? right) => left is null ? false : left.CompareTo(right) > 0;
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({typeName}? left, {typeName}? right) => left is null ? right is not null : left.CompareTo(right) < 0;
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
 		{(isComparable ? "" : "*/")}
 
-		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "/*" : "")}
-		{(generatable.UnderlyingTypeIsStruct ? "" : @"[return: NotNullIfNotNull(""value"")]")}
-		public static explicit operator {typeName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")}({underlyingTypeFullyQualifiedName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")} value) => {(generatable.UnderlyingTypeIsStruct ? "" : "value is null ? null : ")}new {typeName}(value);
-		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "*/" : "")}
+		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "//" : "")}
+		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "//" : "")}{(generatable.UnderlyingTypeIsStruct ? "[return: NotNull]" : @"[return: NotNullIfNotNull(""value"")]")}
+		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "//" : "")}public static explicit operator {typeName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")}({underlyingTypeFullyQualifiedName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")} value) => {(generatable.UnderlyingTypeIsStruct ? "" : "value is null ? null : ")}new {typeName}(value);
+		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "//" : "")}{(generatable.UnderlyingTypeIsStruct ? "[return: NotNull]" : @"[return: NotNullIfNotNull(""instance"")]")}
+		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "//" : "")}public static implicit operator {underlyingTypeFullyQualifiedName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")}({typeName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")} instance) => instance{(generatable.UnderlyingTypeIsStruct ? "" : "?")}.Value;
 
-		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "/*" : "")}
-		{(generatable.UnderlyingTypeIsStruct ? "" : @"[return: NotNullIfNotNull(""instance"")]")}
-		public static implicit operator {underlyingTypeFullyQualifiedName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")}({typeName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")} instance) => instance{(generatable.UnderlyingTypeIsStruct ? "" : "?")}.Value;
-		{(generatable.UnderlyingTypeKind == TypeKind.Interface || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertFromOperator) ? "*/" : "")}
-
-		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "/*" : "")}
-		{(generatable.UnderlyingTypeIsStruct ? @"[return: NotNullIfNotNull(""value"")]" : "")}
-		{(generatable.UnderlyingTypeIsStruct ? $"public static explicit operator {typeName}?({underlyingTypeFullyQualifiedName}? value) => value is null ? null : new {typeName}(value.Value);" : "")}
-		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "*/" : "")}
-
-		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "/*" : "")}
-		{(generatable.UnderlyingTypeIsStruct ? @"[return: NotNullIfNotNull(""instance"")]" : "")}
-		{(generatable.UnderlyingTypeIsStruct ? $"public static implicit operator {underlyingTypeFullyQualifiedName}?({typeName}? instance) => instance?.Value;" : "")}
-		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "*/" : "")}
+		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "//" : "")}{(generatable.UnderlyingTypeIsStruct ? @"[return: NotNullIfNotNull(""value"")]" : "")}
+		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertToOperator) ? "//" : "")}{(generatable.UnderlyingTypeIsStruct ? $"public static explicit operator {typeName}?({underlyingTypeFullyQualifiedName}? value) => value is null ? null : new {typeName}(value.Value);" : "")}
+		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "//" : "")}{(generatable.UnderlyingTypeIsStruct ? @"[return: NotNullIfNotNull(""instance"")]" : "")}
+		{(generatable.UnderlyingTypeIsNullable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.NullableConvertFromOperator) ? "//" : "")}{(generatable.UnderlyingTypeIsStruct ? $"public static implicit operator {underlyingTypeFullyQualifiedName}?({typeName}? instance) => instance?.Value;" : "")}
 
 		#region Formatting & Parsing
 
@@ -701,29 +717,30 @@ namespace {containingNamespace}
 		Utf8SpanParsableTryParseMethod = 1UL << 31,
 		Utf8SpanParsableParseMethod = 1UL << 32,
 		CreateMethod = 1UL << 33,
+		DirectValueWrapperInterface = 1UL << 34,
+		CoreValueWrapperInterface = 1UL << 35,
 	}
 
 	private sealed record Generatable
 	{
 		private uint _bits;
 		public bool IsWrapperValueObject { get => this._bits.GetBit(0); set => this._bits.SetBit(0, value); }
-		public bool IsSerializableDomainObject { get => this._bits.GetBit(1); set => this._bits.SetBit(1, value); }
-		public bool IsPartial { get => this._bits.GetBit(2); set => this._bits.SetBit(2, value); }
-		public bool IsRecord { get => this._bits.GetBit(3); set => this._bits.SetBit(3, value); }
-		public bool IsClass { get => this._bits.GetBit(4); set => this._bits.SetBit(4, value); }
-		public bool IsAbstract { get => this._bits.GetBit(5); set => this._bits.SetBit(5, value); }
-		public bool IsGeneric { get => this._bits.GetBit(6); set => this._bits.SetBit(6, value); }
-		public bool IsNested { get => this._bits.GetBit(7); set => this._bits.SetBit(7, value); }
-		public bool IsComparable { get => this._bits.GetBit(8); set => this._bits.SetBit(8, value); }
+		public bool IsPartial { get => this._bits.GetBit(1); set => this._bits.SetBit(1, value); }
+		public bool IsRecord { get => this._bits.GetBit(2); set => this._bits.SetBit(2, value); }
+		public bool IsClass { get => this._bits.GetBit(3); set => this._bits.SetBit(3, value); }
+		public bool IsAbstract { get => this._bits.GetBit(4); set => this._bits.SetBit(4, value); }
+		public bool IsGeneric { get => this._bits.GetBit(5); set => this._bits.SetBit(5, value); }
+		public bool IsNested { get => this._bits.GetBit(6); set => this._bits.SetBit(6, value); }
+		public bool IsComparable { get => this._bits.GetBit(7); set => this._bits.SetBit(7, value); }
 		public string TypeName { get; set; } = null!;
 		public string ContainingNamespace { get; set; } = null!;
 		public string UnderlyingTypeFullyQualifiedName { get; set; } = null!;
 		public TypeKind UnderlyingTypeKind { get; set; }
-		public bool UnderlyingTypeIsStruct { get => this._bits.GetBit(9); set => this._bits.SetBit(9, value); }
-		public bool UnderlyingTypeIsNullable { get => this._bits.GetBit(10); set => this._bits.SetBit(10, value); }
-		public bool UnderlyingTypeIsString { get => this._bits.GetBit(11); set => this._bits.SetBit(11, value); }
-		public bool IsToStringNullable { get => this._bits.GetBit(12); set => this._bits.SetBit(12, value); }
-		public bool UnderlyingTypeIsInterface { get => this._bits.GetBit(13); set => this._bits.SetBit(13, value); }
+		public bool UnderlyingTypeIsStruct { get => this._bits.GetBit(8); set => this._bits.SetBit(8, value); }
+		public bool UnderlyingTypeIsNullable { get => this._bits.GetBit(9); set => this._bits.SetBit(9, value); }
+		public bool UnderlyingTypeIsString { get => this._bits.GetBit(10); set => this._bits.SetBit(10, value); }
+		public bool IsToStringNullable { get => this._bits.GetBit(11); set => this._bits.SetBit(11, value); }
+		public bool UnderlyingTypeIsInterface { get => this._bits.GetBit(12); set => this._bits.SetBit(12, value); }
 		public string ValueFieldName { get; set; } = null!;
 		public Accessibility Accessibility { get; set; }
 		public WrapperValueObjectTypeComponents ExistingComponents { get; set; }
@@ -731,7 +748,7 @@ namespace {containingNamespace}
 		public string HashCodeExpression { get; set; } = null!;
 		public string EqualityExpression { get; set; } = null!;
 		public string ComparisonExpression { get; set; } = null!;
-		public SimpleLocation? TypeLocation { get; set; }
 		public SimpleLocation? ValueMemberLocation { get; set; }
+		public Diagnostic? Problem { get; set; }
 	}
 }

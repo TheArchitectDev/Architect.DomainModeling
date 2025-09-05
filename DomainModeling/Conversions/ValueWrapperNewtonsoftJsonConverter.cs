@@ -10,7 +10,7 @@ public sealed class ValueWrapperNewtonsoftJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: Newtonsoft.Json.JsonConverter
-	where TWrapper : ISerializableDomainObject<TWrapper, TValue>
+	where TWrapper : IValueWrapper<TWrapper, TValue>
 {
 	private static readonly Type? NullableWrapperType = typeof(TWrapper).IsValueType
 		? typeof(Nullable<>).MakeGenericType(typeof(TWrapper))
@@ -49,7 +49,7 @@ public sealed class LargeNumberValueWrapperNewtonsoftJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
 	TValue>
 	: Newtonsoft.Json.JsonConverter
-	where TWrapper : ISerializableDomainObject<TWrapper, TValue>
+	where TWrapper : IValueWrapper<TWrapper, TValue>
 	where TValue : INumber<TValue>, ISpanParsable<TValue>, ISpanFormattable
 {
 	private static readonly Type? NullableWrapperType = typeof(TWrapper).IsValueType

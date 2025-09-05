@@ -16,9 +16,8 @@ public interface IDomainEventConfigurator
 			in Args args)
 		where TDomainEvent : IDomainObject;
 
-#pragma warning disable IDE0040 // Remove accessibility modifiers -- We always want explicit accessibility for types
+	[SuppressMessage("Style", "IDE0040:Remove accessibility modifiers", Justification = "We always want explicit accessibility for types")]
 	public readonly struct Args
-#pragma warning restore IDE0040 // Remove accessibility modifiers
 	{
 		public readonly bool HasDefaultConstructor { get; init; }
 	}

@@ -15,14 +15,11 @@ internal static class SymbolExtensions
 
 		var index = haystack.LastIndexOf(needle);
 
-		if (index < 0)
-			return false;
-
-		if (index == 0)
-			return true;
-
-		var nameFollowsDot = haystack[index - 1] == '.';
-
-		return nameFollowsDot;
+		return index switch
+		{
+			< 0 => false, // Name not found
+			0 => haystack.Length == needle.Length, // Starts with name, so depends on whether is exact match
+			_ => haystack[index - 1] == '.' && haystack.Length == index + needle.Length, // Contains name, so depends on whether name directly follows a dot and is suffix
+		};
 	}
 }

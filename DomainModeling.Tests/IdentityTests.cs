@@ -353,6 +353,98 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Value_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			ICoreValueWrapper<FormatAndParseTestingIntId, int> intInstance =
+				new FormatAndParseTestingIntId(value);
+			Assert.IsType<int>(intInstance.Value);
+			Assert.Equal(value, intInstance.Value);
+
+			ICoreValueWrapper<FormatAndParseTestingStringId, string> stringInstance =
+				new FormatAndParseTestingStringId(new StringValue(value.ToString()));
+			Assert.IsType<string>(stringInstance.Value);
+			Assert.Equal(value.ToString(), stringInstance.Value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromDirectUnderlyingValue<TWrapper, TValue>(TValue value)
+			where TWrapper : IDirectValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromCoreValue<TWrapper, TValue>(TValue value)
+			where TWrapper : ICoreValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaDirectUnderlyingValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<FormatAndParseTestingIntId>(CreateFromDirectUnderlyingValue<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance));
+			Assert.Equal(value, CreateFromDirectUnderlyingValue<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance).Value?.Value.Value);
+
+			var stringInstance = new StringValue(value.ToString());
+			Assert.IsType<FormatAndParseTestingStringId>(CreateFromDirectUnderlyingValue<FormatAndParseTestingStringId, StringValue>(stringInstance));
+			Assert.Equal(value.ToString(), CreateFromDirectUnderlyingValue<FormatAndParseTestingStringId, StringValue>(stringInstance).Value?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntId>(CreateFromCoreValue<FormatAndParseTestingIntId, int>(value));
+			Assert.Equal(value, CreateFromCoreValue<FormatAndParseTestingIntId, int>(value).Value?.Value.Value);
+
+			Assert.IsType<FormatAndParseTestingStringId>(CreateFromCoreValue<FormatAndParseTestingStringId, string>(value.ToString()));
+			Assert.Equal(value.ToString(), CreateFromCoreValue<FormatAndParseTestingStringId, string>(value.ToString()).Value?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper> intInstance =
+				new FormatAndParseTestingIntId(value);
+			Assert.IsType<FormatAndParseTestingIntWrapper>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize()?.Value.Value);
+
+			IValueWrapper<FormatAndParseTestingStringId, StringValue> stringInstance =
+				new FormatAndParseTestingStringId(new StringValue(value.ToString()));
+			Assert.IsType<StringValue>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize()?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToCoreType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntId, int> intInstance =
+				new FormatAndParseTestingIntId(value);
+			Assert.IsType<int>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize());
+
+			IValueWrapper<FormatAndParseTestingStringId, string> stringInstance =
+				new FormatAndParseTestingStringId(new StringValue(value.ToString()));
+			Assert.IsType<string>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize());
+		}
+
+		[Theory]
 		[InlineData(null)]
 		[InlineData(0)]
 		[InlineData(1)]
@@ -420,6 +512,41 @@ namespace Architect.DomainModeling.Tests
 
 			Assert.Equal($@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject((DecimalId)value));
 			Assert.Equal($@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject((DecimalId?)value));
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper Deserialize<TWrapper, TValue>(TValue value)
+			where TWrapper : IValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Deserialize(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<FormatAndParseTestingIntId>(Deserialize<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance).Value?.Value.Value);
+
+			var stringInstance = new StringValue(value.ToString());
+			Assert.IsType<FormatAndParseTestingStringId>(Deserialize<FormatAndParseTestingStringId, StringValue>(stringInstance));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, StringValue>(stringInstance).Value?.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromCoreType_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntId>(Deserialize<FormatAndParseTestingIntId, int>(value));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntId, int>(value).Value?.Value.Value);
+
+			Assert.IsType<FormatAndParseTestingStringId>(Deserialize<FormatAndParseTestingStringId, string>(value.ToString()));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, string>(value.ToString()).Value?.Value);
 		}
 
 		[Theory]
@@ -779,7 +906,8 @@ namespace Architect.DomainModeling.Tests
 			ISpanParsable<FullySelfImplementedIdentity>,
 			IUtf8SpanFormattable,
 			IUtf8SpanParsable<FullySelfImplementedIdentity>,
-			ISerializableDomainObject<FullySelfImplementedIdentity, int>
+			IDirectValueWrapper<FullySelfImplementedIdentity, int>,
+			ICoreValueWrapper<FullySelfImplementedIdentity, int>
 		{
 			public int Value { get; private init; }
 
@@ -796,7 +924,7 @@ namespace Architect.DomainModeling.Tests
 			/// <summary>
 			/// Serializes a domain object as a plain value.
 			/// </summary>
-			int ISerializableDomainObject<FullySelfImplementedIdentity, int>.Serialize()
+			int IValueWrapper<FullySelfImplementedIdentity, int>.Serialize()
 			{
 				return this.Value;
 			}
@@ -804,7 +932,7 @@ namespace Architect.DomainModeling.Tests
 			/// <summary>
 			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
 			/// </summary>
-			static FullySelfImplementedIdentity ISerializableDomainObject<FullySelfImplementedIdentity, int>.Deserialize(int value)
+			static FullySelfImplementedIdentity IValueWrapper<FullySelfImplementedIdentity, int>.Deserialize(int value)
 			{
 				return new FullySelfImplementedIdentity() { Value = value };
 			}
@@ -852,7 +980,7 @@ namespace Architect.DomainModeling.Tests
 
 			#region Formatting & Parsing
 
-#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
+//#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
 
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -887,7 +1015,7 @@ namespace Architect.DomainModeling.Tests
 			public static FullySelfImplementedIdentity Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 				(FullySelfImplementedIdentity)ParsingHelper.Parse<int>(utf8Text, provider);
 
-#endif
+//#endif
 
 			#endregion
 		}

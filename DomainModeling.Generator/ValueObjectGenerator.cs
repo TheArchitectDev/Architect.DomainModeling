@@ -67,55 +67,55 @@ public class ValueObjectGenerator : SourceGenerator
 
 		// Records override this, but our implementation is superior
 		existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
-			member.Name == nameof(ToString) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
+			member is IMethodSymbol { Name: nameof(ToString), IsImplicitlyDeclared: false, IsOverride: true, Arity: 0, Parameters.Length: 0, }));
 
 		// Records override this, but our implementation is superior
 		existingComponents |= ValueObjectTypeComponents.GetHashCodeOverride.If(members.Any(member =>
-			member.Name == nameof(GetHashCode) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 0));
+			member is IMethodSymbol { Name: nameof(GetHashCode), IsImplicitlyDeclared: false, IsOverride: true, Arity: 0, Parameters.Length: 0, }));
 
 		// Records irrevocably and correctly override this, checking the type and delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.EqualsOverride.If(members.Any(member =>
-			member.Name == nameof(Equals) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			member is IMethodSymbol { Name: nameof(Equals), IsOverride: true, Arity: 0, Parameters.Length: 1, } method &&
 			method.Parameters[0].Type.SpecialType == SpecialType.System_Object));
 
 		// Records override this, but our implementation is superior
 		existingComponents |= ValueObjectTypeComponents.EqualsMethod.If(members.Any(member =>
-			member.Name == nameof(Equals) && member is IMethodSymbol { IsImplicitlyDeclared: false } method && method.Parameters.Length == 1 &&
+			member.HasNameOrExplicitInterfaceImplementationName(nameof(Equals)) && member is IMethodSymbol { IsImplicitlyDeclared: false, IsOverride: false, Arity: 0, Parameters.Length: 1, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= ValueObjectTypeComponents.CompareToMethod.If(members.Any(member =>
-			member.Name == nameof(IComparable.CompareTo) && member is IMethodSymbol method && method.Parameters.Length == 1 &&
+			member.HasNameOrExplicitInterfaceImplementationName(nameof(IComparable.CompareTo)) && member is IMethodSymbol { Arity: 0, Parameters.Length: 1, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.EqualsOperator.If(members.Any(member =>
-			member.Name == "op_Equality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.EqualityOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		// Records irrevocably and correctly override this, delegating to IEquatable<T>.Equals(T)
 		existingComponents |= ValueObjectTypeComponents.NotEqualsOperator.If(members.Any(member =>
-			member.Name == "op_Inequality" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.InequalityOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= ValueObjectTypeComponents.GreaterThanOperator.If(members.Any(member =>
-			member.Name == "op_GreaterThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.GreaterThanOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= ValueObjectTypeComponents.LessThanOperator.If(members.Any(member =>
-			member.Name == "op_LessThan" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.LessThanOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= ValueObjectTypeComponents.GreaterEqualsOperator.If(members.Any(member =>
-			member.Name == "op_GreaterThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.GreaterThanOrEqualOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= ValueObjectTypeComponents.LessEqualsOperator.If(members.Any(member =>
-			member.Name == "op_LessThanOrEqual" && member is IMethodSymbol method && method.Parameters.Length == 2 &&
+			member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.LessThanOrEqualOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
 			method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
@@ -271,11 +271,9 @@ namespace {containingNamespace}
 {{
 	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial{(isRecord ? " record" : "")} class {typeName} : ValueObject, IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
-		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "/*" : "")}
-		{(dataMembers.Any(member => member.Type.SpecialType == SpecialType.System_String)
+		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "//" : "")}{(dataMembers.Any(member => member.Type.SpecialType == SpecialType.System_String)
 			? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"
 			: @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
-		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "/*" : "")}
 #pragma warning disable CS8618 // Deserialization constructor
@@ -350,26 +348,14 @@ namespace {containingNamespace}
 		{(isComparable ? "" : "*/")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "*/" : "")}
 
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOperator) ? "/*" : "")}
-		public static bool operator ==({typeName}? left, {typeName}? right) => left is null ? right is null : left.Equals(right);
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "/*" : "")}
-		public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "*/" : "")}
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOperator) ? "//" : "")}public static bool operator ==({typeName}? left, {typeName}? right) => left is null ? right is null : left.Equals(right);
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
 
 		{(isComparable ? "" : "/*")}
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "/*" : "")}
-		public static bool operator >({typeName}? left, {typeName}? right) => left is null ? false : left.CompareTo(right) > 0;
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessThanOperator) ? "/*" : "")}
-		public static bool operator <({typeName}? left, {typeName}? right) => left is null ? right is not null : left.CompareTo(right) < 0;
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessThanOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterEqualsOperator) ? "/*" : "")}
-		public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterEqualsOperator) ? "*/" : "")}
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessEqualsOperator) ? "/*" : "")}
-		public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessEqualsOperator) ? "*/" : "")}
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({typeName}? left, {typeName}? right) => left is null ? false : left.CompareTo(right) > 0;
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({typeName}? left, {typeName}? right) => left is null ? right is not null : left.CompareTo(right) < 0;
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
 		{(isComparable ? "" : "*/")}
 	}}
 }}
