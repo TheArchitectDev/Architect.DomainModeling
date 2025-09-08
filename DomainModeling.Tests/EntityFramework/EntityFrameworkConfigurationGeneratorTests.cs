@@ -1,8 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
+using Architect.DomainModeling.Configuration;
 using Architect.DomainModeling.Conversions;
+using Architect.DomainModeling.Tests.Common;
 using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests.EntityFramework;
@@ -11,12 +15,20 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 {
 	internal static bool AllowParameterizedConstructors = true;
 
+	private ILoggerFactory LoggerFactory { get; }
+	private CapturingLoggerProvider CapturingLoggerProvider { get; }
+
 	private string UniqueName { get; } = Guid.NewGuid().ToString("N");
 	private TestDbContext DbContext { get; }
 
 	public EntityFrameworkConfigurationGeneratorTests()
 	{
-		this.DbContext = new TestDbContext($"DataSource={this.UniqueName};Mode=Memory;Cache=Shared;");
+		this.CapturingLoggerProvider = new CapturingLoggerProvider();
+		this.LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(options => options
+			.SetMinimumLevel(LogLevel.Debug)
+			.AddProvider(this.CapturingLoggerProvider));
+
+		this.DbContext = new TestDbContext($"DataSource={this.UniqueName};Mode=Memory;Cache=Shared;", this.LoggerFactory);
 		this.DbContext.Database.OpenConnection();
 	}
 
@@ -61,7 +73,7 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 
 		Assert.Equal(2, reloadedDomainEvent.Id);
 
-		Assert.Equal(2, reloadedEntity.Id.Value);
+		Assert.Equal("A", reloadedEntity.Id.Value);
 		Assert.Equal("One", reloadedEntity.Values.One);
 		Assert.Equal(2m, reloadedEntity.Values.Two);
 		Assert.Equal(3, reloadedEntity.Values.Three.Value?.Value.Value);
@@ -76,13 +88,32 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 		var providerClrTypeForStringWrapperWithCustomIntCore = mappingForStringWithCustomIntCore?.GetValueConverter()?.ProviderClrType;
 		Assert.Equal("INTEGER", columnTypeForStringWrapperWithCustomIntCore);
 		Assert.Equal(typeof(int), providerClrTypeForStringWrapperWithCustomIntCore);
+
+		// Case-sensitivity should be honored, even during key comparisons
+		Assert.Same(reloadedEntity, this.DbContext.Set<EntityForEF>().Find(new EntityForEFId("a")));
+
+		// The database's collation should have been made ignore-case by our ConfigureIdentityConventions() options
+		Assert.Same(reloadedEntity, this.DbContext.Set<EntityForEF>().SingleOrDefault(x => x.Id == "a"));
+
+		// The logs should warn that Wrapper1ForEF has a mismatching collation in the database
+		var logs = this.CapturingLoggerProvider.Logs;
+		var warning = Assert.Single(logs, log => log.StartsWith("[Warning]"));
+		Assert.Equal("[Warning] Architect.DomainModeling.Tests.EntityFramework.ValueObjectForEF.One uses OrdinalIgnoreCase comparisons, but the default SQLite database collation acts more like Ordinal - use the options in ConfigureIdentityConventions() and ConfigureWrapperValueObjectConventions() to specify default collations, or configure property collations manually", warning);
+
+		// The logs should show that certain collations were set
+		Assert.Contains(logs, log => log.Equals("[Debug] Set collation BINARY for SomeStringId properties based on the type's case-sensitivity"));
+		Assert.Contains(logs, log => log.Equals("[Debug] Set collation NOCASE for EntityForEFId properties based on the type's case-sensitivity"));
 	}
 }
 
 internal sealed class TestDbContext(
-	string connectionString)
-	: DbContext(new DbContextOptionsBuilder<TestDbContext>().UseSqlite(connectionString).Options)
+	string connectionString, ILoggerFactory loggerFactory)
+	: DbContext(new DbContextOptionsBuilder<TestDbContext>()
+		.UseLoggerFactory(loggerFactory)
+		.UseSqlite(connectionString).Options)
 {
+	[SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression", Justification = "Suppression is necessary.")]
+	[SuppressMessage("Usage", "CA2263:Prefer generic overload when type is known", Justification = "We have no generic info for types received from callbacks.")]
 	protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
 	{
 		configurationBuilder.Conventions.Remove<ConstructorBindingConvention>();
@@ -91,17 +122,23 @@ internal sealed class TestDbContext(
 
 		configurationBuilder.ConfigureDomainModelConventions(domainModel =>
 		{
-			domainModel.ConfigureIdentityConventions();
+			domainModel.ConfigureIdentityConventions(new IdentityConfigurationOptions() { CaseSensitiveCollation = "BINARY", IgnoreCaseCollation = "NOCASE", });
 			domainModel.ConfigureWrapperValueObjectConventions();
 			domainModel.ConfigureEntityConventions();
 			domainModel.ConfigureDomainEventConventions();
-		});
 
-		// For a wrapper whose core type EF does not support, overwriting the conventions with our own should work
-		configurationBuilder.Properties<LazyStringWrapper>()
-			.HaveConversion<LazyStringWrapperConverter>();
-		configurationBuilder.DefaultTypeMapping<LazyStringWrapper>()
-			.HasConversion<LazyStringWrapperConverter>();
+			domainModel.CustomizeWrapperValueObjectConventions(context =>
+			{
+				// For a wrapper whose core type EF does not support, overwriting the conventions with our own should work
+				if (context.CoreType == typeof(Lazy<string>))
+				{
+					context.ConfigurationBuilder.Properties(context.ModelType)
+						.HaveConversion(typeof(LazyStringWrapperConverter));
+					context.ConfigurationBuilder.DefaultTypeMapping(context.ModelType)
+						.HasConversion(typeof(LazyStringWrapperConverter));
+				}
+			});
+		});
 	}
 
 	private class LazyStringWrapperConverter : ValueConverter<LazyStringWrapper, string>
@@ -168,8 +205,14 @@ internal sealed class DomainEventForEF : IDomainObject
 [IdentityValueObject<decimal>]
 public readonly partial record struct DomainEventForEFId;
 
+[IdentityValueObject<string>]
+public partial record struct EntityForEFId
+{
+	private StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
+}
+
 [Entity]
-internal sealed class EntityForEF : Entity<EntityForEFId, int>
+internal sealed class EntityForEF : Entity<EntityForEFId>
 {
 	/// <summary>
 	/// This lets us test if a constructor is used or not.
@@ -179,7 +222,7 @@ internal sealed class EntityForEF : Entity<EntityForEFId, int>
 	public ValueObjectForEF Values { get; }
 
 	public EntityForEF(ValueObjectForEF values)
-		: base(id: 2)
+		: base(id: "A")
 	{
 		if (!EntityFrameworkConfigurationGeneratorTests.AllowParameterizedConstructors)
 			throw new InvalidOperationException("Deserialization was not allowed to use the parameterized constructors.");
@@ -200,7 +243,7 @@ internal sealed class EntityForEF : Entity<EntityForEFId, int>
 [WrapperValueObject<string>]
 internal sealed partial class Wrapper1ForEF
 {
-	protected override StringComparison StringComparison => StringComparison.Ordinal;
+	protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
 	/// <summary>
 	/// This lets us test if a constructor is used or not.

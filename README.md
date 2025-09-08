@@ -371,6 +371,8 @@ internal sealed class MyDbContext : DbContext
 {
 	// Snip
 
+	[SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression", Justification = "Suppression is necessary.")]
+	[SuppressMessage("Usage", "CA2263:Prefer generic overload when type is known", Justification = "We have no generic info for types received from callbacks.")]
 	protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
 	{
 		// Recommended to keep EF from throwing if it sees no usable constructor, if we are keeping it from using constructors anyway
@@ -378,10 +380,33 @@ internal sealed class MyDbContext : DbContext
 
 		configurationBuilder.ConfigureDomainModelConventions(domainModel =>
 		{
+			// Defaults
 			domainModel.ConfigureIdentityConventions();
 			domainModel.ConfigureWrapperValueObjectConventions();
 			domainModel.ConfigureEntityConventions();
 			domainModel.ConfigureDomainEventConventions();
+
+			domainModel.CustomizeIdentityConventions(context =>
+			{
+				// Example: Use fixed-length strings with a binary collation for all string IIdentities
+				if (context.CoreType == typeof(string))
+				{
+					context.ConfigurationBuilder.Properties(context.ModelType)
+						.HaveMaxLength(16)
+						.AreFixedLength()
+						.UseCollation("Latin1_General_100_BIN2");
+				}
+			});
+
+			domainModel.CustomizeWrapperValueObjectConventions(context =>
+			{
+				// Example: Use DECIMAL(19, 9) for all decimal wrappers
+				if (context.CoreType == typeof(decimal))
+				{
+					context.ConfigurationBuilder.Properties(context.ModelType)
+						.HavePrecision(19, 9);
+				}
+			});
 		});
 	}
 }
@@ -389,9 +414,10 @@ internal sealed class MyDbContext : DbContext
 
 `ConfigureDomainModelConventions()` itself does not have any effect other than to invoke its action, which allows the specific mapping kinds to be chosen.
 The inner calls, such as to `ConfigureIdentityConventions()`, configure the various conventions.
+The `Customize*()` methods make it easy to specify your own conventions, such as for every identity or wrapper value object with a string at its core.
 
 Thanks to the provided conventions, no manual boilerplate mappings are needed, like conversions to primitives.
-The developer need only write meaningful mappings, such as the maximum length of a string property.
+Property-specific mappings are only needed where they are meaningful, such as the maximum length of a particular string property.
 
 Since only conventions are registered, regular mappings can override any part of the provided behavior.
 

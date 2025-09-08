@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Architect.DomainModeling.Conversions;
 
 namespace Architect.DomainModeling.Configuration;
 

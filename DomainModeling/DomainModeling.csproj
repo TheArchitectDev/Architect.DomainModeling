@@ -37,14 +37,18 @@ Release notes:
 Platform support:
 - BREAKING: Platform support: Dropped support for .NET 6.0 and .NET 7.0 (EOL).
 
-The base class is dead. Long live the interface!
-
 Completed support for nested wrappers:
 - Feature: Nested WrapperValueObject/Identity types can now also wrap/unwrap and serialize/deserialize directly to/from their core (deepest) underlying type.
 - Feature: EF conversions for such types now automatically map to and from the core type.
 - Feature: A deeper underlying type can be simulated, e.g. LazyStringId : IIdentity&lt;Lazy&lt;string&gt;&gt;, ICoreValueWrapper&lt;LazyStringId, string&gt;.
 - BREAKING: ISerializableDomainObject is deprecated in favor of IValueWrapper, a clear and comprehensive type to represented generic value wrappers.
 - BREAKING: IIdentityConfigurator and IWrapperValueObjectConfigurator now receive an additional type parameter on their methods, namely the core type.
+
+Correct string comparisons with EF:
+- Feature: ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions() now set a PROVIDER value comparer for each string wrapper property, matching the type's case-sensitivity. Since EF Core 7, EF compares keys using the provider type instead of the model type.
+- Feature: ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions() now warn if a string wrapper property has a collation mismatching the type's case-sensitivity, unless collation was explicitly chosen.
+- Feature: ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions() now take an optional "options" parameter, which allows specifying the respective collations for case-sensitive vs. ignore-case string wrappers.
+- Feature: ConfigureDomainModelConventions() now has convenience extension methods CustomizeIdentityConventions()/CustomizeWrapperValueObjectConventions(), for easy custom conventions, such as based on the core underlying type.
 
 Performance:
 - Enhancement: Reduced assembly size by having source-generated WrapperValueObject/Identity types use generic JSON serializers instead of generating their own.

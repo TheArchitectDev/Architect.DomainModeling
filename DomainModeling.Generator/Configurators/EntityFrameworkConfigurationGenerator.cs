@@ -122,10 +122,10 @@ public partial class EntityFrameworkConfigurationGenerator : SourceGenerator
 		var ownAssemblyName = input.AssemblyName;
 
 		var identityConfigurationCalls = String.Join(
-			$"{Environment.NewLine}\t\t\t",
+			$"{Environment.NewLine}\t\t\t\t",
 			input.Generatable.ReferencedAssembliesWithIdentityConfigurator!.Value.Select(assemblyName => $"{assemblyName}.IdentityDomainModelConfigurator.ConfigureIdentities(concreteConfigurator);"));
 		var wrapperValueObjectConfigurationCalls = String.Join(
-			$"{Environment.NewLine}\t\t\t",
+			$"{Environment.NewLine}\t\t\t\t",
 			input.Generatable.ReferencedAssembliesWithWrapperValueObjectConfigurator!.Value.Select(assemblyName => $"{assemblyName}.WrapperValueObjectDomainModelConfigurator.ConfigureWrapperValueObjects(concreteConfigurator);"));
 		var entityConfigurationCalls = String.Join(
 			$"{Environment.NewLine}\t\t\t",
@@ -141,13 +141,20 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling;
+using Architect.DomainModeling.Configuration;
 using Architect.DomainModeling.Conversions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 #nullable enable
 
@@ -170,18 +177,42 @@ namespace {ownAssemblyName}
 		/// Configures conventions for all marked <see cref=""IIdentity{{T}}""/> types.
 		/// </para>
 		/// <para>
-		/// This configures conversions to and from the underlying type for properties of the identity types.
+		/// This configures conversions to and from the core type for properties of identity types.
 		/// It similarly configures the default type mapping for those types, which is used when queries encounter a type outside the context of a property, such as in CAST(), SUM(), AVG(), etc.
 		/// </para>
 		/// <para>
-		/// Additionally, <see cref=""Decimal""/>-backed identities receive a mapping hint to use precision 28 and scale 0, a useful default for DistributedIds.
+		/// Additionally, <see langword=""string""/>-backed identities receive a <em>provider</em> value comparer matching their own <see cref=""StringComparison""/>s.
+		/// This is important because Entity Framework performs all comparisons of <em>keys</em> on the core (provider) values.
+		/// This method also warns if the collation (or the provider's default) mismatches the type's <see cref=""StringComparison""/>.
+		/// </para>
+		/// <para>
+		/// Additionally, <see langword=""decimal""/>-backed identities receive a mapping hint to use precision 28 and scale 0, a useful default for DistributedIds.
 		/// </para>
 		/// </summary>
-		public static IDomainModelConfigurator ConfigureIdentityConventions(this IDomainModelConfigurator configurator)
+		/// <param name=""options"">If given, the method also applies any options specified.</param>
+		public static IDomainModelConfigurator ConfigureIdentityConventions(this IDomainModelConfigurator configurator, IdentityConfigurationOptions? options = null)
 		{{
-			var concreteConfigurator = new EntityFrameworkIdentityConfigurator(configurator.ConfigurationBuilder);
+			// Apply Identity configuration (immediate)
+			{{
+				var concreteConfigurator = new EntityFrameworkIdentityConfigurator(configurator.ConfigurationBuilder, options);
+				// Call configurator for each Identity type
+				{identityConfigurationCalls}
+			}}
 
-			{identityConfigurationCalls}
+			// Apply common ValueWrapper configuration (deferred)
+			{{
+				ValueWrapperConfigurator concreteConfigurator = null!;
+				configurator.ConfigurationBuilder.Conventions.Add(serviceProvider => concreteConfigurator = new ValueWrapperConfigurator(
+					configurator.ConfigurationBuilder,
+					serviceProvider.GetRequiredService<IDiagnosticsLogger<DbLoggerCategory.Model.Validation>>(),
+					serviceProvider.GetService<IDatabaseProvider>(),
+					() =>
+					{{
+				// Call configurator for each Identity type
+				{identityConfigurationCalls}
+					}},
+					options));
+			}}
 
 			return configurator;
 		}}
@@ -191,15 +222,39 @@ namespace {ownAssemblyName}
 		/// Configures conventions for all marked <see cref=""IWrapperValueObject{{TValue}}""/> types.
 		/// </para>
 		/// <para>
-		/// This configures conversions to and from the underlying type for properties of the wrapper types.
+		/// This configures conversions to and from the core type for properties of the wrapper types.
 		/// It similarly configures the default type mapping for those types, which is used when queries encounter a type outside the context of a property, such as in CAST(), SUM(), AVG(), etc.
 		/// </para>
+		/// <para>
+		/// Additionally, <see langword=""string""/>-backed wrappers receive a <em>provider</em> value comparer matching their own <see cref=""StringComparison""/>s.
+		/// This is important because Entity Framework performs all comparisons of <em>keys</em> on the core (provider) values.
+		/// This method also warns if the collation (or the provider's default) mismatches the type's <see cref=""StringComparison""/>.
+		/// </para>
 		/// </summary>
-		public static IDomainModelConfigurator ConfigureWrapperValueObjectConventions(this IDomainModelConfigurator configurator)
+		/// <param name=""options"">If given, the method also applies any options specified.</param>
+		public static IDomainModelConfigurator ConfigureWrapperValueObjectConventions(this IDomainModelConfigurator configurator, WrapperValueObjectConfigurationOptions? options = null)
 		{{
-			var concreteConfigurator = new EntityFrameworkWrapperValueObjectConfigurator(configurator.ConfigurationBuilder);
+			// Apply WrapperValueObject configuration (immediate)
+			{{
+				var concreteConfigurator = new EntityFrameworkWrapperValueObjectConfigurator(configurator.ConfigurationBuilder, options);
+				// Call configurator for each WrapperValueObject type
+				{wrapperValueObjectConfigurationCalls}
+			}}
 
-			{wrapperValueObjectConfigurationCalls}
+			// Apply common ValueWrapper configuration (deferred)
+			{{
+				ValueWrapperConfigurator concreteConfigurator = null!;
+				configurator.ConfigurationBuilder.Conventions.Add(serviceProvider => concreteConfigurator = new ValueWrapperConfigurator(
+					configurator.ConfigurationBuilder,
+					serviceProvider.GetRequiredService<IDiagnosticsLogger<DbLoggerCategory.Model.Validation>>(),
+					serviceProvider.GetService<IDatabaseProvider>(),
+					() =>
+					{{
+				// Call configurator for each WrapperValueObject type
+				{wrapperValueObjectConfigurationCalls}
+					}},
+					options));
+			}}
 
 			return configurator;
 		}}
@@ -217,9 +272,11 @@ namespace {ownAssemblyName}
 			EntityFrameworkEntityConfigurator concreteConfigurator = null!;
 			concreteConfigurator = new EntityFrameworkEntityConfigurator(() =>
 			{{
+			// Call configurator for each Entity type
 			{entityConfigurationCalls}
 			}});
 
+			// Apply Entity configuration (deferred)
 			configurator.ConfigurationBuilder.Conventions.Add(_ => concreteConfigurator);
 
 			return configurator;
@@ -238,11 +295,51 @@ namespace {ownAssemblyName}
 			EntityFrameworkEntityConfigurator concreteConfigurator = null!;
 			concreteConfigurator = new EntityFrameworkEntityConfigurator(() =>
 			{{
+			// Call configurator for each DomainEvent type
 			{domainEventConfigurationCalls}
 			}});
 
+			// Apply DomainEvent configuration (deferred)
 			configurator.ConfigurationBuilder.Conventions.Add(_ => concreteConfigurator);
 
+			return configurator;
+		}}
+
+		/// <summary>
+		/// <para>
+		/// Configures custom conventions on marked <see cref=""IIdentity{{T}}""/> types, via a simple callback per type.
+		/// </para>
+		/// <para>
+		/// For example, configure every identity type wrapping a <see langword=""string""/> to have a max length, fixed length, and collation.
+		/// </para>
+		/// <para>
+		/// To receive generic callbacks instead, create a concrete implementation of <see cref=""IIdentityConfigurator""/>, and use <see cref=""IdentityDomainModelConfigurator.ConfigureIdentities""/> to initiate the callbacks to its generic method.
+		/// </para>
+		/// </summary>
+		public static IDomainModelConfigurator CustomizeIdentityConventions(this IDomainModelConfigurator configurator, Action<CustomizingIdentityConfigurator.Context> callback)
+		{{
+			var concreteConfigurator = new CustomizingIdentityConfigurator(configurator.ConfigurationBuilder, callback);
+			// Call configurator for each Identity type
+			{identityConfigurationCalls}
+			return configurator;
+		}}
+
+		/// <summary>
+		/// <para>
+		/// Configures custom conventions on marked <see cref=""IWrapperValueObject{{TValue}}""/> types, via a simple callback per type.
+		/// </para>
+		/// <para>
+		/// For example, configure every wrapper type wrapping a <see langword=""decimal""/> to have a certain precision.
+		/// </para>
+		/// <para>
+		/// To receive generic callbacks instead, create a concrete implementation of <see cref=""IWrapperValueObjectConfigurator""/>, and use <see cref=""WrapperValueObjectDomainModelConfigurator.ConfigureWrapperValueObjects""/> to initiate the callbacks to its generic method.
+		/// </para>
+		/// </summary>
+		public static IDomainModelConfigurator CustomizeWrapperValueObjectConventions(this IDomainModelConfigurator configurator, Action<CustomizingWrapperValueObjectConfigurator.Context> callback)
+		{{
+			var concreteConfigurator = new CustomizingWrapperValueObjectConfigurator(configurator.ConfigurationBuilder, callback);
+			// Call configurator for each WrapperValueObject type
+			{wrapperValueObjectConfigurationCalls}
 			return configurator;
 		}}
 	}}
@@ -256,50 +353,252 @@ namespace {ownAssemblyName}
 		ModelConfigurationBuilder ConfigurationBuilder)
 		: IDomainModelConfigurator;
 
-	file sealed record class EntityFrameworkIdentityConfigurator(ModelConfigurationBuilder ConfigurationBuilder)
-		: Architect.DomainModeling.Configuration.IIdentityConfigurator
+	file sealed record class ValueWrapperConfigurator(
+		ModelConfigurationBuilder ConfigurationBuilder,
+		IDiagnosticsLogger<DbLoggerCategory.Model.Validation> DiagnosticLogger,
+		IDatabaseProvider? DatabaseProvider,
+		Action InvokeConfigurationCallbacks,
+		ValueWrapperConfigurationOptions? Options)
+		: IIdentityConfigurator, IWrapperValueObjectConfigurator, IModelInitializedConvention, IModelFinalizingConvention
+	{{
+		private Dictionary<Type, StringComparison> DesiredCaseSensitivityPerType {{ get; }} = [];
+
+		internal static bool IsStringWrapperWithKnownCaseSensitivity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TCore>(
+			[NotNullWhen(true)] out StringComparison caseSensitivity)
+			where TWrapper : ICoreValueWrapper<TWrapper, TCore>
+		{{
+			caseSensitivity = default;
+			if (typeof(TCore) != typeof(string) || GaugeDesiredCaseSensitivity<TWrapper, TCore>() is not {{ }} value)
+				return false;
+			caseSensitivity = value;
+			return true;
+		}}
+
+		internal static string? GetApplicableCollationFromOptions(StringComparison caseSensitivity, ValueWrapperConfigurationOptions? options)
+		{{
+			return caseSensitivity switch
+			{{
+				StringComparison.Ordinal when options?.CaseSensitiveCollation is {{ }} collation => collation,
+				StringComparison.OrdinalIgnoreCase when options?.IgnoreCaseCollation is {{ }} collation => collation,
+				_ => null,
+			}};
+		}}
+
+		public void ProcessModelInitialized(IConventionModelBuilder modelBuilder, IConventionContext<IConventionModelBuilder> context)
+		{{
+			this.InvokeConfigurationCallbacks();
+		}}
+
+		public void ConfigureIdentity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity, TUnderlying, TCore>(
+			in IIdentityConfigurator.Args args)
+			where TIdentity : IIdentity<TUnderlying>, IDirectValueWrapper<TIdentity, TUnderlying>, ICoreValueWrapper<TIdentity, TCore>
+			where TUnderlying : notnull, IEquatable<TUnderlying>, IComparable<TUnderlying>
+		{{
+			this.ApplyConfiguration<TIdentity, TCore>();
+		}}
+
+		public void ConfigureWrapperValueObject<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TValue, TCore>(
+			in IWrapperValueObjectConfigurator.Args args)
+			where TWrapper : IWrapperValueObject<TValue>, IDirectValueWrapper<TWrapper, TValue>, ICoreValueWrapper<TWrapper, TCore>
+			where TValue : notnull
+		{{
+			this.ApplyConfiguration<TWrapper, TCore>();
+		}}
+
+		private void ApplyConfiguration<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TCore>()
+			where TWrapper : ICoreValueWrapper<TWrapper, TCore>
+		{{
+			// For string wrappers where we can ascertain the desired case-sensitivity
+			if (IsStringWrapperWithKnownCaseSensitivity<TWrapper, TCore>(out var caseSensitivity))
+			{{
+				// Remember the case-sensitivity to use in model finalizing
+				this.DesiredCaseSensitivityPerType[typeof(TWrapper)] = caseSensitivity;
+
+				// Log the collation set by the Identity/WrapperValueObject configurator, which needed to set this before user code, without waiting for access to a logger, so that user code could still override
+				if (GetApplicableCollationFromOptions(caseSensitivity, this.Options) is string collation && this.DiagnosticLogger.Logger.IsEnabled(LogLevel.Debug))
+					this.DiagnosticLogger.Logger.LogDebug(""Set collation {{TargetCollation}} for {{WrapperType}} properties based on the type's case-sensitivity"", collation, typeof(TWrapper).Name);
+			}}
+		}}
+
+		public void ProcessModelFinalizing(IConventionModelBuilder modelBuilder, IConventionContext<IConventionModelBuilder> context)
+		{{
+			var providerDefaultCaseSensitivity = GaugeProviderDefaultCaseSensitivity(this.DatabaseProvider?.Name, out var providerFriendlyName);
+
+			foreach (var property in modelBuilder.Metadata.GetEntityTypes().SelectMany(entityBuilder => entityBuilder.GetProperties()))
+			{{
+				// We only care about values mapped to strings, and only where they are wrapper types that we know the desired case-sensitivity for
+				if (property.GetValueConverter()?.ProviderClrType != typeof(string) || !this.DesiredCaseSensitivityPerType.TryGetValue(property.ClrType, out var desiredCaseSensitivity))
+					continue;
+
+				// If the database's behavior mismatches the model's behavior, then warn
+				var actualCaseSensitivity = GaugeCaseSensitivity(property, providerDefaultCaseSensitivity, providerFriendlyName, out var collationIndicator, out var isDeliberateChoice);
+				if (actualCaseSensitivity is not null && actualCaseSensitivity != desiredCaseSensitivity && !isDeliberateChoice && this.DiagnosticLogger.Logger.IsEnabled(LogLevel.Warning))
+				{{
+					this.DiagnosticLogger.Logger.LogWarning(
+						""{{Entity}}.{{Property}} uses {{DesiredCaseSensitivity}} comparisons, but the {{collationIndicator}} database collation acts more like {{ActualCaseSensitivity}} - use the options in ConfigureIdentityConventions() and ConfigureWrapperValueObjectConventions() to specify default collations, or configure property collations manually"",
+						property.DeclaringType.Name,
+						property.Name,
+						desiredCaseSensitivity,
+						collationIndicator,
+						actualCaseSensitivity);
+				}}
+			}}
+
+			this.DesiredCaseSensitivityPerType.Clear();
+			this.DesiredCaseSensitivityPerType.TrimExcess();
+		}}
+
+		private static StringComparison? GaugeDesiredCaseSensitivity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TCore>()
+			where TWrapper : ICoreValueWrapper<TWrapper, TCore>
+		{{
+			System.Diagnostics.Debug.Assert(typeof(TCore) == typeof(string), ""This method is intended only for string wrappers."");
+			try
+			{{
+				var comparisonResult = EqualityComparer<TWrapper>.Default.Equals(
+					DomainObjectSerializer.Deserialize<TWrapper, TCore>((TCore)(object)""A""),
+					DomainObjectSerializer.Deserialize<TWrapper, TCore>((TCore)(object)""a""));
+				return comparisonResult
+					? StringComparison.OrdinalIgnoreCase
+					: StringComparison.Ordinal;
+			}}
+			catch
+			{{
+				return null;
+			}}
+		}}
+
+		/// <summary>
+		/// Gauges the case-sensitivity of the given <paramref name=""property""/>'s collation, with fallback to the given <paramref name=""providerDefaultCaseSensitivity""/>.
+		/// Returns null if the case-sensitivity cannot be determined.
+		/// </summary>
+		/// <param name=""isDeliberateChoice"">Deliberate choices may warrant permitting discrepancies, whereas accidental discrepancies are cause for alarm.</param>
+		private static StringComparison? GaugeCaseSensitivity(
+			IConventionProperty property,
+			StringComparison? providerDefaultCaseSensitivity, string providerFriendlyName,
+			out string? collationIndicator, out bool isDeliberateChoice)
+		{{
+			collationIndicator = property.GetCollation();
+			isDeliberateChoice = true;
+			if (collationIndicator is null)
+			{{
+				collationIndicator = property.DeclaringType.Model.GetCollation();
+				isDeliberateChoice = false;
+			}}
+			var result = GaugeCaseSensitivity(collationIndicator);
+			if (result is null)
+			{{
+				result = providerDefaultCaseSensitivity;
+				collationIndicator = $""default {{providerFriendlyName}}"";
+				isDeliberateChoice = false;
+			}}
+			return result;
+		}}
+
+		/// <summary>
+		/// Gauges the case-sensitivity of the given <paramref name=""collationName""/>, or null if we cannot determine one.
+		/// The implementation is familiar with: [Azure] SQL Server, PostgreSQL, MySQL, SQLite.
+		/// </summary>
+		private static StringComparison? GaugeCaseSensitivity(string? collationName)
+		{{
+			var collationNameSpan = collationName.AsSpan();
+			return collationNameSpan switch
+			{{
+				_ when collationNameSpan.Contains(""_BIN"", StringComparison.OrdinalIgnoreCase) => StringComparison.Ordinal, // SQL Server, MySQL
+				_ when collationNameSpan.Contains(""_CS"", StringComparison.OrdinalIgnoreCase) => StringComparison.Ordinal, // SQL Server, MySQL
+				_ when collationNameSpan.Contains(""BINARY"", StringComparison.OrdinalIgnoreCase) => StringComparison.Ordinal, // SQLite
+				_ when collationNameSpan.Contains(""_CI"", StringComparison.OrdinalIgnoreCase) => StringComparison.OrdinalIgnoreCase, // SQL Server, MySQL
+				_ when collationNameSpan.Contains(""NOCASE"", StringComparison.OrdinalIgnoreCase) => StringComparison.OrdinalIgnoreCase, // SQLite
+				_ when collationNameSpan.Contains(""ks-level1"", StringComparison.OrdinalIgnoreCase) => StringComparison.OrdinalIgnoreCase, // Postgres
+				_ when collationNameSpan.Contains(""ks-primary"", StringComparison.OrdinalIgnoreCase) => StringComparison.OrdinalIgnoreCase, // Postgres
+				_ => null,
+			}};
+		}}
+
+		/// <summary>
+		/// Gauges the default case-sensitivity of the given <paramref name=""providerName""/>, or null if we cannot determine one.
+		/// The implementation is familiar with: [Azure] SQL Server, PostgreSQL, MySQL, SQLite.
+		/// </summary>
+		private static StringComparison? GaugeProviderDefaultCaseSensitivity(string? providerName, out string providerFriendlyName)
+		{{
+			var providerNameSpan = providerName.AsSpan();
+			var (result, friendlyName) = providerNameSpan switch
+			{{
+				_ when providerNameSpan.Contains(""SQLServer"", StringComparison.OrdinalIgnoreCase) => (StringComparison.OrdinalIgnoreCase, ""SQL Server""),
+				_ when providerNameSpan.Contains(""MySQL"", StringComparison.OrdinalIgnoreCase) => (StringComparison.OrdinalIgnoreCase, ""MySQL""),
+				_ when providerNameSpan.Contains(""Postgres"", StringComparison.OrdinalIgnoreCase) => (StringComparison.Ordinal, ""PostgreSQL""),
+				_ when providerNameSpan.Contains(""npgsql"", StringComparison.OrdinalIgnoreCase) => (StringComparison.Ordinal, ""PostgreSQL""),
+				_ when providerNameSpan.Contains(""SQLite"", StringComparison.OrdinalIgnoreCase) => (StringComparison.Ordinal, ""SQLite""),
+				_ => ((StringComparison?)null, ""unknown""),
+			}};
+			providerFriendlyName = friendlyName;
+			return result;
+		}}
+	}}
+
+	file sealed record class EntityFrameworkIdentityConfigurator(
+		ModelConfigurationBuilder ConfigurationBuilder,
+		IdentityConfigurationOptions? Options = null)
+		: IIdentityConfigurator
 	{{
 		private static readonly ConverterMappingHints DecimalIdConverterMappingHints = new ConverterMappingHints(precision: 28, scale: 0); // For decimal IDs
 
 		public void ConfigureIdentity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity, TUnderlying, TCore>(
-			in Architect.DomainModeling.Configuration.IIdentityConfigurator.Args args)
+			in IIdentityConfigurator.Args args)
 			where TIdentity : IIdentity<TUnderlying>, IDirectValueWrapper<TIdentity, TUnderlying>, ICoreValueWrapper<TIdentity, TCore>
 			where TUnderlying : notnull, IEquatable<TUnderlying>, IComparable<TUnderlying>
 		{{
 			// Configure properties of the type
 			this.ConfigurationBuilder.Properties<TIdentity>()
-				.HaveConversion<IdentityValueObjectConverter<TIdentity, TCore>>();
+				.HaveConversion<IdentityConverter<TIdentity, TCore>>();
 
 			// Configure non-property occurrences of the type, such as in CAST(), SUM(), AVG(), etc.
 			this.ConfigurationBuilder.DefaultTypeMapping<TIdentity>()
-				.HasConversion<IdentityValueObjectConverter<TIdentity, TCore>>();
+				.HasConversion<IdentityConverter<TIdentity, TCore>>();
 
 			// The converter's mapping hints are currently ignored by DefaultTypeMapping<T>, which is probably a bug: https://github.com/dotnet/efcore/issues/32533
 			if (typeof(TCore) == typeof(decimal))
 				this.ConfigurationBuilder.DefaultTypeMapping<TIdentity>()
 					.HasPrecision(28, 0);
+
+			// For string wrappers where we can ascertain the desired case-sensitivity
+			if (ValueWrapperConfigurator.IsStringWrapperWithKnownCaseSensitivity<TIdentity, TCore>(out var caseSensitivity))
+			{{
+				var comparerType = caseSensitivity switch
+				{{
+					StringComparison.Ordinal => typeof(OrdinalStringComparer),
+					StringComparison.OrdinalIgnoreCase => typeof(OrdinalIgnoreCaseStringComparer),
+					_ => null,
+				}};
+				this.ConfigurationBuilder.Properties<TIdentity>()
+					.HaveConversion(conversionType: typeof(IdentityConverter<TIdentity, TCore>), comparerType: null, providerComparerType: comparerType);
+
+				if (ValueWrapperConfigurator.GetApplicableCollationFromOptions(caseSensitivity, this.Options) is string targetCollation)
+					this.ConfigurationBuilder.Properties<TIdentity>()
+						.UseCollation(targetCollation);
+			}}
 		}}
 
-		private sealed class IdentityValueObjectConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
+		private sealed class IdentityConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
 			: ValueConverter<TModel, TProvider>
 			where TModel : IValueWrapper<TModel, TProvider>
 		{{
-			public IdentityValueObjectConverter()
+			public IdentityConverter()
 				: base(
 					model => DomainObjectSerializer.Serialize<TModel, TProvider>(model)!,
 					provider => DomainObjectSerializer.Deserialize<TModel, TProvider>(provider)!,
-					typeof(TProvider) == typeof(decimal) ? DecimalIdConverterMappingHints : null)
+					mappingHints: typeof(TProvider) == typeof(decimal) ? EntityFrameworkIdentityConfigurator.DecimalIdConverterMappingHints : null)
 			{{
 			}}
 		}}
 	}}
 
 	file sealed record class EntityFrameworkWrapperValueObjectConfigurator(
-		ModelConfigurationBuilder ConfigurationBuilder)
-		: Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator
+		ModelConfigurationBuilder ConfigurationBuilder,
+		WrapperValueObjectConfigurationOptions? Options = null)
+		: IWrapperValueObjectConfigurator
 	{{
 		public void ConfigureWrapperValueObject<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TValue, TCore>(
-			in Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator.Args args)
+			in IWrapperValueObjectConfigurator.Args args)
 			where TWrapper : IWrapperValueObject<TValue>, IDirectValueWrapper<TWrapper, TValue>, ICoreValueWrapper<TWrapper, TCore>
 			where TValue : notnull
 		{{
@@ -310,6 +609,23 @@ namespace {ownAssemblyName}
 			// Configure non-property occurrences of the type, such as in CAST(), SUM(), AVG(), etc.
 			this.ConfigurationBuilder.DefaultTypeMapping<TWrapper>()
 				.HasConversion<WrapperValueObjectConverter<TWrapper, TCore>>();
+
+			// For string wrappers where we can ascertain the desired case-sensitivity
+			if (ValueWrapperConfigurator.IsStringWrapperWithKnownCaseSensitivity<TWrapper, TCore>(out var caseSensitivity))
+			{{
+				var comparerType = caseSensitivity switch
+				{{
+					StringComparison.Ordinal => typeof(OrdinalStringComparer),
+					StringComparison.OrdinalIgnoreCase => typeof(OrdinalIgnoreCaseStringComparer),
+					_ => null,
+				}};
+				this.ConfigurationBuilder.Properties<TWrapper>()
+					.HaveConversion(conversionType: typeof(WrapperValueObjectConverter<TWrapper, TCore>), comparerType: null, providerComparerType: comparerType);
+
+				if (ValueWrapperConfigurator.GetApplicableCollationFromOptions(caseSensitivity, this.Options) is string targetCollation)
+					this.ConfigurationBuilder.Properties<TWrapper>()
+						.UseCollation(targetCollation);
+			}}
 		}}
 
 		private sealed class WrapperValueObjectConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
@@ -319,7 +635,8 @@ namespace {ownAssemblyName}
 			public WrapperValueObjectConverter()
 				: base(
 					model => DomainObjectSerializer.Serialize<TModel, TProvider>(model)!,
-					provider => DomainObjectSerializer.Deserialize<TModel, TProvider>(provider)!)
+					provider => DomainObjectSerializer.Deserialize<TModel, TProvider>(provider)!,
+					mappingHints: null)
 			{{
 			}}
 		}}
@@ -327,9 +644,9 @@ namespace {ownAssemblyName}
 
 	file sealed record class EntityFrameworkEntityConfigurator(
 		Action InvokeConfigurationCallbacks)
-		: Architect.DomainModeling.Configuration.IEntityConfigurator, Architect.DomainModeling.Configuration.IDomainEventConfigurator, IEntityTypeAddedConvention, IModelFinalizingConvention
+		: IEntityConfigurator, IDomainEventConfigurator, IEntityTypeAddedConvention, IModelFinalizingConvention
 	{{
-		private Dictionary<Type, IConventionEntityType> EntityTypeConventionsByType {{ get; }} = new Dictionary<Type, IConventionEntityType>();
+		private Dictionary<Type, IConventionEntityType> EntityTypeConventionsByType {{ get; }} = [];
 
 		public void ProcessEntityTypeAdded(IConventionEntityTypeBuilder entityTypeBuilder, IConventionContext<IConventionEntityTypeBuilder> context)
 		{{
@@ -341,10 +658,14 @@ namespace {ownAssemblyName}
 		public void ProcessModelFinalizing(IConventionModelBuilder modelBuilder, IConventionContext<IConventionModelBuilder> context)
 		{{
 			this.InvokeConfigurationCallbacks();
+
+			// Clean up
+			this.EntityTypeConventionsByType.Clear();
+			this.EntityTypeConventionsByType.TrimExcess();
 		}}
 
 		public void ConfigureEntity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TEntity>(
-			in Architect.DomainModeling.Configuration.IEntityConfigurator.Args args)
+			in IEntityConfigurator.Args args)
 			where TEntity : IEntity
 		{{
 			if (!this.EntityTypeConventionsByType.TryGetValue(typeof(TEntity), out var entityTypeConvention))
@@ -357,7 +678,7 @@ namespace {ownAssemblyName}
 		}}
 
 		public void ConfigureDomainEvent<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TDomainEvent>(
-			in Architect.DomainModeling.Configuration.IDomainEventConfigurator.Args args)
+			in IDomainEventConfigurator.Args args)
 			where TDomainEvent : IDomainObject
 		{{
 			if (!this.EntityTypeConventionsByType.TryGetValue(typeof(TDomainEvent), out var entityTypeConvention))
@@ -372,6 +693,7 @@ namespace {ownAssemblyName}
 		private sealed class UninitializedInstantiationBinding
 			: InstantiationBinding
 		{{
+			[SuppressMessage(""Trimming"", ""IL2111:Method with DynamicallyAccessedMembersAttribute is accessed via reflection"", Justification = ""Fallback only, and we have annotated the input we take for this."")]
 			private static readonly MethodInfo GetUninitializedObjectMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetUninitializedObject))!;
 
 			public override Type RuntimeType {{ get; }}
@@ -404,6 +726,89 @@ namespace {ownAssemblyName}
 			{{
 				return this;
 			}}
+		}}
+	}}
+
+	file sealed class OrdinalStringComparer : ValueComparer<string>
+	{{
+		public OrdinalStringComparer()
+			: base(
+				equalsExpression: (left, right) => String.Equals(left, right, StringComparison.Ordinal),
+				hashCodeExpression: value => String.GetHashCode(value, StringComparison.Ordinal),
+				snapshotExpression: value => value)
+		{{
+		}}
+	}}
+
+	public sealed record class CustomizingIdentityConfigurator(
+		ModelConfigurationBuilder ConfigurationBuilder,
+		Action<CustomizingIdentityConfigurator.Context> Callback)
+		: IIdentityConfigurator
+	{{
+		public readonly struct Context
+		{{
+			public ModelConfigurationBuilder ConfigurationBuilder {{ get; init; }}
+			public Type ModelType {{ get; init; }}
+			public Type UnderlyingType {{ get; init; }}
+			public Type CoreType {{ get; init; }}
+			public IIdentityConfigurator.Args Args {{ get; init; }}
+		}}
+
+		public void ConfigureIdentity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity, TUnderlying, TCore>(
+			in IIdentityConfigurator.Args args)
+			where TIdentity : IIdentity<TUnderlying>, IDirectValueWrapper<TIdentity, TUnderlying>, ICoreValueWrapper<TIdentity, TCore>
+			where TUnderlying : notnull, IEquatable<TUnderlying>, IComparable<TUnderlying>
+		{{
+			var customizationArgs = new Context()
+			{{
+				ConfigurationBuilder = this.ConfigurationBuilder,
+				ModelType = typeof(TIdentity),
+				UnderlyingType = typeof(TUnderlying),
+				CoreType = typeof(TCore),
+				Args = args,
+			}};
+			this.Callback.Invoke(customizationArgs);
+		}}
+	}}
+
+	public sealed record class CustomizingWrapperValueObjectConfigurator(
+		ModelConfigurationBuilder ConfigurationBuilder,
+		Action<CustomizingWrapperValueObjectConfigurator.Context> Callback)
+		: IWrapperValueObjectConfigurator
+	{{
+		public readonly struct Context
+		{{
+			public ModelConfigurationBuilder ConfigurationBuilder {{ get; init; }}
+			public Type ModelType {{ get; init; }}
+			public Type UnderlyingType {{ get; init; }}
+			public Type CoreType {{ get; init; }}
+			public IWrapperValueObjectConfigurator.Args Args {{ get; init; }}
+		}}
+
+		public void ConfigureWrapperValueObject<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper, TValue, TCore>(in IWrapperValueObjectConfigurator.Args args)
+			where TWrapper : IWrapperValueObject<TValue>, IDirectValueWrapper<TWrapper, TValue>, ICoreValueWrapper<TWrapper, TCore>
+			where TValue : notnull
+		{{
+			var customizationArgs = new Context()
+			{{
+				ConfigurationBuilder = this.ConfigurationBuilder,
+				ModelType = typeof(TWrapper),
+				UnderlyingType = typeof(TValue),
+				CoreType = typeof(TCore),
+				Args = args,
+			}};
+			this.Callback.Invoke(customizationArgs);
+		}}
+	}}
+
+	file sealed class OrdinalIgnoreCaseStringComparer : ValueComparer<string>
+	{{
+		public OrdinalIgnoreCaseStringComparer()
+			: base(
+				equalsExpression: (left, right) => String.Equals(left, right, StringComparison.OrdinalIgnoreCase),
+				hashCodeExpression: value => String.GetHashCode(value, StringComparison.OrdinalIgnoreCase),
+				snapshotExpression: value => value)
+		{{
 		}}
 	}}
 }}
