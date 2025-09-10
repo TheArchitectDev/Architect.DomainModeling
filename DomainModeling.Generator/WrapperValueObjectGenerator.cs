@@ -441,7 +441,7 @@ namespace {containingNamespace}
 {{
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
-	/* Generated */ {generatable.Accessibility.ToCodeString()} sealed partial{(generatable.IsRecord ? " record" : "")} class {typeName} :
+	[CompilerGenerated] {generatable.Accessibility.ToCodeString()} sealed partial{(generatable.IsRecord ? " record" : "")} class {typeName} :
 		WrapperValueObject<{underlyingTypeFullyQualifiedName}>,
 		IEquatable<{typeName}>,
 		{(isComparable ? "" : "//")}IComparable<{typeName}>,

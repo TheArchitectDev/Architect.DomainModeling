@@ -160,6 +160,7 @@ using Microsoft.Extensions.Logging;
 
 namespace {ownAssemblyName}
 {{
+	[CompilerGenerated]
 	public static class EntityFrameworkDomainModelConfigurationExtensions
 	{{
 		/// <summary>
@@ -349,10 +350,12 @@ namespace {ownAssemblyName}
 		ModelConfigurationBuilder ConfigurationBuilder {{ get; }}
 	}}
 
+	[CompilerGenerated]
 	file sealed record class DomainModelConfigurator(
 		ModelConfigurationBuilder ConfigurationBuilder)
 		: IDomainModelConfigurator;
 
+	[CompilerGenerated]
 	file sealed record class ValueWrapperConfigurator(
 		ModelConfigurationBuilder ConfigurationBuilder,
 		IDiagnosticsLogger<DbLoggerCategory.Model.Validation> DiagnosticLogger,
@@ -535,6 +538,7 @@ namespace {ownAssemblyName}
 		}}
 	}}
 
+	[CompilerGenerated]
 	file sealed record class EntityFrameworkIdentityConfigurator(
 		ModelConfigurationBuilder ConfigurationBuilder,
 		IdentityConfigurationOptions? Options = null)
@@ -578,6 +582,7 @@ namespace {ownAssemblyName}
 			}}
 		}}
 
+		[CompilerGenerated]
 		private sealed class IdentityConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
 			: ValueConverter<TModel, TProvider>
 			where TModel : IValueWrapper<TModel, TProvider>
@@ -592,6 +597,7 @@ namespace {ownAssemblyName}
 		}}
 	}}
 
+	[CompilerGenerated]
 	file sealed record class EntityFrameworkWrapperValueObjectConfigurator(
 		ModelConfigurationBuilder ConfigurationBuilder,
 		WrapperValueObjectConfigurationOptions? Options = null)
@@ -628,6 +634,7 @@ namespace {ownAssemblyName}
 			}}
 		}}
 
+		[CompilerGenerated]
 		private sealed class WrapperValueObjectConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
 			: ValueConverter<TModel, TProvider>
 			where TModel : IValueWrapper<TModel, TProvider>
@@ -642,6 +649,7 @@ namespace {ownAssemblyName}
 		}}
 	}}
 
+	[CompilerGenerated]
 	file sealed record class EntityFrameworkEntityConfigurator(
 		Action InvokeConfigurationCallbacks)
 		: IEntityConfigurator, IDomainEventConfigurator, IEntityTypeAddedConvention, IModelFinalizingConvention
@@ -690,8 +698,8 @@ namespace {ownAssemblyName}
 #pragma warning restore EF1001 // Internal EF Core API usage
 		}}
 
-		private sealed class UninitializedInstantiationBinding
-			: InstantiationBinding
+		[CompilerGenerated]
+		private sealed class UninitializedInstantiationBinding : InstantiationBinding
 		{{
 			[SuppressMessage(""Trimming"", ""IL2111:Method with DynamicallyAccessedMembersAttribute is accessed via reflection"", Justification = ""Fallback only, and we have annotated the input we take for this."")]
 			private static readonly MethodInfo GetUninitializedObjectMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetUninitializedObject))!;
@@ -729,6 +737,7 @@ namespace {ownAssemblyName}
 		}}
 	}}
 
+	[CompilerGenerated]
 	file sealed class OrdinalStringComparer : ValueComparer<string>
 	{{
 		public OrdinalStringComparer()
@@ -740,11 +749,25 @@ namespace {ownAssemblyName}
 		}}
 	}}
 
+	[CompilerGenerated]
+	file sealed class OrdinalIgnoreCaseStringComparer : ValueComparer<string>
+	{{
+		public OrdinalIgnoreCaseStringComparer()
+			: base(
+				equalsExpression: (left, right) => String.Equals(left, right, StringComparison.OrdinalIgnoreCase),
+				hashCodeExpression: value => String.GetHashCode(value, StringComparison.OrdinalIgnoreCase),
+				snapshotExpression: value => value)
+		{{
+		}}
+	}}
+
+	[CompilerGenerated]
 	public sealed record class CustomizingIdentityConfigurator(
 		ModelConfigurationBuilder ConfigurationBuilder,
 		Action<CustomizingIdentityConfigurator.Context> Callback)
 		: IIdentityConfigurator
 	{{
+		[CompilerGenerated]
 		public readonly struct Context
 		{{
 			public ModelConfigurationBuilder ConfigurationBuilder {{ get; init; }}
@@ -771,11 +794,13 @@ namespace {ownAssemblyName}
 		}}
 	}}
 
+	[CompilerGenerated]
 	public sealed record class CustomizingWrapperValueObjectConfigurator(
 		ModelConfigurationBuilder ConfigurationBuilder,
 		Action<CustomizingWrapperValueObjectConfigurator.Context> Callback)
 		: IWrapperValueObjectConfigurator
 	{{
+		[CompilerGenerated]
 		public readonly struct Context
 		{{
 			public ModelConfigurationBuilder ConfigurationBuilder {{ get; init; }}
@@ -798,17 +823,6 @@ namespace {ownAssemblyName}
 				Args = args,
 			}};
 			this.Callback.Invoke(customizationArgs);
-		}}
-	}}
-
-	file sealed class OrdinalIgnoreCaseStringComparer : ValueComparer<string>
-	{{
-		public OrdinalIgnoreCaseStringComparer()
-			: base(
-				equalsExpression: (left, right) => String.Equals(left, right, StringComparison.OrdinalIgnoreCase),
-				hashCodeExpression: value => String.GetHashCode(value, StringComparison.OrdinalIgnoreCase),
-				snapshotExpression: value => value)
-		{{
 		}}
 	}}
 }}

@@ -263,13 +263,17 @@ public class ValueObjectGenerator : SourceGenerator
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Architect.DomainModeling;
 
 #nullable enable
 
 namespace {containingNamespace}
 {{
-	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} sealed partial{(isRecord ? " record" : "")} class {typeName} : ValueObject, IEquatable<{typeName}>{(isComparable ? "" : "/*")}, IComparable<{typeName}>{(isComparable ? "" : "*/")}
+	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} sealed partial{(isRecord ? " record" : "")} class {typeName} :
+		ValueObject,
+		IEquatable<{typeName}>{(isComparable ? "" : "/*")},
+		IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
 		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "//" : "")}{(dataMembers.Any(member => member.Type.SpecialType == SpecialType.System_String)
 			? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"

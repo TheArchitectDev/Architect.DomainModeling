@@ -282,6 +282,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 #nullable disable
 
@@ -296,7 +297,7 @@ namespace {containingNamespace}
 	/// That way, if the constructor changes, only the builder needs to be adjusted, rather than lots of test methods.
 	/// </para>
 	/// </summary>
-	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} partial{(builder.IsRecord ? " record" : "")} class {typeName}
+	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} partial{(builder.IsRecord ? " record" : "")} class {typeName}
 	{{
 {joinedComponents}
 
