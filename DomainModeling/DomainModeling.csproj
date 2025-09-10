@@ -89,8 +89,20 @@ Misc:
 	<ItemGroup>
 		<!-- Take build dependency on the generator -->
 		<ProjectReference Include="..\DomainModeling.Generator\DomainModeling.Generator.csproj" Pack="False" ReferenceOutputAssembly="False" Private="False" />
+
 		<!-- Package the generator in the analyzer directory of the NuGet package -->
 		<None Include="$(MSBuildProjectDirectory)/../DomainModeling.Generator/bin/$(Configuration)/netstandard2.0/Architect.DomainModeling.Generator.dll" Pack="True" PackagePath="analyzers/dotnet/cs" Visible="False" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Take build dependency on the analyzer -->
+		<ProjectReference Include="..\DomainModeling.Analyzer\DomainModeling.Analyzer.csproj" Pack="False" ReferenceOutputAssembly="False" Private="False" />
+
+		<!-- Package the analyzer in the analyzers directory -->
+		<None Include="$(MSBuildProjectDirectory)/../DomainModeling.Analyzer/bin/$(Configuration)/netstandard2.0/Architect.DomainModeling.Analyzer.dll" Pack="True" PackagePath="analyzers/dotnet/cs" Visible="False" />
+
+		<!-- Package the targets file in the build directory -->
+		<None Include="Architect.DomainModeling.targets" Pack="True" PackagePath="build/Architect.DomainModeling.targets" Visible="False" />
 	</ItemGroup>
 
 </Project>

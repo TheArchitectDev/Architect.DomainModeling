@@ -19,6 +19,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\DomainModeling\DomainModeling.csproj" />
+		<ProjectReference Include="..\DomainModeling.Analyzer\DomainModeling.Analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 		<ProjectReference Include="..\DomainModeling.Generator\DomainModeling.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
