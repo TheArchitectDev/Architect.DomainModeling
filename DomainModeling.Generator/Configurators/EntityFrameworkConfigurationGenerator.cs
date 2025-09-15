@@ -679,7 +679,7 @@ namespace {ownAssemblyName}
 			if (!this.EntityTypeConventionsByType.TryGetValue(typeof(TEntity), out var entityTypeConvention))
 				return;
 
-#pragma warning disable EF1001 // Internal EF Core API usage -- No public APIs are available for this yet, and interceptors do not work because EF demands a usable ctor even the interceptor would prevent ctor usage
+#pragma warning disable EF1001 // Internal EF Core API usage -- No public APIs are available for this yet, and interceptors do not work because EF demands a usable ctor even when not using it
 			var entityType = entityTypeConvention as EntityType ?? throw new NotImplementedException($""{{entityTypeConvention.GetType().Name}} was received when {{nameof(EntityType)}} was expected. Either a non-entity was passed or internal changes to Entity Framework have broken this code."");
 			entityType.ConstructorBinding = UninitializedInstantiationBinding.Create(() => DomainObjectSerializer.Deserialize<TEntity>());
 #pragma warning restore EF1001 // Internal EF Core API usage
@@ -692,7 +692,7 @@ namespace {ownAssemblyName}
 			if (!this.EntityTypeConventionsByType.TryGetValue(typeof(TDomainEvent), out var entityTypeConvention))
 				return;
 
-#pragma warning disable EF1001 // Internal EF Core API usage -- No public APIs are available for this yet, and interceptors do not work because EF demands a usable ctor even the interceptor would prevent ctor usage
+#pragma warning disable EF1001 // Internal EF Core API usage -- No public APIs are available for this yet, and interceptors do not work because EF demands a usable ctor even when not using it
 			var entityType = entityTypeConvention as EntityType ?? throw new NotImplementedException($""{{entityTypeConvention.GetType().Name}} was received when {{nameof(EntityType)}} was expected. Either a non-entity was passed or internal changes to Entity Framework have broken this code."");
 			entityType.ConstructorBinding = UninitializedInstantiationBinding.Create(() => DomainObjectSerializer.Deserialize<TDomainEvent>());
 #pragma warning restore EF1001 // Internal EF Core API usage

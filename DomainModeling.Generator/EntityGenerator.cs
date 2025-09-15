@@ -89,7 +89,7 @@ public class EntityGenerator : SourceGenerator
 		// Require the expected inheritance
 		if (!generatable.IsEntity)
 		{
-			context.ReportDiagnostic("EntityGeneratorUnexpectedInheritance", "Unexpected inheritance",
+			context.ReportDiagnostic("EntityGeneratorMissingInterface", "Missing IEntity interface",
 				"Type marked as entity lacks IEntity interface.", DiagnosticSeverity.Warning, generatable.TypeLocation);
 			return;
 		}

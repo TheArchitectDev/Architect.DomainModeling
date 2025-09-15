@@ -1,12 +1,14 @@
+using Architect.DomainModeling.Comparisons;
+
 namespace Architect.DomainModeling.Example;
 
 // Use "Go To Definition" on the type to view the source-generated partial
 // Uncomment the IComparable interface to see how the generated code changes
 [WrapperValueObject<string>]
-public partial class Description //: IComparable<Description>
+public partial record struct Description //: IComparable<Description>
 {
 	// For string wrappers, we must define how they are compared
-	protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
+	private StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
 	// Any component that we define manually is omitted by the generated code
 	// For example, we can explicitly define the Value property to have greater clarity, since it is quintessential
@@ -19,6 +21,6 @@ public partial class Description //: IComparable<Description>
 
 		if (this.Value.Length > 255) throw new ArgumentException("Too long.");
 
-		if (ContainsNonWordCharacters(this.Value)) throw new ArgumentException("Nonsense.");
+		if (ValueObjectStringValidator.ContainsNonWordCharacters(this.Value)) throw new ArgumentException("Nonsense.");
 	}
 }

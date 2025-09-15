@@ -82,9 +82,9 @@ public static class Program
 		{
 			Console.WriteLine("Demonstrating structural equality for collections:");
 
-			var abc = new CharacterSet([ 'a', 'b', 'c', ]);
-			var abcd = new CharacterSet([ 'a', 'b', 'c', 'd', ]);
-			var abcClone = new CharacterSet([ 'a', 'b', 'c', ]);
+			var abc = new CharacterSet(['a', 'b', 'c',]);
+			var abcd = new CharacterSet(['a', 'b', 'c', 'd',]);
+			var abcClone = new CharacterSet(['a', 'b', 'c',]);
 
 			Console.WriteLine($"{abc == abcd}: {abc} == {abcd} (different values)");
 			Console.WriteLine($"{abc == abcClone}: {abc} == {abcClone} (different instances, same values in collection)"); // ValueObjects have structural equality

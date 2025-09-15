@@ -1,5 +1,6 @@
 <Project>
 	<ItemGroup>
 		<Analyzer Include="$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/Architect.DomainModeling.Analyzer.dll" />
+		<Analyzer Include="$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/Architect.DomainModeling.CodeFixProviders.dll" />
 	</ItemGroup>
 </Project>

@@ -120,7 +120,9 @@ public class ValueObjectGenerator : SourceGenerator
 			method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
 
 		existingComponents |= ValueObjectTypeComponents.StringComparison.If(members.Any(member =>
-			member.Name == "StringComparison" && member.IsOverride));
+			member is IPropertySymbol { Name: "StringComparison", IsImplicitlyDeclared: false, } prop));
+
+		existingComponents |= ValueObjectTypeComponents.ValueObjectBaseClass.If(type.IsOrInheritsClass(type => type.IsType("ValueObject", "Architect", "DomainModeling", arity: 0), out _));
 
 		result.ExistingComponents = existingComponents;
 
@@ -168,7 +170,7 @@ public class ValueObjectGenerator : SourceGenerator
 		// Require the expected inheritance
 		if (!generatable.IsPartial && !generatable.IsValueObject)
 		{
-			context.ReportDiagnostic("ValueObjectGeneratorUnexpectedInheritance", "Unexpected inheritance",
+			context.ReportDiagnostic("ValueObjectGeneratorMissingInterface", "Missing IValueObject interface",
 				"Type marked as value object lacks IValueObject interface. Did you forget the 'partial' keyword and elude source generation?", DiagnosticSeverity.Warning, type);
 			return;
 		}
@@ -182,14 +184,6 @@ public class ValueObjectGenerator : SourceGenerator
 		{
 			context.ReportDiagnostic("ValueObjectGeneratorValueType", "Source-generated struct value object",
 				"The type was not source-generated because it is a struct, while a class was expected. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
-			return;
-		}
-
-		// Only if non-record
-		if (generatable.IsRecord)
-		{
-			context.ReportDiagnostic("ValueObjectGeneratorRecordType", "Source-generated record value object",
-				"The type was not source-generated because it is a record, which cannot inherit from a non-record base class. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
 			return;
 		}
 
@@ -234,6 +228,18 @@ public class ValueObjectGenerator : SourceGenerator
 				DiagnosticSeverity.Warning, member.Member);
 		}
 
+		var hasStringProperties = dataMembers.Any(member => member is { Member: IPropertySymbol { Type.SpecialType: SpecialType.System_String } });
+		var stringComparisonProperty = (existingComponents.HasFlags(ValueObjectTypeComponents.ValueObjectBaseClass), hasStringProperties, existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison)) switch
+		{
+			(false, false, _) => @"", // No strings
+			(false, true, false) => @"private StringComparison StringComparison => StringComparison.Ordinal;",
+			(false, true, true) => @"//private StringComparison StringComparison => StringComparison.Ordinal;",
+			(true, false, false) => @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");",
+			(true, false, true) => @"//protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");",
+			(true, true, false) => @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;",
+			(true, true, true) => @"//protected sealed override StringComparison StringComparison => StringComparison.Ordinal;",
+		};
+
 		var toStringExpressions = dataMembers
 			.Select(tuple => $"{tuple.Member.Name}={{this.{tuple.Member.Name}}}")
 			.ToList();
@@ -270,14 +276,12 @@ using Architect.DomainModeling;
 
 namespace {containingNamespace}
 {{
-	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} sealed partial{(isRecord ? " record" : "")} class {typeName} :
-		ValueObject,
+	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record " : "")}class {typeName} :
+		IValueObject,
 		IEquatable<{typeName}>{(isComparable ? "" : "/*")},
 		IComparable<{typeName}>{(isComparable ? "" : "*/")}
 	{{
-		{(isRecord || existingComponents.HasFlags(ValueObjectTypeComponents.StringComparison) ? "//" : "")}{(dataMembers.Any(member => member.Type.SpecialType == SpecialType.System_String)
-			? @"protected sealed override StringComparison StringComparison => StringComparison.Ordinal;"
-			: @"protected sealed override StringComparison StringComparison => throw new NotSupportedException(""This operation applies to string-based value objects only."");")}
+		{stringComparisonProperty}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "/*" : "")}
 #pragma warning disable CS8618 // Deserialization constructor
@@ -391,6 +395,7 @@ namespace {containingNamespace}
 		LessEqualsOperator = 1 << 12,
 		StringComparison = 1 << 13,
 		DefaultConstructor = 1 << 14,
+		ValueObjectBaseClass = 1 << 15,
 	}
 
 	private sealed record Generatable

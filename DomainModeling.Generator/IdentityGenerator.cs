@@ -29,35 +29,19 @@ public class IdentityGenerator : SourceGenerator
 						entityInterface.TypeArguments[1] is ITypeSymbol underlyingType =>
 						new ValueWrapperGenerator.BasicGeneratable(
 							isIdentity: true,
-							typeName: entityInterface.TypeArguments[0].Name,
 							containingNamespace: type.ContainingNamespace.ToString(),
-							underlyingTypeFullyQualifiedName: underlyingType.ToString(),
-							customCoreTypeFullyQualifiedName: type.AllInterfaces.FirstOrDefault(interf => interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2))?.TypeArguments[1].ToString(),
-							isSpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "ISpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
-							isSpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "ISpanParsable", ContainingNamespace.Name: "System", Arity: 1, }),
-							isUtf8SpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "IUtf8SpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
-							isUtf8SpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-								interf is { Name: "IUtf8SpanParsable", ContainingNamespace.Name: "System", Arity: 1, })),
+							wrapperType: entityInterface.TypeArguments[0],
+							underlyingType: underlyingType,
+							customCoreType: null),
 					INamedTypeSymbol type when HasRequiredAttribute(type, out var attribute) && attribute.AttributeClass!.TypeArguments[0] is ITypeSymbol underlyingType =>
 						GetFirstProblem((TypeDeclarationSyntax)context.Node, type, underlyingType) is { }
 							? default
 							: new ValueWrapperGenerator.BasicGeneratable(
 								isIdentity: true,
-								typeName: type.Name,
 								containingNamespace: type.ContainingNamespace.ToString(),
-								underlyingTypeFullyQualifiedName: underlyingType.ToString(),
-								customCoreTypeFullyQualifiedName: type.AllInterfaces.FirstOrDefault(interf => interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2))?.TypeArguments[1].ToString(),
-								isSpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-									interf is { Name: "ISpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
-								isSpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-									interf is { Name: "ISpanParsable", ContainingNamespace.Name: "System", Arity: 1, }),
-								isUtf8SpanFormattable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-									interf is { Name: "IUtf8SpanFormattable", ContainingNamespace.Name: "System", Arity: 0, }),
-								isUtf8SpanParsable: underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
-									interf is { Name: "IUtf8SpanParsable", ContainingNamespace.Name: "System", Arity: 1, })),
+								wrapperType: type,
+								underlyingType: underlyingType,
+								customCoreType: type.AllInterfaces.FirstOrDefault(interf => interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2))?.TypeArguments[1]),
 					_ => default,
 				})
 			.Where(generatable => generatable != default)
@@ -110,7 +94,7 @@ public class IdentityGenerator : SourceGenerator
 
 		// Require the expected inheritance
 		if (!isPartial && !type.IsOrImplementsInterface(interf => interf.IsType("IIdentity", "Architect", "DomainModeling", arity: 1), out _))
-			return CreateDiagnostic("IdentityGeneratorUnexpectedInheritance", "Unexpected interface",
+			return CreateDiagnostic("IdentityGeneratorMissingInterface", "Missing IIdentity<T> interface",
 				"Type marked as identity value object lacks IIdentity<T> interface. Did you forget the 'partial' keyword and elude source generation?", DiagnosticSeverity.Warning);
 
 		// Require IDirectValueWrapper
@@ -304,23 +288,23 @@ public class IdentityGenerator : SourceGenerator
 
 			existingComponents |= IdTypeComponents.GreaterThanOperator.If(members.Any(member =>
 				member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.GreaterThanOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
-				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+				method.Parameters[0].Type.IsNullableOfOrEqualTo(type) &&
+				method.Parameters[1].Type.IsNullableOfOrEqualTo(type)));
 
 			existingComponents |= IdTypeComponents.LessThanOperator.If(members.Any(member =>
 				member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.LessThanOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
-				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+				method.Parameters[0].Type.IsNullableOfOrEqualTo(type) &&
+				method.Parameters[1].Type.IsNullableOfOrEqualTo(type)));
 
 			existingComponents |= IdTypeComponents.GreaterEqualsOperator.If(members.Any(member =>
 				member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.GreaterThanOrEqualOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
-				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+				method.Parameters[0].Type.IsNullableOfOrEqualTo(type) &&
+				method.Parameters[1].Type.IsNullableOfOrEqualTo(type)));
 
 			existingComponents |= IdTypeComponents.LessEqualsOperator.If(members.Any(member =>
 				member is IMethodSymbol { MethodKind: MethodKind.UserDefinedOperator, Name: WellKnownMemberNames.LessThanOrEqualOperatorName, IsStatic: true, Parameters.Length: 2, } method &&
-				method.Parameters[0].Type.Equals(type, SymbolEqualityComparer.Default) &&
-				method.Parameters[1].Type.Equals(type, SymbolEqualityComparer.Default)));
+				method.Parameters[0].Type.IsNullableOfOrEqualTo(type) &&
+				method.Parameters[1].Type.IsNullableOfOrEqualTo(type)));
 
 			existingComponents |= IdTypeComponents.ConvertToOperator.If(members.Any(member =>
 				member is IMethodSymbol { MethodKind: MethodKind.Conversion, IsStatic: true, Parameters.Length: 1, } method &&
@@ -335,16 +319,12 @@ public class IdentityGenerator : SourceGenerator
 			existingComponents |= IdTypeComponents.NullableConvertToOperator.If(members.Any(member =>
 				member is IMethodSymbol { MethodKind: MethodKind.Conversion, IsStatic: true, Parameters.Length: 1, } method &&
 				method.ReturnType.IsNullableOf(type) &&
-				(underlyingType.IsReferenceType
-					? method.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)
-					: method.Parameters[0].Type.IsNullableOf(underlyingType))));
+				method.Parameters[0].Type.IsNullableOrReferenceOf(underlyingType)));
 
 			existingComponents |= IdTypeComponents.NullableConvertFromOperator.If(members.Any(member =>
 				member is IMethodSymbol { MethodKind: MethodKind.Conversion, IsStatic: true, Parameters.Length: 1, } method &&
-				(underlyingType.IsReferenceType
-					? method.ReturnType.Equals(underlyingType, SymbolEqualityComparer.Default)
-					: method.ReturnType.IsNullableOf(underlyingType) &&
-				method.Parameters[0].Type.IsNullableOf(type))));
+				method.ReturnType.IsNullableOrReferenceOf(underlyingType) &&
+				method.Parameters[0].Type.IsNullableOf(type)));
 
 			existingComponents |= IdTypeComponents.SerializeToUnderlying.If(members.Any(member =>
 				member.HasNameOrExplicitInterfaceImplementationName("Serialize") && member is IMethodSymbol { Arity: 0, IsStatic: false, Parameters.Length: 0, } method &&
@@ -362,7 +342,7 @@ public class IdentityGenerator : SourceGenerator
 				attribute.AttributeClass?.IsType("JsonConverterAttribute", "Newtonsoft", "Json") == true));
 
 			existingComponents |= IdTypeComponents.StringComparison.If(members.Any(member =>
-				member.Name == "StringComparison"));
+				member is IPropertySymbol { Name: "StringComparison", IsImplicitlyDeclared: false, } prop));
 
 			existingComponents |= IdTypeComponents.FormattableToStringOverride.If(members.Any(member =>
 				member.HasNameOrExplicitInterfaceImplementationName("ToString") && member is IMethodSymbol { Arity: 0, IsStatic: false, Parameters.Length: 2, } method &&
@@ -451,6 +431,7 @@ public class IdentityGenerator : SourceGenerator
 		result.UnderlyingTypeIsNumericUnsuitableForJson = underlyingType.SpecialType is SpecialType.System_Decimal or SpecialType.System_UInt64 or SpecialType.System_Int64 ||
 			underlyingType.IsSystemType("BigInteger", "Numerics") || underlyingType.IsSystemType("UInt128") || underlyingType.IsSystemType("Int128");
 		result.UnderlyingTypeIsStruct = underlyingType.IsValueType;
+		result.UnderlyingTypeIsInterface = underlyingType.TypeKind == TypeKind.Interface;
 
 		return result;
 	}
@@ -470,7 +451,6 @@ public class IdentityGenerator : SourceGenerator
 
 		var containingNamespace = generatable.ContainingNamespace;
 		var idTypeName = generatable.IdTypeName;
-		var underlyingTypeFullyQualifiedName = generatable.UnderlyingTypeFullyQualifiedName;
 		var entityTypeName = generatable.EntityTypeName;
 		var underlyingTypeIsStruct = generatable.UnderlyingTypeIsStruct;
 		var isRecord = generatable.IsRecord;
@@ -486,10 +466,23 @@ public class IdentityGenerator : SourceGenerator
 		var existingComponents = generatable.ExistingComponents;
 		var hasIdentityValueObjectAttribute = generatable.IdTypeExists;
 
-		var coreTypeFullyQualifiedName = ValueWrapperGenerator.GetCoreTypeFullyQualifiedName(valueWrappers, idTypeName, containingNamespace);
+		var directParentOfCore = ValueWrapperGenerator.GetDirectParentOfCoreType(valueWrappers, idTypeName, containingNamespace);
+		var coreTypeFullyQualifiedName = directParentOfCore.CustomCoreTypeFullyQualifiedName ?? directParentOfCore.UnderlyingTypeFullyQualifiedName ?? generatable.UnderlyingTypeFullyQualifiedName;
+		var coreTypeIsStruct = directParentOfCore.CoreTypeIsStruct;
 
-		(var isSpanFormattable, var isSpanParsable, var isUtf8SpanFormattable, var isUtf8SpanParsable) = ValueWrapperGenerator.GetFormattabilityAndParsabilityRecursively(
+		(var coreValueIsNonNull, var isSpanFormattable, var isSpanParsable, var isUtf8SpanFormattable, var isUtf8SpanParsable) = ValueWrapperGenerator.GetFormattabilityAndParsabilityRecursively(
 			valueWrappers, typeName: idTypeName, containingNamespace: containingNamespace);
+
+		var underlyingTypeFullyQualifiedNameForAlias = generatable.UnderlyingTypeFullyQualifiedName;
+		var coreTypeFullyQualifiedNameForAlias = coreTypeFullyQualifiedName;
+		var underlyingTypeFullyQualifiedName = Char.IsUpper(underlyingTypeFullyQualifiedNameForAlias[0]) && !underlyingTypeFullyQualifiedNameForAlias.Contains('<')
+			? underlyingTypeFullyQualifiedNameForAlias.Split('.').Last()
+			: underlyingTypeFullyQualifiedNameForAlias;
+		coreTypeFullyQualifiedName = coreTypeFullyQualifiedNameForAlias == underlyingTypeFullyQualifiedNameForAlias
+			? underlyingTypeFullyQualifiedName
+			: Char.IsUpper(coreTypeFullyQualifiedName[0]) && !coreTypeFullyQualifiedName.Contains('<')
+				? coreTypeFullyQualifiedName.Split('.').Last()
+				: coreTypeFullyQualifiedName;
 
 		var summary = entityTypeName is null ? null : $@"
 	/// <summary>
@@ -520,6 +513,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling;
 using Architect.DomainModeling.Conversions;
+{(underlyingTypeFullyQualifiedName != underlyingTypeFullyQualifiedNameForAlias ? $"using {underlyingTypeFullyQualifiedName} = {underlyingTypeFullyQualifiedNameForAlias};" : "")}
+{(coreTypeFullyQualifiedName != coreTypeFullyQualifiedNameForAlias && coreTypeFullyQualifiedName != underlyingTypeFullyQualifiedName ? $"using {coreTypeFullyQualifiedName} = {coreTypeFullyQualifiedNameForAlias};" : "")}
 
 #nullable enable
 
@@ -553,71 +548,6 @@ namespace {containingNamespace}
 			this.Value = value;
 		}}
 		{(existingComponents.HasFlags(IdTypeComponents.Constructor) ? "*/" : "")}
-
-		{(existingComponents.HasFlags(IdTypeComponents.CreateMethod) ? "/*" : "")}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		static {idTypeName} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Create({underlyingTypeFullyQualifiedName} value)
-		{{
-			return new {idTypeName}(value);
-		}}
-		{(existingComponents.HasFlags(IdTypeComponents.CreateMethod) ? "*/" : "")}
-
-		{(existingComponents.HasFlags(IdTypeComponents.SerializeToUnderlying) ? "/*" : "")}
-		/// <summary>
-		/// Serializes a domain object as a plain value.
-		/// </summary>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		{underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
-		{{
-			return this.Value;
-		}}
-		{(existingComponents.HasFlags(IdTypeComponents.SerializeToUnderlying) ? "*/" : "")}
-
-		{(existingComponents.HasFlags(IdTypeComponents.DeserializeFromUnderlying) ? "/*" : "")}
-		/// <summary>
-		/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
-		/// </summary>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		static {idTypeName} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
-		{{
-			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? "// To instead get safe syntax, make the Value property '{ get; private init; }' (or let the source generator implement it)" : "")}
-			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? $"return Unsafe.As<{underlyingTypeFullyQualifiedName}, {idTypeName}>(ref value);" : "")}
-			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? "//" : "")}return new {idTypeName}() {{ Value = value }};
-		}}
-		{(existingComponents.HasFlags(IdTypeComponents.DeserializeFromUnderlying) ? "*/" : "")}
-
-		{(generatable.ExistingComponents.HasFlags(IdTypeComponents.CoreValueWrapperInterface) ? "/* Core manually specified" : coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "/* For nested wrapper types only" : "")}
-		[MaybeNull]
-		{coreTypeFullyQualifiedName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Value => ValueWrapperUnwrapper.Unwrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(this.Value);
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		static {idTypeName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Create({coreTypeFullyQualifiedName} value)
-		{{
-			var intermediateValue = ValueWrapperUnwrapper.Wrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(value);
-			return ValueWrapperUnwrapper.Wrap<{idTypeName}, {underlyingTypeFullyQualifiedName}>(intermediateValue);
-		}}
-
-		/// <summary>
-		/// Serializes a domain object as a plain value.
-		/// </summary>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		[return: MaybeNull]
-		{coreTypeFullyQualifiedName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Serialize()
-		{{
-			return DomainObjectSerializer.Serialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(
-				DomainObjectSerializer.Serialize<{idTypeName}, {underlyingTypeFullyQualifiedName}>(this));
-		}}
-
-		/// <summary>
-		/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
-		/// </summary>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		static {idTypeName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Deserialize({coreTypeFullyQualifiedName} value)
-		{{
-			var intermediateValue = DomainObjectSerializer.Deserialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(value);
-			return DomainObjectSerializer.Deserialize<{idTypeName}, {underlyingTypeFullyQualifiedName}>(intermediateValue);
-		}}
-		{(coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "*/" : generatable.ExistingComponents.HasFlags(IdTypeComponents.CoreValueWrapperInterface) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(IdTypeComponents.StringComparison) ? "/*" : "")}
 		{(isString
@@ -668,18 +598,110 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.EqualsOperator) ? "//" : "")}public static bool operator ==({idTypeName} left, {idTypeName} right) => left.Equals(right);
 		{(existingComponents.HasFlags(IdTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({idTypeName} left, {idTypeName} right) => !(left == right);
 
-		{(existingComponents.HasFlags(IdTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({idTypeName} left, {idTypeName} right) => left.CompareTo(right) > 0;
-		{(existingComponents.HasFlags(IdTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({idTypeName} left, {idTypeName} right) => left.CompareTo(right) < 0;
-		{(existingComponents.HasFlags(IdTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({idTypeName} left, {idTypeName} right) => left.CompareTo(right) >= 0;
-		{(existingComponents.HasFlags(IdTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({idTypeName} left, {idTypeName} right) => left.CompareTo(right) <= 0;
+		// Nullable comparison operators circumvent the unexpected behavior that would be caused by .NET's lifting
+		{(existingComponents.HasFlags(IdTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({idTypeName}? left, {idTypeName}? right) => left is {{ }} one && !(right is {{ }} two && one.CompareTo(two) <= 0);
+		{(existingComponents.HasFlags(IdTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({idTypeName}? left, {idTypeName}? right) => right is {{ }} two && !(left is {{ }} one && one.CompareTo(two) >= 0);
+		{(existingComponents.HasFlags(IdTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({idTypeName}? left, {idTypeName}? right) => !(left < right);
+		{(existingComponents.HasFlags(IdTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({idTypeName}? left, {idTypeName}? right) => !(left > right);
 
-		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "//" : "")}public static implicit operator {idTypeName}({underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct ? "" : "?")} value) => new {idTypeName}(value);
-		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "//" : "")}public static implicit operator {underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")}({idTypeName} id) => id.Value;
+		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true }
+			? ""
+			: $@"public static implicit operator {idTypeName}({underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct ? "" : "?")} value) => new {idTypeName}(value);")}
+		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true }
+			? ""
+			: $@"public static implicit operator {underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")}({idTypeName} id) => id.Value;")}
 
-		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "//" : "")}[return: NotNullIfNotNull(""value"")]
-		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "//" : "")}public static implicit operator {idTypeName}?({underlyingTypeFullyQualifiedName}? value) => value is null ? ({idTypeName}?)null : new {idTypeName}(value{(underlyingTypeIsStruct ? ".Value" : "")});
-		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "//" : "")}{(underlyingTypeIsStruct || isNonNullString ? @"[return: NotNullIfNotNull(""id"")]" : "[return: MaybeNull]")}
-		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "//" : "")}public static implicit operator {underlyingTypeFullyQualifiedName}?({idTypeName}? id) => id?.Value;
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true }
+			? ""
+			: @"[return: NotNullIfNotNull(nameof(value))]")}
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true }
+			? ""
+			: $@"public static implicit operator {idTypeName}?({underlyingTypeFullyQualifiedName}? value) => value is {{ }} actual ? new {idTypeName}(actual) : ({idTypeName}?)null;")}
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true }
+			? ""
+			: underlyingTypeIsStruct || isNonNullString ? @"[return: NotNullIfNotNull(nameof(id))]" : "[return: MaybeNull]")}
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true }
+			? ""
+			: $@"public static implicit operator {underlyingTypeFullyQualifiedName}?({idTypeName}? id) => id?.Value;")}
+
+		{(coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "/* For nested wrapper types only" : "")}
+		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "//" : "")}public static implicit operator {idTypeName}({coreTypeFullyQualifiedName} value) => ValueWrapperUnwrapper.Wrap<{idTypeName}, {coreTypeFullyQualifiedName}>(value);
+		{(existingComponents.HasFlags(IdTypeComponents.ConvertFromOperator) ? "//" : "")}public static implicit operator {coreTypeFullyQualifiedName}{(coreTypeIsStruct || coreValueIsNonNull ? "" : "?")}({idTypeName} id) => ValueWrapperUnwrapper.Unwrap<{idTypeName}, {coreTypeFullyQualifiedName}>(id){(coreValueIsNonNull ? "!" : "")};
+
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "//" : "")}[return: NotNullIfNotNull(nameof(value))]
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertToOperator) ? "//" : "")}public static implicit operator {idTypeName}?({coreTypeFullyQualifiedName}? value) => value is {{ }} actual ? ValueWrapperUnwrapper.Wrap<{idTypeName}, {coreTypeFullyQualifiedName}>(actual) : ({idTypeName}?)null;
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "//" : "")}[return: {(coreTypeIsStruct || coreValueIsNonNull ? @"NotNullIfNotNull(nameof(id))" : @"MaybeNull")}]
+		{(existingComponents.HasFlags(IdTypeComponents.NullableConvertFromOperator) ? "//" : "")}public static implicit operator {coreTypeFullyQualifiedName}?({idTypeName}? id) => id is {{ }} actual ? ValueWrapperUnwrapper.Unwrap<{idTypeName}, {coreTypeFullyQualifiedName}>(actual) : ({coreTypeFullyQualifiedName}?)null;
+		{(coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "*/" : "")}
+
+		#region Wrapping & Serialization
+
+		{(existingComponents.HasFlags(IdTypeComponents.CreateMethod) ? "/*" : "")}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static {idTypeName} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Create({underlyingTypeFullyQualifiedName} value)
+		{{
+			return new {idTypeName}(value);
+		}}
+		{(existingComponents.HasFlags(IdTypeComponents.CreateMethod) ? "*/" : "")}
+
+		{(existingComponents.HasFlags(IdTypeComponents.SerializeToUnderlying) ? "/*" : "")}
+		/// <summary>
+		/// Serializes a domain object as a plain value.
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		{underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
+		{{
+			return this.Value;
+		}}
+		{(existingComponents.HasFlags(IdTypeComponents.SerializeToUnderlying) ? "*/" : "")}
+
+		{(existingComponents.HasFlags(IdTypeComponents.DeserializeFromUnderlying) ? "/*" : "")}
+		/// <summary>
+		/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static {idTypeName} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
+		{{
+			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? "// To instead get safe syntax, make the Value property '{ get; private init; }' (or let the source generator implement it)" : "")}
+			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? $"return Unsafe.As<{underlyingTypeFullyQualifiedName}, {idTypeName}>(ref value);" : "")}
+			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? "//" : "")}return new {idTypeName}() {{ Value = value }};
+		}}
+		{(existingComponents.HasFlags(IdTypeComponents.DeserializeFromUnderlying) ? "*/" : "")}
+
+		{(generatable.ExistingComponents.HasFlags(IdTypeComponents.CoreValueWrapperInterface) ? "/* Up to developer because core type was customized" : coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "/* For nested wrapper types only" : "")}
+		[MaybeNull]
+		{coreTypeFullyQualifiedName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Value => this.Value is {{ }} actual ? ValueWrapperUnwrapper.Unwrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(actual) : default;
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static {idTypeName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Create({coreTypeFullyQualifiedName} value)
+		{{
+			var intermediateValue = ValueWrapperUnwrapper.Wrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(value);
+			return ValueWrapperUnwrapper.Wrap<{idTypeName}, {underlyingTypeFullyQualifiedName}>(intermediateValue);
+		}}
+
+		/// <summary>
+		/// Serializes a domain object as a plain value.
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		[return: MaybeNull]
+		{coreTypeFullyQualifiedName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Serialize()
+		{{
+			var intermediateValue = DomainObjectSerializer.Serialize<{idTypeName}, {underlyingTypeFullyQualifiedName}>(this);
+			return DomainObjectSerializer.Serialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(intermediateValue);
+		}}
+
+		/// <summary>
+		/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static {idTypeName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Deserialize({coreTypeFullyQualifiedName} value)
+		{{
+			var intermediateValue = DomainObjectSerializer.Deserialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(value);
+			return DomainObjectSerializer.Deserialize<{idTypeName}, {underlyingTypeFullyQualifiedName}>(intermediateValue);
+		}}
+		{(coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "*/" : generatable.ExistingComponents.HasFlags(IdTypeComponents.CoreValueWrapperInterface) ? "*/" : "")}
+
+		#endregion
 
 		#region Formatting & Parsing
 
@@ -813,6 +835,7 @@ namespace {containingNamespace}
 		public bool UnderlyingTypeIsNonNullString { get => this._bits.GetBit(11); set => this._bits.SetBit(11, value); }
 		public bool UnderlyingTypeIsNumericUnsuitableForJson { get => this._bits.GetBit(12); set => this._bits.SetBit(12, value); }
 		public bool UnderlyingTypeIsStruct { get => this._bits.GetBit(13); set => this._bits.SetBit(13, value); }
+		public bool UnderlyingTypeIsInterface { get => this._bits.GetBit(14); set => this._bits.SetBit(14, value); }
 		public Accessibility Accessibility { get; set; }
 		public IdTypeComponents ExistingComponents { get; set; }
 		public Diagnostic? Problem { get; set; }

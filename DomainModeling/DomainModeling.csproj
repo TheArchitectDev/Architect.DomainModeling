@@ -35,24 +35,30 @@ Release notes:
 4.0.0:
 
 Platform support:
-- BREAKING: Platform support: Dropped support for .NET 6.0 and .NET 7.0 (EOL).
+- BREAKING: Dropped support for .NET 6.0 and .NET 7.0 (EOL).
+
+The base class is dead - long live the interface!
+- Feature: Generated Wrappers can now be structs. Unvalidated instances are avoided via analyzer warning against `default`.
+- Feature: Generated [Wrapper]ValueObjects can now be records or use custom base.
+- BREAKING: [Wrapper]ValueObject generator replaced base class by interface. StringComparison property may need to drop "override" keyword and become private.
+- BREAKING: Lack of ValueObject base class requires the string validation methods to be accessed via ValueObjectStringValidator class.
 
 Completed support for nested wrappers:
-- Feature: Nested WrapperValueObject/Identity types can now also wrap/unwrap and serialize/deserialize directly to/from their core (deepest) underlying type.
-- Feature: EF conversions for such types now automatically map to and from the core type.
-- Feature: A deeper underlying type can be simulated, e.g. LazyStringId : IIdentity&lt;Lazy&lt;string&gt;&gt;, ICoreValueWrapper&lt;LazyStringId, string&gt;.
-- BREAKING: ISerializableDomainObject is deprecated in favor of IValueWrapper, a clear and comprehensive type to represented generic value wrappers.
-- BREAKING: IIdentityConfigurator and IWrapperValueObjectConfigurator now receive an additional type parameter on their methods, namely the core type.
+- Feature: Nested Wrappers/Identities can now also convert, wrap/unwrap, and serialize/deserialize directly to/from their core (deepest) underlying type.
+- Feature: EF conversions for these now automatically map to/from the core type.
+- Feature: A different underlying type can be simulated, e.g. LongId : IIdentity&lt;int&gt;, ICoreValueWrapper&lt;LongId, long&gt;.
+- BREAKING: ISerializableDomainObject deprecated in favor of IValueWrapper, which represents any single-value wrapper.
+- BREAKING: IIdentityConfigurator/IWrapperValueObjectConfigurator now receive additional method type parameter TCore.
 
-Correct string comparisons with EF:
-- Feature: ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions() now set a PROVIDER value comparer for each string wrapper property, matching the type's case-sensitivity. Since EF Core 7, EF compares keys using the provider type instead of the model type.
-- Feature: ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions() now warn if a string wrapper property has a collation mismatching the type's case-sensitivity, unless collation was explicitly chosen.
-- Feature: ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions() now take an optional "options" parameter, which allows specifying the respective collations for case-sensitive vs. ignore-case string wrappers.
-- Feature: ConfigureDomainModelConventions() now has convenience extension methods CustomizeIdentityConventions()/CustomizeWrapperValueObjectConventions(), for easy custom conventions, such as based on the core underlying type.
+Correct string comparisons with EF via ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions():
+- Feature: These now set a PROVIDER value comparer for each string wrapper property, matching type's case-sensitivity. Since EF Core 7, EF compares keys using provider type instead of model type.
+- Feature: These now warn if a string wrapper property has a collation mismatching the type's case-sensitivity (unless collation is explicit).
+- Feature: These now take optional "options" parameter, which allows specifying collations for case-sensitive vs. ignore-case string wrappers.
+- Feature: ConfigureDomainModelConventions() now has convenience extension methods CustomizeIdentityConventions()/CustomizeWrapperValueObjectConventions(), for easy custom conventions, such as based on core underlying type.
 
 Performance:
-- Enhancement: Reduced assembly size by having source-generated WrapperValueObject/Identity types use generic JSON serializers instead of generating their own.
-- Enhancement: Reduced assembly size by moving the type-inference Equals() and Compare() helpers on generated ValueObjects into a helper class.
+- Enhancement: Reduced assembly size by using generic JSON serializers instead of generated ones.
+- Enhancement: Reduced assembly size by moving type-inferred Equals() and Compare() helpers from generated ValueObjects into helper class.
 - Enhancement: Improved source generator performance.
 
 Misc:
@@ -101,6 +107,17 @@ Misc:
 
 		<!-- Package the analyzer in the analyzers directory -->
 		<None Include="$(MSBuildProjectDirectory)/../DomainModeling.Analyzer/bin/$(Configuration)/netstandard2.0/Architect.DomainModeling.Analyzer.dll" Pack="True" PackagePath="analyzers/dotnet/cs" Visible="False" />
+
+		<!-- Package the targets file in the build directory -->
+		<None Include="Architect.DomainModeling.targets" Pack="True" PackagePath="build/Architect.DomainModeling.targets" Visible="False" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Take build dependency on the code fix providers -->
+		<ProjectReference Include="..\DomainModeling.CodeFixProviders\DomainModeling.CodeFixProviders.csproj" Pack="False" ReferenceOutputAssembly="False" Private="False" />
+
+		<!-- Package the code fix providers in the analyzers directory -->
+		<None Include="$(MSBuildProjectDirectory)/../DomainModeling.CodeFixProviders/bin/$(Configuration)/netstandard2.0/Architect.DomainModeling.CodeFixProviders.dll" Pack="True" PackagePath="analyzers/dotnet/cs" Visible="False" />
 
 		<!-- Package the targets file in the build directory -->
 		<None Include="Architect.DomainModeling.targets" Pack="True" PackagePath="build/Architect.DomainModeling.targets" Visible="False" />

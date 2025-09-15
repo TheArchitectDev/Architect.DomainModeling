@@ -123,8 +123,10 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[ValueObject]
-		public sealed partial class Money
+		public sealed partial class Money : ValueObject
 		{
+			protected override StringComparison StringComparison => StringComparison.Ordinal;
+
 			public string Currency { get; private init; }
 			public Amount Amount { get; private init; }
 

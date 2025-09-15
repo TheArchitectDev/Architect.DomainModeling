@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 
@@ -28,7 +29,11 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 		this.WrapperValueObjectGenerator.Generate(context, valueWrappers);
 	}
 
-	internal static string GetCoreTypeFullyQualifiedName(
+	/// <summary>
+	/// Returns the direct parent of the given wrapper's core type.
+	/// For example, if the type is simply a direct wrapper, this method returns its own data, but otherwise, it returns whatever is the direct parent of the core type.
+	/// </summary>
+	internal static BasicGeneratable GetDirectParentOfCoreType(
 		ImmutableArray<BasicGeneratable> valueWrappers,
 		string typeName, string containingNamespace)
 	{
@@ -36,7 +41,7 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 		Span<char> initialFullyQualifiedTypeName = stackalloc char[containingNamespace.Length + 1 + typeName.Length];
 		initialFullyQualifiedTypeName = [.. containingNamespace, '.', .. typeName];
 
-		var result = (string?)null;
+		ref readonly var result = ref Unsafe.NullRef<BasicGeneratable>();
 
 		var nextTypeName = (ReadOnlySpan<char>)initialFullyQualifiedTypeName;
 		bool couldDigDeeper;
@@ -52,14 +57,24 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 					nextTypeName[item.ContainingNamespace.Length] == '.')
 				{
 					couldDigDeeper = true;
-					result = item.CustomCoreTypeFullyQualifiedName ?? item.UnderlyingTypeFullyQualifiedName;
-					nextTypeName = result.AsSpan();
+					result = ref item;
+					nextTypeName = (item.CustomCoreTypeFullyQualifiedName ?? item.UnderlyingTypeFullyQualifiedName).AsSpan();
 					break;
 				}
 			}
 		} while (couldDigDeeper);
 
-		return result ?? initialFullyQualifiedTypeName.ToString();
+		return Unsafe.IsNullRef(ref Unsafe.AsRef(result))
+			? default
+			: result;
+	}
+
+	internal static string GetCoreTypeFullyQualifiedName(
+		ImmutableArray<BasicGeneratable> valueWrappers,
+		string typeName, string containingNamespace)
+	{
+		var directParentOfCoreType = GetDirectParentOfCoreType(valueWrappers, typeName, containingNamespace);
+		return directParentOfCoreType.CustomCoreTypeFullyQualifiedName ?? directParentOfCoreType.UnderlyingTypeFullyQualifiedName;
 	}
 
 	// ATTENTION: This method cannot be combined with the other recursive one, because this one's results are affected by intermediate items, not just the deepest item
@@ -67,10 +82,11 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 	/// Utility method that recursively determines which formatting and parsing interfaces are supported, based on all known value wrappers.
 	/// This allows even nested value wrappers to dig down into the deepest underlying type.
 	/// </summary>
-	internal static (bool isSpanFormattable, bool isSpanParsable, bool isUtf8SpanFormattable, bool isUtf8SpanParsable) GetFormattabilityAndParsabilityRecursively(
+	internal static (bool coreValueIsNonNull, bool isSpanFormattable, bool isSpanParsable, bool isUtf8SpanFormattable, bool isUtf8SpanParsable) GetFormattabilityAndParsabilityRecursively(
 		ImmutableArray<BasicGeneratable> valueWrappers,
 		string typeName, string containingNamespace)
 	{
+		var coreValueCouldBeNull = false;
 		var isSpanFormattable = false;
 		var isSpanParsable = false;
 		var isUtf8SpanFormattable = false;
@@ -97,6 +113,7 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 				{
 					couldDigDeeper = true;
 					nextTypeName = item.UnderlyingTypeFullyQualifiedName.AsSpan();
+					coreValueCouldBeNull |= item.CoreValueCouldBeNull;
 					isSpanFormattable |= item.IsSpanFormattable;
 					isSpanParsable |= item.IsSpanParsable;
 					isUtf8SpanFormattable |= item.IsUtf8SpanFormattable;
@@ -106,7 +123,7 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 			}
 		} while (couldDigDeeper && (isSpanFormattable & isSpanParsable & isUtf8SpanFormattable & isUtf8SpanParsable) == false); // Possible & worth seeking deeper
 
-		return (isSpanFormattable, isSpanParsable, isUtf8SpanFormattable, isUtf8SpanParsable);
+		return (!coreValueCouldBeNull, isSpanFormattable, isSpanParsable, isUtf8SpanFormattable, isUtf8SpanParsable);
 	}
 
 	[StructLayout(LayoutKind.Auto)]
@@ -118,9 +135,14 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 		public string UnderlyingTypeFullyQualifiedName { get; }
 		/// <summary>
 		/// Set only if manually chosen by the developer.
-		/// Helps implement wrappers around unofficial wrapper type, such as a WrapperValueObject&lt;Uri&gt; that pretends its core type is string.
+		/// Helps implement wrappers around unofficial wrapper types, such as a WrapperValueObject&lt;Uri&gt; that pretends its core type is <see langword="string"/>.
 		/// </summary>
 		public string? CustomCoreTypeFullyQualifiedName { get; }
+		public bool CoreTypeIsStruct { get; }
+		/// <summary>
+		/// A core Value property declared as non-null is a desirable property to propagate, such as to return a non-null value from a conversion operator.
+		/// </summary>
+		public bool CoreValueCouldBeNull { get; }
 		public bool IsSpanFormattable { get; }
 		public bool IsSpanParsable { get; }
 		public bool IsUtf8SpanFormattable { get; }
@@ -128,24 +150,61 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 
 		public BasicGeneratable(
 			bool isIdentity,
-			string typeName,
 			string containingNamespace,
-			string underlyingTypeFullyQualifiedName,
-			string? customCoreTypeFullyQualifiedName,
-			bool isSpanFormattable,
-			bool isSpanParsable,
-			bool isUtf8SpanFormattable,
-			bool isUtf8SpanParsable)
+			ITypeSymbol wrapperType,
+			ITypeSymbol underlyingType,
+			ITypeSymbol? customCoreType)
 		{
+			var coreType = customCoreType ?? underlyingType;
+
 			this.IsIdentity = isIdentity;
-			this.TypeName = typeName;
+			this.TypeName = wrapperType.Name;
 			this.ContainingNamespace = containingNamespace;
-			this.UnderlyingTypeFullyQualifiedName = underlyingTypeFullyQualifiedName;
-			this.CustomCoreTypeFullyQualifiedName = customCoreTypeFullyQualifiedName;
-			this.IsSpanFormattable = isSpanFormattable;
-			this.IsSpanParsable = isSpanParsable;
-			this.IsUtf8SpanFormattable = isUtf8SpanFormattable;
-			this.IsUtf8SpanParsable = isUtf8SpanParsable;
+			this.UnderlyingTypeFullyQualifiedName = underlyingType.ToString();
+			this.CustomCoreTypeFullyQualifiedName = customCoreType?.ToString();
+			this.CoreTypeIsStruct = coreType.IsValueType;
+			this.CoreValueCouldBeNull = !CoreValueIsReachedAsNonNull(wrapperType);
+			this.IsSpanFormattable = underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+				interf is { Name: "ISpanFormattable", ContainingNamespace.Name: "System", Arity: 0, });
+			this.IsSpanParsable = underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+				interf is { Name: "ISpanParsable", ContainingNamespace.Name: "System", Arity: 1, });
+			this.IsUtf8SpanFormattable = underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+				interf is { Name: "IUtf8SpanFormattable", ContainingNamespace.Name: "System", Arity: 0, });
+			this.IsUtf8SpanParsable = underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
+				interf is { Name: "IUtf8SpanParsable", ContainingNamespace.Name: "System", Arity: 1, });
+		}
+
+		/// <summary>
+		/// The developer may have implemented the Value as non-null.
+		/// It is worthwhile to propagate this knowledge through nested types, such as to mark the conversion operator to the core type as non-null.
+		/// </summary>
+		private static bool CoreValueIsReachedAsNonNull(ITypeSymbol type)
+		{
+			// A manual ICoreValueWrapper.Value implementation is leading
+			// In its absence, it is source-generated based on the regular Value property
+
+			// We look only at the first ICoreValueWrapper interface, since we should only be using one of each
+			var coreOrDirectValueWrapperInterface =
+				type.AllInterfaces.FirstOrDefault(interf =>
+					interf is { Arity: 2, Name: "ICoreValueWrapper", ContainingNamespace: { Name: "DomainModeling", ContainingNamespace: { Name: "Architect", ContainingNamespace.IsGlobalNamespace: true, } } } &&
+					interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default))
+				??
+				type.AllInterfaces.FirstOrDefault(interf =>
+					interf is { Arity: 2, Name: "IDirectValueWrapper", ContainingNamespace: { Name: "DomainModeling", ContainingNamespace: { Name: "Architect", ContainingNamespace.IsGlobalNamespace: true, } } } &&
+					interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default));
+
+			if (coreOrDirectValueWrapperInterface is null)
+				return !type.GetMembers("Value").Any(member => member is IPropertySymbol { NullableAnnotation: not NullableAnnotation.NotAnnotated });
+
+			// ICoreValueWrapper<,> implements IValueWrapper<,>, which declares the Value property
+			var valueWrapperInterface = coreOrDirectValueWrapperInterface.Interfaces.Single(interf => interf.Name == "IValueWrapper");
+
+			var explicitValueMember = type.GetMembers().FirstOrDefault(member =>
+				member.Name.EndsWith(".Value") &&
+				member is IPropertySymbol prop &&
+				prop.ExplicitInterfaceImplementations.Any(prop => valueWrapperInterface.Equals(prop.ContainingType, SymbolEqualityComparer.Default)));
+
+			return explicitValueMember is IPropertySymbol { NullableAnnotation: NullableAnnotation.NotAnnotated };
 		}
 	}
 }

@@ -243,7 +243,7 @@ internal sealed class EntityForEF : Entity<EntityForEFId>
 [WrapperValueObject<string>]
 internal sealed partial class Wrapper1ForEF
 {
-	protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
+	private StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
 	/// <summary>
 	/// This lets us test if a constructor is used or not.
@@ -260,7 +260,7 @@ internal sealed partial class Wrapper1ForEF
 }
 
 [WrapperValueObject<decimal>]
-internal sealed partial class Wrapper2ForEF
+internal sealed partial class Wrapper2ForEF : WrapperValueObject<decimal>
 {
 	/// <summary>
 	/// This lets us test if a constructor is used or not.

@@ -162,6 +162,48 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(left.Equals(right), left == right);
 		}
 
+		[Fact]
+		public void EqualityOperator_WithNullables_ShouldReturnExpectedResult()
+		{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable IDE0004 // Deliberate casts to test specific operators
+#pragma warning disable CS8073 // Deliberate casts to test specific operators
+			Assert.True((StringId?)null == (StringId?)null);
+			Assert.True((IntId?)null == (IntId?)null);
+
+			Assert.False((StringId?)null == (StringId?)"");
+			Assert.False((IntId?)null == (IntId?)0);
+			Assert.False((StringId?)"" == (StringId?)null);
+			Assert.False((IntId?)0 == (IntId?)null);
+
+			Assert.True((StringId?)"" == (StringId?)"");
+			Assert.True((IntId?)0 == (IntId?)0);
+#pragma warning restore CS8073
+#pragma warning restore IDE0004
+#pragma warning restore IDE0079
+		}
+
+		[Fact]
+		public void InequalityOperator_WithNullables_ShouldReturnExpectedResult()
+		{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable IDE0004 // Deliberate casts to test specific operators
+#pragma warning disable CS8073 // Deliberate casts to test specific operators
+			Assert.False((StringId?)null != (StringId?)null);
+			Assert.False((IntId?)null != (IntId?)null);
+
+			Assert.True((StringId?)null != (StringId?)"");
+			Assert.True((IntId?)null != (IntId?)0);
+			Assert.True((StringId?)"" != (StringId?)null);
+			Assert.True((IntId?)0 != (IntId?)null);
+
+			Assert.False((StringId?)"" != (StringId?)"");
+			Assert.False((IntId?)0 != (IntId?)0);
+#pragma warning restore CS8073
+#pragma warning restore IDE0004
+#pragma warning restore IDE0079
+		}
+
 		[Theory]
 		[InlineData("", "")]
 		[InlineData("A", "A")]
@@ -268,8 +310,8 @@ namespace Architect.DomainModeling.Tests
 
 		[Theory]
 		[InlineData(null, null, 0)]
-		[InlineData(null, "", 0)]
-		[InlineData("", null, 0)]
+		[InlineData(null, "", 0, -1)]
+		[InlineData("", null, 0, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -277,19 +319,25 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void GreaterThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult, int? expectedResultWithNullSensitiveComparison = null)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
+
+			// Null StringIds are identical to empty-string StringIds
+			// However, that property does not hold when wrapped in a nullable, of course
+			expectedResult = expectedResultWithNullSensitiveComparison ?? expectedResult;
+			Assert.Equal(expectedResult > 0, (StringId?)one > (StringId?)two);
+			Assert.Equal(expectedResult <= 0, (StringId?)one <= (StringId?)two);
 		}
 
 		[Theory]
 		[InlineData(null, null, 0)]
-		[InlineData(null, "", 0)]
-		[InlineData("", null, 0)]
+		[InlineData(null, "", 0, -1)]
+		[InlineData("", null, 0, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -297,13 +345,63 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void LessThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult, int? expectedResultWithNullSensitiveComparison = null)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
+
+			// Null StringIds are identical to empty-string StringIds
+			// However, that property does not hold when wrapped in a nullable, of course
+			expectedResult = expectedResultWithNullSensitiveComparison ?? expectedResult;
+			Assert.Equal(expectedResult < 0, (StringId?)one < (StringId?)two);
+			Assert.Equal(expectedResult >= 0, (StringId?)one >= (StringId?)two);
+		}
+
+		[Theory]
+		[InlineData(null, null, 0)]
+		[InlineData(null, 1, -1)]
+		[InlineData(1, null, +1)]
+		[InlineData(1, 1, 0)]
+		[InlineData(1, 2, -1)]
+		[InlineData(2, 1, +1)]
+		public void GreaterThan_AsNullableOrNonNullableStruct_ShouldReturnExpectedResult(int? one, int? two, int expectedResult)
+		{
+			var left = (DecimalId?)one;
+			var right = (DecimalId?)two;
+
+			Assert.Equal(expectedResult > 0, left > right);
+			Assert.Equal(expectedResult <= 0, left <= right);
+
+			if (left is not null && right is not null)
+			{
+				Assert.Equal(left > right, (DecimalId)one! > (DecimalId)two!);
+				Assert.Equal(left <= right, (DecimalId)one! <= (DecimalId)two!);
+			}
+		}
+
+		[Theory]
+		[InlineData(null, null, 0)]
+		[InlineData(null, 1, -1)]
+		[InlineData(1, null, +1)]
+		[InlineData(1, 1, 0)]
+		[InlineData(1, 2, -1)]
+		[InlineData(2, 1, +1)]
+		public void LessThan_AsNullableOrNonNullableStruct_ShouldReturnExpectedResult(int? one, int? two, int expectedResult)
+		{
+			var left = (DecimalId?)one;
+			var right = (DecimalId?)two;
+
+			Assert.Equal(expectedResult < 0, left < right);
+			Assert.Equal(expectedResult >= 0, left >= right);
+
+			if (left is not null && right is not null)
+			{
+				Assert.Equal(left < right, (DecimalId)one! < (DecimalId)two!);
+				Assert.Equal(left >= right, (DecimalId)one! >= (DecimalId)two!);
+			}
 		}
 
 		[Theory]
@@ -353,6 +451,45 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
+		[InlineData(null, "")] // String identities specialize null to ""
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastToCoreType_Regularly_ShouldReturnExpectedResult(string? value, string? expectedResult)
+		{
+			var instance = new NestedStringId(new StringId(value));
+
+			Assert.Equal(expectedResult, (string)instance);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastToNullableCoreType_Regularly_ShouldReturnExpectedResult(string? value, string? expectedResult)
+		{
+			var instance = value is null ? (NestedStringId?)null : new NestedStringId(new StringId(value));
+
+			Assert.Equal(expectedResult, (string?)instance);
+		}
+
+		[Theory]
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastFromCoreType_Regularly_ShouldReturnExpectedResult(string value, string expectedResult)
+		{
+			Assert.Equal(new NestedStringId(new StringId(expectedResult)), (NestedStringId)value);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastFromNullableCoreType_Regularly_ShouldReturnExpectedResult(string? value, string? expectedResult)
+		{
+			Assert.Equal(expectedResult is null ? (NestedStringId?)null : new NestedStringId(new StringId(expectedResult)), (NestedStringId?)value);
+		}
+
+		[Theory]
 		[InlineData(0)]
 		[InlineData(1)]
 		public void Value_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
@@ -397,7 +534,7 @@ namespace Architect.DomainModeling.Tests
 
 			var stringInstance = new StringValue(value.ToString());
 			Assert.IsType<FormatAndParseTestingStringId>(CreateFromDirectUnderlyingValue<FormatAndParseTestingStringId, StringValue>(stringInstance));
-			Assert.Equal(value.ToString(), CreateFromDirectUnderlyingValue<FormatAndParseTestingStringId, StringValue>(stringInstance).Value?.Value);
+			Assert.Equal(value.ToString(), CreateFromDirectUnderlyingValue<FormatAndParseTestingStringId, StringValue>(stringInstance).Value.Value);
 		}
 
 		[Theory]
@@ -409,7 +546,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(value, CreateFromCoreValue<FormatAndParseTestingIntId, int>(value).Value?.Value.Value);
 
 			Assert.IsType<FormatAndParseTestingStringId>(CreateFromCoreValue<FormatAndParseTestingStringId, string>(value.ToString()));
-			Assert.Equal(value.ToString(), CreateFromCoreValue<FormatAndParseTestingStringId, string>(value.ToString()).Value?.Value);
+			Assert.Equal(value.ToString(), CreateFromCoreValue<FormatAndParseTestingStringId, string>(value.ToString()).Value.Value);
 		}
 
 		[Theory]
@@ -425,7 +562,7 @@ namespace Architect.DomainModeling.Tests
 			IValueWrapper<FormatAndParseTestingStringId, StringValue> stringInstance =
 				new FormatAndParseTestingStringId(new StringValue(value.ToString()));
 			Assert.IsType<StringValue>(stringInstance.Serialize());
-			Assert.Equal(value.ToString(), stringInstance.Serialize()?.Value);
+			Assert.Equal(value.ToString(), stringInstance.Serialize().Value);
 		}
 
 		[Theory]
@@ -534,7 +671,7 @@ namespace Architect.DomainModeling.Tests
 
 			var stringInstance = new StringValue(value.ToString());
 			Assert.IsType<FormatAndParseTestingStringId>(Deserialize<FormatAndParseTestingStringId, StringValue>(stringInstance));
-			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, StringValue>(stringInstance).Value?.Value);
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, StringValue>(stringInstance).Value.Value);
 		}
 
 		[Theory]
@@ -546,7 +683,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(value, Deserialize<FormatAndParseTestingIntId, int>(value).Value?.Value.Value);
 
 			Assert.IsType<FormatAndParseTestingStringId>(Deserialize<FormatAndParseTestingStringId, string>(value.ToString()));
-			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, string>(value.ToString()).Value?.Value);
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, string>(value.ToString()).Value.Value);
 		}
 
 		[Theory]
@@ -822,6 +959,11 @@ namespace Architect.DomainModeling.Tests
 			internal StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 		}
 
+		[IdentityValueObject<StringId>]
+		internal partial struct NestedStringId
+		{
+		}
+
 		[IdentityValueObject<FormatAndParseTestingIntWrapper>]
 		internal readonly partial struct FormatAndParseTestingIntId
 		{
@@ -916,27 +1058,6 @@ namespace Architect.DomainModeling.Tests
 				this.Value = value;
 			}
 
-			public static FullySelfImplementedIdentity Create(int value)
-			{
-				return new FullySelfImplementedIdentity(value);
-			}
-
-			/// <summary>
-			/// Serializes a domain object as a plain value.
-			/// </summary>
-			int IValueWrapper<FullySelfImplementedIdentity, int>.Serialize()
-			{
-				return this.Value;
-			}
-
-			/// <summary>
-			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
-			/// </summary>
-			static FullySelfImplementedIdentity IValueWrapper<FullySelfImplementedIdentity, int>.Deserialize(int value)
-			{
-				return new FullySelfImplementedIdentity() { Value = value };
-			}
-
 			public override int GetHashCode()
 			{
 				return this.Value.GetHashCode();
@@ -965,8 +1086,8 @@ namespace Architect.DomainModeling.Tests
 			public static bool operator ==(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.Equals(right);
 			public static bool operator !=(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => !(left == right);
 
-			public static bool operator >(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) > 0;
-			public static bool operator <(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) < 0;
+			public static bool operator >(FullySelfImplementedIdentity? left, FullySelfImplementedIdentity? right) => left is { } one && !(right is { } two && one.CompareTo(two) <= 0);
+			public static bool operator <(FullySelfImplementedIdentity? left, FullySelfImplementedIdentity? right) => right is { } two && !(left is { } one && one.CompareTo(two) >= 0);
 			public static bool operator >=(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) >= 0;
 			public static bool operator <=(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) <= 0;
 
@@ -977,6 +1098,31 @@ namespace Architect.DomainModeling.Tests
 			public static implicit operator FullySelfImplementedIdentity?(int? value) => value is null ? null : new FullySelfImplementedIdentity(value.Value);
 			[return: NotNullIfNotNull(nameof(id))]
 			public static implicit operator int?(FullySelfImplementedIdentity? id) => id?.Value;
+
+			#region Wrapping & Serialization
+
+			public static FullySelfImplementedIdentity Create(int value)
+			{
+				return new FullySelfImplementedIdentity(value);
+			}
+
+			/// <summary>
+			/// Serializes a domain object as a plain value.
+			/// </summary>
+			int IValueWrapper<FullySelfImplementedIdentity, int>.Serialize()
+			{
+				return this.Value;
+			}
+
+			/// <summary>
+			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+			/// </summary>
+			static FullySelfImplementedIdentity IValueWrapper<FullySelfImplementedIdentity, int>.Deserialize(int value)
+			{
+				return new FullySelfImplementedIdentity() { Value = value };
+			}
+
+			#endregion
 
 			#region Formatting & Parsing
 

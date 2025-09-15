@@ -19,13 +19,24 @@ public static class ValueWrapperUnwrapper
 	/// Wraps a <typeparamref name="TValue"/> in a <typeparamref name="TWrapper"/>.
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	[return: NotNullIfNotNull(nameof(value))]
-	public static TWrapper? Wrap<TWrapper, TValue>(TValue? value)
+	public static TWrapper Wrap<TWrapper, TValue>(TValue value)
 		where TWrapper : IValueWrapper<TWrapper, TValue>
 	{
-		return value is null
-			? default
-			: TWrapper.Create(value);
+		return TWrapper.Create(value);
+	}
+
+	/// <summary>
+	/// Wraps a <typeparamref name="TValue"/> in a <typeparamref name="TWrapper"/>.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[return: NotNullIfNotNull(nameof(value))]
+	public static TWrapper? Wrap<TWrapper, TValue>(TValue? value)
+		where TWrapper : struct, IValueWrapper<TWrapper, TValue>
+		where TValue : struct
+	{
+		return value is { } actual
+			? TWrapper.Create(actual)
+			: default;
 	}
 
 	#endregion
@@ -36,14 +47,23 @@ public static class ValueWrapperUnwrapper
 	/// Unwraps the <typeparamref name="TValue"/> from a <typeparamref name="TWrapper"/>.
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static TValue? Unwrap<TWrapper, TValue>(
-		TWrapper? instance)
+	public static TValue? Unwrap<TWrapper, TValue>(TWrapper instance)
 		where TWrapper : IValueWrapper<TWrapper, TValue>
 	{
-		return instance is null
-			? default
-			: instance.Value;
+		return instance.Value;
 	}
 
+	/// <summary>
+	/// Unwraps the <typeparamref name="TValue"/> from a <typeparamref name="TWrapper"/>.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static TValue? Unwrap<TWrapper, TValue>(TWrapper? instance)
+		where TWrapper : struct, IValueWrapper<TWrapper, TValue>
+	{
+		return instance is { } actual
+			? actual.Value
+			: default;
+	}
+	
 	#endregion
 }

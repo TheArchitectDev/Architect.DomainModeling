@@ -405,7 +405,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 	namespace EnumerableComparerTestTypes
 	{
 		[WrapperValueObject<string>]
-		public sealed partial class StringWrapperValueObject : IComparable<StringWrapperValueObject>
+		public sealed partial class StringWrapperValueObject : WrapperValueObject<string>, IComparable<StringWrapperValueObject>
 		{
 			protected sealed override StringComparison StringComparison { get; }
 

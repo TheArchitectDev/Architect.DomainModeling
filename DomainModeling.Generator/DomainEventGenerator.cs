@@ -89,7 +89,7 @@ public class DomainEventGenerator : SourceGenerator
 		// Require the expected inheritance
 		if (!generatable.IsDomainObject)
 		{
-			context.ReportDiagnostic("DomainEventGeneratorUnexpectedInheritance", "Unexpected inheritance",
+			context.ReportDiagnostic("DomainEventGeneratorMissingInterface", "Missing IDomainObject interface",
 				"Type marked as domain event lacks IDomainObject interface.", DiagnosticSeverity.Warning, generatable.TypeLocation);
 			return;
 		}

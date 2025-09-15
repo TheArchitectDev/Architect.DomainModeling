@@ -417,12 +417,36 @@ internal static class TypeSymbolExtensions
 	}
 
 	/// <summary>
-	/// Returns whether the <see cref="ITypeSymbol"/> is a <see cref="Nullable{T}"/>, where T matches <paramref name="underlyingType"/>.
+	/// Returns whether the <see cref="ITypeSymbol"/> is a <see cref="Nullable{T}"/> with T matching <paramref name="underlyingType"/>.
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool IsNullableOf(this ITypeSymbol typeSymbol, ITypeSymbol underlyingType)
 	{
 		var result = IsNullable(typeSymbol, out var comparand) && underlyingType.Equals(comparand, SymbolEqualityComparer.Default);
+		return result;
+	}
+
+	/// <summary>
+	/// Returns whether the <see cref="ITypeSymbol"/> is either (A) a <see cref="Nullable{T}"/> with T matching <paramref name="nullableType"/>,
+	/// or (B) a reference type matching <paramref name="nullableType"/>.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsNullableOrReferenceOf(this ITypeSymbol typeSymbol, ITypeSymbol nullableType)
+	{
+		var result = (nullableType.IsReferenceType && nullableType.Equals(typeSymbol, SymbolEqualityComparer.Default)) ||
+			(IsNullable(typeSymbol, out var comparand) && nullableType.Equals(comparand, SymbolEqualityComparer.Default));
+		return result;
+	}
+
+	/// <summary>
+	/// Returns whether the <see cref="ITypeSymbol"/> is either (A) a <see cref="Nullable{T}"/> with T matching <paramref name="underlyingType"/>,
+	/// or (B) <paramref name="underlyingType"/> itself.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsNullableOfOrEqualTo(this ITypeSymbol typeSymbol, ITypeSymbol underlyingType)
+	{
+		var result = underlyingType.Equals(typeSymbol, SymbolEqualityComparer.Default) ||
+			(IsNullable(typeSymbol, out var comparand) && underlyingType.Equals(comparand, SymbolEqualityComparer.Default));
 		return result;
 	}
 
