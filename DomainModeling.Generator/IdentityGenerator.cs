@@ -581,7 +581,7 @@ namespace {containingNamespace}
 		static {idTypeName} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
 		{{
 			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? "// To instead get safe syntax, make the Value property '{ get; private init; }' (or let the source generator implement it)" : "")}
-			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? $"return System.Runtime.CompilerServices.Unsafe.As<{underlyingTypeFullyQualifiedName}, {idTypeName}>(ref value);" : "")}
+			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? $"return Unsafe.As<{underlyingTypeFullyQualifiedName}, {idTypeName}>(ref value);" : "")}
 			{(existingComponents.HasFlags(IdTypeComponents.UnsettableValue) ? "//" : "")}return new {idTypeName}() {{ Value = value }};
 		}}
 		{(existingComponents.HasFlags(IdTypeComponents.DeserializeFromUnderlying) ? "*/" : "")}

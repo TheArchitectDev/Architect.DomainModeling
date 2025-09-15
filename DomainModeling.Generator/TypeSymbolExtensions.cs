@@ -684,7 +684,7 @@ internal static class TypeSymbolExtensions
 		// DO NOT REORDER
 
 		// Not yet source-generated
-		if (typeSymbol.TypeKind == TypeKind.Error) return $"Equals(this.{memberName}, other.{memberName})";
+		if (typeSymbol.TypeKind == TypeKind.Error) return $"{ComparisonsNamespace}.InferredTypeDefaultComparer.Equals(this.{memberName}, other.{memberName})";
 
 		if (typeSymbol.SpecialType == SpecialType.System_String) return String.Format(stringVariant, memberName);
 
@@ -733,7 +733,7 @@ internal static class TypeSymbolExtensions
 		// DO NOT REORDER
 
 		// Not yet source-generated
-		if (typeSymbol.TypeKind == TypeKind.Error) return $"Compare(this.{memberName}, other.{memberName})";
+		if (typeSymbol.TypeKind == TypeKind.Error) return $"{ComparisonsNamespace}.InferredTypeDefaultComparer.Compare(this.{memberName}, other.{memberName})";
 
 		// Collections have not been implemented, as we do not generate CompareTo() if any data member is not IComparable (as is the case for collections)
 

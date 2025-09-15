@@ -498,7 +498,7 @@ namespace {containingNamespace}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.DeserializeFromUnderlying) ? "/*" : "")}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
-		[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = ""{valueFieldName}"")]
+		[UnsafeAccessor(UnsafeAccessorKind.Field, Name = ""{valueFieldName}"")]
 		private static extern ref {underlyingTypeFullyQualifiedName} GetValueFieldReference({typeName} instance);" : "")}
 
 		/// <summary>

@@ -52,6 +52,7 @@ Correct string comparisons with EF:
 
 Performance:
 - Enhancement: Reduced assembly size by having source-generated WrapperValueObject/Identity types use generic JSON serializers instead of generating their own.
+- Enhancement: Reduced assembly size by moving the type-inference Equals() and Compare() helpers on generated ValueObjects into a helper class.
 - Enhancement: Improved source generator performance.
 
 Misc:
