@@ -509,6 +509,7 @@ public class IdentityGenerator : SourceGenerator
 		var source = $@"
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling;
@@ -525,6 +526,7 @@ namespace {containingNamespace}
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteJsonConverterAttribute(idTypeName, underlyingTypeFullyQualifiedName, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
 	{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(idTypeName, underlyingTypeFullyQualifiedName, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
 	{(hasIdentityValueObjectAttribute ? "" : $"[IdentityValueObject<{underlyingTypeFullyQualifiedName}>]")}
+	[DebuggerDisplay(""{{ToString(){(coreTypeFullyQualifiedName == "string" ? "" : ",nq")}}}"")]
 	[CompilerGenerated] {accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")}{(isRecord ? " record" : "")} struct {idTypeName} :
 		IIdentity<{underlyingTypeFullyQualifiedName}>,
 		IEquatable<{idTypeName}>,

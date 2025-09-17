@@ -437,6 +437,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		var source = $@"
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling;
@@ -450,6 +451,7 @@ namespace {containingNamespace}
 {{
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SystemTextJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
 	{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NewtonsoftJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(typeName, underlyingTypeFullyQualifiedName)}
+	[DebuggerDisplay(""{{ToString(){(coreTypeFullyQualifiedName == "string" ? "" : ",nq")}}}"")]
 	[CompilerGenerated] {generatable.Accessibility.ToCodeString()} {(generatable.IsClass ? "sealed" : "readonly")} partial {(generatable.IsRecord ? "record " : "")}{(generatable.IsClass ? "class" : "struct")} {typeName} :
 		IWrapperValueObject<{underlyingTypeFullyQualifiedName}>,
 		IEquatable<{typeName}>,
