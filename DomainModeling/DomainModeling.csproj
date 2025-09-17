@@ -71,6 +71,7 @@ Misc:
 - Fix: Fixed bug where DummyBuilder generator struggled with nested types.
 - Fix: Fixed bug where "no source generation on nested type" warning would not show.
 - Enhancement: Generated types now have the CompilerGeneratedAttribute.
+- Enhancement: Entity.Id has private init.
 - Enhancement: Nicer DebuggerDisplay of Wrappers/Identities.
 - Enhancement: Generated struct Wrappers/Identities now generate NULLABLE comparison operators, to circumvent counterintuitive lifting behavior.
 - Enhancement: Improved clarity of analyzer warnings, by stopping before subsequent problems occur.
