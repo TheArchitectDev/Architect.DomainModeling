@@ -81,7 +81,7 @@ public abstract class Entity<
 	/// <summary>
 	/// The entity's unique identity.
 	/// </summary>
-	public TId Id { get; private init; }
+	public TId Id { get; }
 
 	/// <param name="id">The unique identity for the entity.</param>
 	protected Entity(TId id)
