@@ -7,8 +7,8 @@ namespace Architect.DomainModeling.Conversions;
 /// A generic System.Text JSON converter for wrapper types, which serializes like the wrapped value itself.
 /// </summary>
 [UnconditionalSuppressMessage(
-	"Trimming", "IL2046",
-	Justification = "JsonConverter read/write methods are not marked with RequiresUnreferencedCode, but overrides require unreferenced code due to serialization."
+	"Trimming", "IL2046:All interface implementations and method overrides must have annotations matching the interface or overridden virtual method 'RequiresUnreferencedCodeAttribute' annotations",
+	Justification = "Unlike our base, we prefer to annotate the methods instead of the type, to avoid a warning merely because source-generated code includes a JSON converter."
 )]
 public sealed class ValueWrapperJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,
@@ -61,8 +61,8 @@ public sealed class ValueWrapperJsonConverter<
 /// It serializes to and from string.
 /// </summary>
 [UnconditionalSuppressMessage(
-	"Trimming", "IL2046",
-	Justification = "JsonConverter read/write methods are not marked with RequiresUnreferencedCode, but overrides require unreferenced code due to serialization."
+	"Trimming", "IL2046:All interface implementations and method overrides must have annotations matching the interface or overridden virtual method 'RequiresUnreferencedCodeAttribute' annotations",
+	Justification = "Unlike our base, we prefer to annotate the methods instead of the type, to avoid a warning merely because source-generated code includes a JSON converter."
 )]
 public sealed class LargeNumberValueWrapperJsonConverter<
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TWrapper,

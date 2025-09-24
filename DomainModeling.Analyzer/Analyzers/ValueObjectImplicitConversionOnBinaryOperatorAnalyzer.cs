@@ -55,20 +55,20 @@ public sealed class ValueObjectImplicitConversionOnBinaryOperatorAnalyzer : Diag
 			return;
 
 		// If either operand was implicitly converted FROM some IValueObject to something else, then the comparison is ill-advised
-		if (OperandWasImplicitlyConvertedFromIValueObject(leftTypeInfo) || OperandWasImplicitlyConvertedFromIValueObject(rightTypeInfo))
+		if (OperandWasImplicitlyConvertedFromSomeIValueObject(leftTypeInfo) || OperandWasImplicitlyConvertedFromSomeIValueObject(rightTypeInfo))
 		{
 			var diagnostic = Diagnostic.Create(
 				DiagnosticDescriptor,
 				context.Node.GetLocation(),
 				binaryExpression.OperatorToken.ValueText,
-				IsNullable(leftTypeInfo.Type, out var nullableUnderlyingType) ? nullableUnderlyingType.Name + '?' : leftTypeInfo.Type.Name,
-				IsNullable(rightTypeInfo.Type, out nullableUnderlyingType) ? nullableUnderlyingType.Name + '?' : rightTypeInfo.Type.Name);
+				leftTypeInfo.Type.IsNullable(out var nullableUnderlyingType) ? nullableUnderlyingType.Name + '?' : leftTypeInfo.Type.Name,
+				rightTypeInfo.Type.IsNullable(out nullableUnderlyingType) ? nullableUnderlyingType.Name + '?' : rightTypeInfo.Type.Name);
 
 			context.ReportDiagnostic(diagnostic);
 		}
 	}
 
-	private static bool OperandWasImplicitlyConvertedFromIValueObject(TypeInfo operandTypeInfo)
+	private static bool OperandWasImplicitlyConvertedFromSomeIValueObject(TypeInfo operandTypeInfo)
 	{
 		var from = operandTypeInfo.Type;
 		var to = operandTypeInfo.ConvertedType;
@@ -79,34 +79,22 @@ public sealed class ValueObjectImplicitConversionOnBinaryOperatorAnalyzer : Diag
 
 		// Do not flag nullable lifting (where a nullable and a non-nullable are compared)
 		// Note that it LOOKS as though the nullable is converted to non-nullable, but the opposite is true
-		if (IsNullable(to, out var nullableUnderlyingType) && nullableUnderlyingType.Equals(from, SymbolEqualityComparer.Default))
+		if (to.IsNullable(out var nullableUnderlyingType) && nullableUnderlyingType.Equals(from, SymbolEqualityComparer.Default))
 			return false;
 
 		// Dig through nullables
-		if (IsNullable(from, out nullableUnderlyingType))
+		if (from.IsNullable(out nullableUnderlyingType))
 			from = nullableUnderlyingType;
-		if (IsNullable(to, out nullableUnderlyingType))
+		if (to.IsNullable(out nullableUnderlyingType))
 			to = nullableUnderlyingType;
 
 		// Backwards compatibility: If converting to ValueObject, then ignore, because the ValueObject base class implements ==(ValueObject, ValueObject)
 		if (to is { Name: "ValueObject", ContainingNamespace: { Name: "DomainModeling", ContainingNamespace: { Name: "Architect", ContainingNamespace.IsGlobalNamespace: true } } })
 			return false;
 
-		var isConvertedFromIValueObject = from.AllInterfaces.Any(interf =>
+		var isConvertedFromSomeIValueObject = from.AllInterfaces.Any(interf =>
 			interf is { Name: "IValueObject", ContainingNamespace: { Name: "DomainModeling", ContainingNamespace: { Name: "Architect", ContainingNamespace.IsGlobalNamespace: true } } });
 
-		return isConvertedFromIValueObject;
-	}
-
-	private static bool IsNullable(ITypeSymbol? potentialNullable, out ITypeSymbol underlyingType)
-	{
-		if (potentialNullable is not INamedTypeSymbol { ConstructedFrom.SpecialType: SpecialType.System_Nullable_T } namedTypeSymbol)
-		{
-			underlyingType = null!;
-			return false;
-		}
-
-		underlyingType = namedTypeSymbol.TypeArguments[0];
-		return true;
+		return isConvertedFromSomeIValueObject;
 	}
 }

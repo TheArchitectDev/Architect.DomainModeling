@@ -396,7 +396,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		var existingComponents = generatable.ExistingComponents;
 
 		var directParentOfCore = ValueWrapperGenerator.GetDirectParentOfCoreType(valueWrappers, generatable.TypeName, generatable.ContainingNamespace);
-		var coreTypeFullyQualifiedName = directParentOfCore.CustomCoreTypeFullyQualifiedName ?? directParentOfCore.UnderlyingTypeFullyQualifiedName ?? generatable.UnderlyingTypeFullyQualifiedName;
+		var coreTypeFullyQualifiedName = directParentOfCore.CoreTypeFullyQualifiedName ?? generatable.UnderlyingTypeFullyQualifiedName;
 		var coreTypeIsStruct = directParentOfCore.CoreTypeIsStruct;
 
 		(var coreValueIsNonNull, var isSpanFormattable, var isSpanParsable, var isUtf8SpanFormattable, var isUtf8SpanParsable) = ValueWrapperGenerator.GetFormattabilityAndParsabilityRecursively(
@@ -481,7 +481,7 @@ namespace {containingNamespace}
 		/// Accepts a nullable parameter, but throws for null values.
 		/// For example, this is useful for a mandatory request input where omission must lead to rejection.
 		/// </summary>
-		public {typeName}({underlyingTypeFullyQualifiedName}? value)
+		public {typeName}([DisallowNull] {underlyingTypeFullyQualifiedName}? value)
 			: this(value ?? throw new ArgumentNullException(nameof(value)))
 		{{
 		}}
@@ -546,11 +546,10 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({typeName}{(generatable.IsClass ? "?" : "")} left, {typeName}{(generatable.IsClass ? "?" : "")} right) => !(left == right);
 
 		{(isComparable ? "" : "/*")}
-		// Nullable comparison operators circumvent the unexpected behavior that would be caused by .NET's lifting
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({typeName}? left, {typeName}? right) => left is {{ }} one && !(right is {{ }} two && one.CompareTo(two) <= 0);
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({typeName}? left, {typeName}? right) => right is {{ }} two && !(left is {{ }} one && one.CompareTo(two) >= 0);
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({typeName} left, {typeName} right) => left.CompareTo(right) > 0;
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({typeName} left, {typeName} right) => left.CompareTo(right) < 0;
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({typeName} left, {typeName} right) => !(left < right);
+		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({typeName} left, {typeName} right) => !(left > right);
 		{(isComparable ? "" : "*/")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.ConvertToOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true } or { IsClass: true, UnderlyingCanBeNull: true, }

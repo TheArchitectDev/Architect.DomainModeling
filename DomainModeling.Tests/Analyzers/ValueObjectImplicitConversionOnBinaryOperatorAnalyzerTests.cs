@@ -4,6 +4,8 @@ using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 
 namespace Architect.DomainModeling.Tests.Analyzers;
 
+#pragma warning disable CounterintuitiveNullHandlingOnLiftedValueObjectComparison // Comparisons between null and non-null might produce unintended results -- Irrelevant here and interferes with our tests
+
 [SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression", Justification = "False positive.")]
 [SuppressMessage("Usage", "ComparisonBetweenUnrelatedValueObjects:Comparison between unrelated value objects", Justification = "Testing presence of warning.")]
 public class ValueObjectImplicitConversionOnBinaryOperatorAnalyzerTests

@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 
 namespace Architect.DomainModeling.Generator;
@@ -9,13 +8,6 @@ namespace Architect.DomainModeling.Generator;
 /// </summary>
 internal static class EnumExtensions
 {
-	static EnumExtensions()
-	{
-		// Required to get correct behavior in GetNumericValue, where we overlap the enum type with a ulong, left-aligned
-		if (!BitConverter.IsLittleEndian)
-			throw new NotSupportedException("This type is only supported on little-endian architectures.");
-	}
-
 	/// <summary>
 	/// Returns the source <see cref="Accessibility"/>, or <paramref name="minimumAccessibility"/> if the source was less than that.
 	/// </summary>
@@ -117,7 +109,16 @@ internal static class EnumExtensions
 		where T : unmanaged, Enum
 	{
 		var result = 0UL;
-		Unsafe.WriteUnaligned(ref Unsafe.As<ulong, byte>(ref result), enumValue);
+
+		// Since the actual value may be smaller than ulong's 8 bytes, we must align to the least significant byte
+		// This way, casting the ulong back to the original type gets back the exact original bytes
+		// On little-endian, that means aligning to the left of the bytes
+		// On big-endian, that means aligning to the right of the bytes
+		if (BitConverter.IsLittleEndian)
+			Unsafe.WriteUnaligned(ref Unsafe.As<ulong, byte>(ref result), enumValue);
+		else
+			Unsafe.WriteUnaligned(ref Unsafe.Add(ref Unsafe.As<ulong, byte>(ref result), sizeof(ulong) - Unsafe.SizeOf<T>()), enumValue);
+
 		return result;
 	}
 }

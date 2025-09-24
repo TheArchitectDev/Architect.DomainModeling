@@ -34,8 +34,8 @@ Release notes:
 
 4.0.0:
 
-Platform support:
-- BREAKING: Dropped support for .NET 6.0 and .NET 7.0 (EOL).
+Platforms:
+- BREAKING: Dropped support for .NET 6/7 (EOL).
 
 The base class is dead - long live the interface!
 - Feature: Generated Wrappers can now be structs. Unvalidated instances are avoided via analyzer warning against `default`.
@@ -62,20 +62,21 @@ Performance:
 - Enhancement: Improved source generator performance.
 
 Misc:
-- Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", as this could cover up mistakes instead of revealing them.
+- Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", which covered up mistakes instead of revealing them.
 - Semi-breaking: IIdentity now implements IWrapperValueObject.
+- Feature: DefinedEnum&lt;TEnum&gt; wrapper.
 - Feature: Non-generic Wrapper/Identity interfaces.
-- Feature: DummyBuilder records clone themselves on each step, for reuse.
-- Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. This avoids accidentally comparing unrelated types.
-- Fix: Fixed bug where source-generated records would always generate ToString()/Equals()/GetHashCode(), even if you wrote your own.
+- Feature: DummyBuilder records clone on each step, for reuse.
+- Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. Avoids accidentally comparing unrelated types.
+- Feature: Analyzer warns when '>' or similar operator risks unintended null handling.
+- Fix: Fixed bug where source-generated records would ignore hand-written ToString()/Equals()/GetHashCode().
 - Fix: Fixed bug where source-generated Wrappers/Identities would not recognize manual member implementations if they were explicit interface implementations.
 - Fix: Fixed bug where DummyBuilder generator struggled with nested types.
 - Fix: Fixed bug where "no source generation on nested type" warning would not show.
-- Enhancement: Generated types now have the CompilerGeneratedAttribute.
+- Enhancement: CompilerGeneratedAttribute throughout.
 - Enhancement: Entity.Id has private init.
-- Enhancement: Nicer DebuggerDisplay of Wrappers/Identities.
-- Enhancement: Generated struct Wrappers/Identities now generate NULLABLE comparison operators, to circumvent counterintuitive lifting behavior.
-- Enhancement: Improved clarity of analyzer warnings, by stopping before subsequent problems occur.
+- Enhancement: DebuggerDisplay for Wrappers/Identities.
+- Enhancement: Analyzer warning clarity.
 - Enhancement: Improved correctness of trimming.
 		</Description>
 		<Copyright>The Architect</Copyright>

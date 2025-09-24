@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using Architect.DomainModeling.Configuration;
 using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.Common;
@@ -46,7 +47,11 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 			new FormatAndParseTestingIntId(3),
 			new LazyStringWrapper(new Lazy<string>("4")),
 			new LazyIntWrapper(new Lazy<int>(5)),
-			new NumericStringId("6"));
+			new NumericStringId("6"),
+			DefinedEnum.Create(HttpStatusCode.OK),
+			DefinedEnum.Create(HttpStatusCode.Accepted),
+			DefinedEnum.Create(HttpStatusCode.Created),
+			null);
 		var entity = new EntityForEF(values);
 		var domainEvent = new DomainEventForEF(id: 2, ignored: null!);
 
@@ -79,7 +84,11 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 		Assert.Equal(3, reloadedEntity.Values.Three.Value?.Value.Value);
 		Assert.Equal("4", reloadedEntity.Values.Four.Value.Value);
 		Assert.Equal(5, reloadedEntity.Values.Five.Value.Value);
-		Assert.Equal("6", reloadedEntity.Values.Six.Value);
+		Assert.Equal("6", reloadedEntity.Values.Six?.Value);
+		Assert.Equal(HttpStatusCode.OK, reloadedEntity.Values.Seven.Value);
+		Assert.Equal(HttpStatusCode.Accepted, reloadedEntity.Values.Eight.Value);
+		Assert.Equal(HttpStatusCode.Created, reloadedEntity.Values.Nine?.Value);
+		Assert.Null(reloadedEntity.Values.Ten);
 
 		// This property should be mapped to int via ICoreValueWrapper<NumericStringId, int>
 		var mappingForStringWithCustomIntCore = this.DbContext.Model.FindEntityType(typeof(EntityForEF))?.FindNavigation(nameof(EntityForEF.Values))?.TargetEntityType
@@ -116,9 +125,9 @@ internal sealed class TestDbContext(
 	[SuppressMessage("Usage", "CA2263:Prefer generic overload when type is known", Justification = "We have no generic info for types received from callbacks.")]
 	protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
 	{
-		configurationBuilder.Conventions.Remove<ConstructorBindingConvention>();
-		configurationBuilder.Conventions.Remove<RelationshipDiscoveryConvention>();
-		configurationBuilder.Conventions.Remove<PropertyDiscoveryConvention>();
+		configurationBuilder.Conventions.Remove(typeof(ConstructorBindingConvention));
+		configurationBuilder.Conventions.Remove(typeof(RelationshipDiscoveryConvention));
+		configurationBuilder.Conventions.Remove(typeof(PropertyDiscoveryConvention));
 
 		configurationBuilder.ConfigureDomainModelConventions(domainModel =>
 		{
@@ -168,6 +177,10 @@ internal sealed class TestDbContext(
 				values.Property(x => x.Four);
 				values.Property(x => x.Five);
 				values.Property(x => x.Six);
+				values.Property(x => x.Seven);
+				values.Property(x => x.Eight);
+				values.Property(x => x.Nine);
+				values.Property(x => x.Ten);
 			});
 
 			builder.HasKey(x => x.Id);
@@ -314,9 +327,23 @@ internal sealed partial class ValueObjectForEF
 	public FormatAndParseTestingIntId Three { get; private init; }
 	public LazyStringWrapper Four { get; private init; }
 	public LazyIntWrapper Five { get; private init; }
-	public NumericStringId Six { get; private init; }
+	public NumericStringId? Six { get; private init; }
+	public DefinedEnum<HttpStatusCode, int> Seven {  get; private init; }
+	public DefinedEnum<HttpStatusCode, string> Eight {  get; private init; }
+	public DefinedEnum<HttpStatusCode, int>? Nine { get; private init; }
+	public DefinedEnum<HttpStatusCode, string>? Ten { get; private init; }
 
-	public ValueObjectForEF(Wrapper1ForEF one, Wrapper2ForEF two, FormatAndParseTestingIntId three, LazyStringWrapper four, LazyIntWrapper five, NumericStringId six)
+	public ValueObjectForEF(
+		Wrapper1ForEF one,
+		Wrapper2ForEF two,
+		FormatAndParseTestingIntId three,
+		LazyStringWrapper four,
+		LazyIntWrapper five,
+		NumericStringId? six,
+		DefinedEnum<HttpStatusCode> seven,
+		HttpStatusCode eight,
+		DefinedEnum<HttpStatusCode>? nine,
+		HttpStatusCode? ten)
 	{
 		if (!EntityFrameworkConfigurationGeneratorTests.AllowParameterizedConstructors)
 			throw new InvalidOperationException("Deserialization was not allowed to use the parameterized constructors.");
@@ -327,5 +354,9 @@ internal sealed partial class ValueObjectForEF
 		this.Four = four;
 		this.Five = five;
 		this.Six = six;
+		this.Seven = seven;
+		this.Eight = DefinedEnum.Create(eight);
+		this.Nine = nine;
+		this.Ten = (DefinedEnum<HttpStatusCode, string>?)ten;
 	}
 }

@@ -23,7 +23,7 @@ A value object is an an immutable data model representing one or more values. Su
 Consider the following type:
 
 ```cs
-public class Color : ValueObject
+public class Color
 {
 	public ushort Red { get; private init; }
 	public ushort Green { get; private init; }
@@ -46,20 +46,23 @@ This is the non-boilerplate portion of the value object, i.e. everything that we
 - The `IEquatable<Color>` interface implementation.
 - Operator overloads for `==` and `!=` based on `Equals()`, since a value object only ever cares about its contents, never its reference identity.
 - Potentially the `IComparable<Color>` interface implementation.
+- Potentially operator overloads for `>`, `<`, `>=`, and `<=` based on `CompareTo()`.
 - Correctly configured nullable reference types (`?` vs. no `?`) on all mentioned boilerplate code.
+- The 'sealed' keyword.
 - Unit tests on any _hand-written_ boilerplate code.
+
+Records help with some of the above, but not all. Even worse, they pretend to implement structural equality, but fail to do so for collection types.
 
 Change the type as follows to have source generators tackle all of the above and more:
 
 ```cs
 [ValueObject]
-public partial class Color
+public partial record class Color
 {
 	// Snip
 }
 ```
 
-Note that the `ValueObject` base class is now optional, as the generated partial class implements it.
 
 The `IComparable<Color>` interface can optionally be added, if the type is considered to have a natural order. In such case, the type's properties are compared in the order in which they are defined. When adding the interface, make sure that the properties are defined in the intended order for comparison.
 
@@ -78,7 +81,7 @@ The wrapper value object is just another value object. Its existence is merely a
 Consider the following type:
 
 ```cs
-public class Description : WrapperValueObject<string>
+public class Description
 {
 	protected override StringComparison StringComparison => StringComparison.Ordinal;
 
@@ -101,21 +104,122 @@ Besides all the things that the value object in the previous section was missing
 - An explicit conversion from `string` (explicit since not every string is a `Description`).
 - An implicit conversion to `string` (implicit since every `Description` is a valid `string`).
 - If the underlying type had been a value type (e.g. `int`), conversions from and to its nullable counterpart (e.g. `int?`).
-- Ideally, JSON converters that convert instances to and from `"MyDescription"` rather than `{"Value":"MyDescription"}`.
+- If the underlying type is parsable and/or formattable, formatting and parsing methods.
+- Ideally, JSON converters that convert instances to and from `"MyDescription"` rather than `{"Value":"MyDescription"}`, and _without_ re-running validation. (Existing domain models are trusted. Never deserialize a domain model from an untrusted source. Use separate contract DTOs for that.)
+- If Entity Framework is used, mappings to and from `string`.
 
 Change the type as follows to have source generators tackle all of the above and more:
 
 ```cs
 [WrapperValueObject<string>]
-public partial class Description
+public partial record class Description
 {
 	// Snip
 }
 ```
 
-Again, the `WrapperValueObject<string>` base class has become optional, as the generated partial class implements it.
-
 To also have comparison methods generated, the `IComparable<Description>` interface can optionally be added, if the type is considered to have a natural order.
+
+#### Structs
+
+Wrapper values objects are allowed to be structs.
+In fact, this can even be advisable. It reduces heap allocations (and thus garbage collection pressure), and it prevents the need for null checks when such objects are passed to constructors and methods.
+
+Structs always have a default constructor, and they can also be created via the `default` keyword.
+To prevent the creation of unvalidated instances, the default constructor for struct wrapper value objects is marked as obsolete, and an included analyzer warns against the use of the `default` keyword for such types.
+
+Structs are usually the way to go. If shenanigans are expected, such as the use of a generic method to produce unvalidated values, then classes can be used to enforce the constructor validation more thoroughly.
+
+#### Enums
+
+Special wrapper value objects for enums are provided out-of-the-box. They help avoid the following common boilerplate code:
+
+- Checking `Enum.IsDefined(value)` when it is injected into a constructor or method.
+- Manually mapping to string or the enum's underlying integer type with Entity Framework.
+- Configuring how the enum should be JSON-serialized.
+
+Instead, we can do the following:
+
+```cs
+public class MyEntity
+{
+	// Maps and serializes to string automatically
+	public DefinedEnum<Kind, string> Kind { get; private set; }
+
+	// Maps and serializes to int automatically
+	public DefinedEnum<HttpStatusCode, int> StatusCode { get; private set; }
+
+	public MyEntity(
+		// No need to repeat string/int here
+		DefinedEnum<Kind> kind,
+		DefinedEnum<HttpStatuscode> statusCode)
+	{
+		// No need to check if the values are defined
+		this.Kind = kind;
+		this.StatusCode = statusCode;
+	}
+}
+```
+
+`DefinedEnum<TEnum, TPrimitive>` can serve as a property or field, which warrants specifying the underlying representation.
+`DefinedEnum<TEnum>` is a simplification intended for passing values around. An analyzer prevents the latter from being stored in a field or property.
+
+The validation is performed whenever a `DefinedEnum<TEnum>` or `DefinedEnum<TEnum, TPrimitive>` is constructed from a primitive.
+By default, `ArgumentException` is thrown for an input other than a defined value for the enum, and `ArgumentNullException` for a null input.
+However, you can customize the exceptions globally:
+
+```cs
+public class Program
+{
+	[ModuleInitializer]
+	internal static void InitializeModule()
+	{
+		DefinedEnum.ExceptionFactoryForNullInput = (Type enumType) =>
+			throw new NullValidationException($"{enumType.Name} expects a non-null value.");
+		DefinedEnum.ExceptionFactoryForUndefinedInput = (Type enumType, Int128 value) =>
+			throw new ValidationException($"Only recognized {enumType.Name} values are permitted.");
+	}
+}
+```
+
+Type inference and implicit conversions make it easy to produce values:
+
+```cs
+public DefinedEnum<Kind, string> Kind { get; private set; }
+
+public void AdjustKind(DefinedEnum<Kind> kind)
+{
+	this.Kind = kind;
+}
+
+public void DemonstrateUsage(Kind someInputThatMightBeUndefined)
+{
+	// From a constant that represents a defined value:
+	this.Kind = Kind.Regular; // Valid
+	this.AdjustKind(Kind.Regular); // Valid
+
+	// Otherwise:
+	this.Kind = someInputThatMightBeUndefined; // Compiler error
+	this.Kind = (Kind)(-1); // Compiler error
+	this.AdjustKind((Kind)(-1)); // Compiler error
+	this.Kind = DefinedEnum.Create(Kind.Regular); // Valid
+	this.AdjustKind(DefinedEnum.Create(Kind.Regular)); // Valid
+}
+```
+
+When writing a mapper to map from a DTO to a domain object, enums can be converted like this:
+
+```cs
+public static DefinedEnum<Kind> ToDomain(KindDto dto)
+{
+	return new DefinedEnum<Kind>(dto switch
+	{
+		KindDto.A => Kind.A,
+		KindDto.B => Kind.B,
+		_ => DefinedEnum<Kind>.ThrowUndefinedInput(), // Or: DefinedEnum<Kind>.UndefinedValue!.Value, to have the constructor throw the same thing
+	});
+}
+```
 
 ### Entity
 
@@ -175,27 +279,17 @@ For a more database-friendly alternative to UUIDs, see [Distributed IDs](https:/
 
 ### Identity
 
-Identity types are a special case of value objects. Unlike other value objects, they are perfectly suitable to be implemented as structs:
+Identity types are a special case of wrapper value object, with some noteworthy characteristics:
 
-- The enforced default constructor is unproblematic, because there is hardly such a thing as an invalid ID value. Although ID 0 or -1 might not _exist_, the same might be true for ID 999999, which would still be valid as a value.
+- An ID tends to lack the need for constructor validation.
+- The default constructor is unproblematic, because there is hardly such a thing as an invalid ID value. Although ID 0 or -1 might not _exist_, the same might be true for ID 999999, which would still be valid as a value.
 - The possibility of an ID variable containing `null` is often undesirable. Structs avoid this complication. (Where we _want_ nullability, a nullable struct can be used, e.g. `PaymentId?`.
-- If the underlying type is `string`, the generator ensures that its `Value` property returns the empty string instead of `null`. This way, even `string`-wrapping identities know only one "empty" value and avoid representing `null`.
-
-Since an application is expected to work with many ID instances, using structs for them is a nice optimization that reduces heap allocations.
+- If the underlying type is `string`, the generator ensures that its `Value` property returns the empty string instead of `null`. This way, even `string`-wrapping identities know only one "empty" value and avoid ever representing `null` as anything special.
 
 Source-generated identities implement both `IEquatable<T>` and `IComparable<T>` automatically. They are declared as follows:
 
 ```cs
-[Identity<ulong>]
-public readonly partial struct PaymentId : IIdentity<ulong>
-{
-}
-```
-
-For even terser syntax, we can omit the interface and the `readonly` keyword (since they are generated), and even use a `record struct` to omit the curly braces:
-
-```cs
-[Identity<string>]
+[IdentityValueObject<string>]
 public partial record struct ExternalId;
 ```
 
@@ -205,14 +299,14 @@ Note that an [entity](#entity) has the option of having its own ID type generate
 
 There are many ways of working with domain events, and this package does not advocate any particular one. As such, no interfaces, base types, or source generators are included that directly implement domain events.
 
-To mark domain event types as such, regardless of how they are implemented, the `[DomainEvent]` attribute can be used:
+To mark domain event types as such, irrespective of how they are implemented, the `[DomainEvent]` attribute can be used:
 
 ```cs
 [DomainEvent]
 public class OrderCreatedEvent : // Snip
 ```
 
-Besides providing consistency, such a marker attribute can enable miscellaneous concerns. For example, if the package's Entity Framework mappings are used, domain events can be included.
+Besides providing consistency, such a marker attribute can enable miscellaneous concerns. For example, if this package's [Entity Framework conventions](#entity-framework-conventions) are used, domain events can be included.
 
 ### DummyBuilder
 
@@ -273,7 +367,6 @@ This way, whenever a constructor is changed, the only test code that breaks is t
 As the builder is repaired to account for the changed constructor, all tests work again. If a new constructor parameter was added, existing tests tend to work perfectly fine as long as the builder provides a sensible default value for the parameter.
 
 Unfortunately, the dummy builders tend to consist of boilerplate code and can be tedious to write and maintain.
-
 Change the type as follows to get source generation for it:
 
 ```cs
@@ -317,26 +410,26 @@ Any type that inherits from `ValueObject` also gains access to a set of (highly 
 
 ### Construct Once
 
-From the domain model's perspective, any instance is constructed only once. The domain model does not care if it is serialized to JSON or persisted in a database before being reconstituted in main memory. The object is considered to have lived on.
+From the domain model's perspective, any instance is constructed only once. The domain model does not care if it is serialized to JSON or persisted in a database before being reconstituted in main memory. Functionally, the object is considered to have lived on.
 
 As such, constructors in the domain model should not be re-run when objects are reconstituted. The source generators provide this property:
 
-- Each generated `IIdentity<T>` and `WrapperValueObject<TValue>` comes with a JSON converter for both System.Text.Json and Newtonsoft.Json, each of which deserialize without the use of (parameterized) constructors.
-- Each generated `ValueObject` will have an empty default constructor for deserialization purposes, with a `[JsonConstructor`] attribute for both System.Text.Json and Newtonsoft.Json. Declare its properties with `private init` and add a `[JsonInclude]` and `[JsonPropertyName("StableName")]` attribute to allow them to be rehydrated.
-- If the generated [Entity Framework mappings](#entity-framework-conventions) are used, all domain objects are reconstituted without the use of (parameterized) constructors.
-- Third party extensions can use the methods on `DomainObjectSerializer` to (de)serialize according to the same conventions.
+- Each generated `IIdentity<T>` and `IWrapperValueObject<TValue>` applies a JSON converter for both System.Text.Json and Newtonsoft.Json, each of which deserialize without the use of (parameterized) constructors.
+- Each generated regular `IValueObject` will have an empty default constructor for deserialization purposes, with a `[JsonConstructor`] attribute for both System.Text.Json and Newtonsoft.Json. Declare its properties with `private init` and add a `[JsonInclude]` and `[JsonPropertyName("StableName")]` attribute to allow them to be rehydrated.
+- If the generated [Entity Framework conventions](#entity-framework-conventions) are used, all domain objects are reconstituted without the use of (parameterized) constructors.
+- Third-party extensions can use the methods on `DomainObjectSerializer` to (de)serialize according to the same conventions.
 
 ## Serialization
 
 First and foremost, serialization of domain objects for _public_ purposes should be avoided.
-To expose data outside of the bounded context, create separate contracts and adapters to convert back and forth.
-It is advisable to write such adapters manually, so that a compiler error occurs when changes to either end would break the adaptation.
+To ingest data and/or expose data outside of the bounded context, create separate contracts, with mappers to convert back and forth.
+It is advisable to write such mappers manually, so that a compiler error occurs when changes to either end would break the mapping.
 
-Serialization inside the bounded context is useful, such as for persistence, be it in the form of JSON documents or in relational database tables.
+Serialization of domain objects _within_ the bounded context is useful, such as for persistence, be it in the form of JSON documents or in relational database tables.
 
 ### Identity and WrapperValueObject Serialization
 
-The generated JSON converters and Entity Framework mappings (optional) end up calling the generated `Serialize` and `Deserialize` methods, which are fully customizable.
+The generated JSON converters and Entity Framework conventions (optional) end up calling the generated `Serialize` and `Deserialize` methods, which are fully customizable.
 Deserialization uses the default constructor and the value property's initializer (`{ get; private init }`).
 Fallbacks are in place in case a value property was manually declared with no initializer.
 
@@ -360,13 +453,15 @@ At the time of writing, Entity Framework's `ComplexProperty()` does [not yet](ht
 If an entity or domain event is ever serialized to JSON, it is up to the developer to provide an empty default constructor, since there is no other need to generate source for these types.
 The `[Obsolete]` attribute and `private` accessibility can be used to prevent a constructor's unintended use.
 
-If the generated [Entity Framework mappings](#entity-framework-conventions) are used, entities and/or domain objects can be reconstituted entirely without the use of constructors, thus avoiding the need to declare empty default constructors.
+If the generated [Entity Framework conventions](#entity-framework-conventions) are used, entities and/or domain objects can be reconstituted entirely without the use of constructors, thus avoiding the need to declare empty default constructors.
 
 ## Entity Framework Conventions
 
 Conventions to provide Entity Framework mappings are generated on-demand, only if any override of `ConfigureConventions(ModelConfigurationBuilder)` is declared.
 There are no hard dependencies on Entity Framework, nor is there source code overhead in its absence.
 It is up to the developer which conventions, if any, to use.
+
+The features described in this section work with Entity Framework Core 7+, although active testing and maintenance are done against the latest version.
 
 ```cs
 internal sealed class MyDbContext : DbContext

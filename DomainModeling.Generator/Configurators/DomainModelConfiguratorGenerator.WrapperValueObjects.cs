@@ -19,7 +19,7 @@ public partial class DomainModelConfiguratorGenerator
 
 		var configurationText = String.Join($"{Environment.NewLine}\t\t\t", input.ValueWrappers
 			.Where(generatable => !generatable.IsIdentity)
-			.Select(generatable => (Generatable: generatable, CoreTypeName: ValueWrapperGenerator.GetCoreTypeFullyQualifiedName(input.ValueWrappers, generatable.TypeName, generatable.ContainingNamespace)))
+			.Select(generatable => (Generatable: generatable, CoreTypeName: ValueWrapperGenerator.GetDirectParentOfCoreType(input.ValueWrappers, generatable.TypeName, generatable.ContainingNamespace).CoreTypeFullyQualifiedName))
 			.Select(tuple => $$"""
 				configurator.ConfigureWrapperValueObject<{{tuple.Generatable.ContainingNamespace}}.{{tuple.Generatable.TypeName}}, {{tuple.Generatable.UnderlyingTypeFullyQualifiedName}}, {{tuple.CoreTypeName}}>({{Environment.NewLine}}				new Architect.DomainModeling.Configuration.IWrapperValueObjectConfigurator.Args());
 				"""));

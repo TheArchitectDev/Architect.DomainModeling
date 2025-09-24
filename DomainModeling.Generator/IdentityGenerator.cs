@@ -467,7 +467,7 @@ public class IdentityGenerator : SourceGenerator
 		var hasIdentityValueObjectAttribute = generatable.IdTypeExists;
 
 		var directParentOfCore = ValueWrapperGenerator.GetDirectParentOfCoreType(valueWrappers, idTypeName, containingNamespace);
-		var coreTypeFullyQualifiedName = directParentOfCore.CustomCoreTypeFullyQualifiedName ?? directParentOfCore.UnderlyingTypeFullyQualifiedName ?? generatable.UnderlyingTypeFullyQualifiedName;
+		var coreTypeFullyQualifiedName = directParentOfCore.CoreTypeFullyQualifiedName ?? generatable.UnderlyingTypeFullyQualifiedName;
 		var coreTypeIsStruct = directParentOfCore.CoreTypeIsStruct;
 
 		(var coreValueIsNonNull, var isSpanFormattable, var isSpanParsable, var isUtf8SpanFormattable, var isUtf8SpanParsable) = ValueWrapperGenerator.GetFormattabilityAndParsabilityRecursively(
@@ -600,11 +600,10 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(IdTypeComponents.EqualsOperator) ? "//" : "")}public static bool operator ==({idTypeName} left, {idTypeName} right) => left.Equals(right);
 		{(existingComponents.HasFlags(IdTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({idTypeName} left, {idTypeName} right) => !(left == right);
 
-		// Nullable comparison operators circumvent the unexpected behavior that would be caused by .NET's lifting
-		{(existingComponents.HasFlags(IdTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({idTypeName}? left, {idTypeName}? right) => left is {{ }} one && !(right is {{ }} two && one.CompareTo(two) <= 0);
-		{(existingComponents.HasFlags(IdTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({idTypeName}? left, {idTypeName}? right) => right is {{ }} two && !(left is {{ }} one && one.CompareTo(two) >= 0);
-		{(existingComponents.HasFlags(IdTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({idTypeName}? left, {idTypeName}? right) => !(left < right);
-		{(existingComponents.HasFlags(IdTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({idTypeName}? left, {idTypeName}? right) => !(left > right);
+		{(existingComponents.HasFlags(IdTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({idTypeName} left, {idTypeName} right) => left.CompareTo(right) > 0;
+		{(existingComponents.HasFlags(IdTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({idTypeName} left, {idTypeName} right) => left.CompareTo(right) < 0;
+		{(existingComponents.HasFlags(IdTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({idTypeName} left, {idTypeName} right) => !(left < right);
+		{(existingComponents.HasFlags(IdTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({idTypeName} left, {idTypeName} right) => !(left > right);
 
 		{(existingComponents.HasFlags(IdTypeComponents.ConvertToOperator) ? "//" : "")}{(generatable is { UnderlyingTypeIsInterface: true }
 			? ""

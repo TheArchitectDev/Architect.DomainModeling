@@ -309,9 +309,6 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", 0, -1)]
-		[InlineData("", null, 0, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -319,25 +316,16 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult, int? expectedResultWithNullSensitiveComparison = null)
+		public void GreaterThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
-
-			// Null StringIds are identical to empty-string StringIds
-			// However, that property does not hold when wrapped in a nullable, of course
-			expectedResult = expectedResultWithNullSensitiveComparison ?? expectedResult;
-			Assert.Equal(expectedResult > 0, (StringId?)one > (StringId?)two);
-			Assert.Equal(expectedResult <= 0, (StringId?)one <= (StringId?)two);
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", 0, -1)]
-		[InlineData("", null, 0, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -345,63 +333,39 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult, int? expectedResultWithNullSensitiveComparison = null)
+		public void LessThan_WithString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
-
-			// Null StringIds are identical to empty-string StringIds
-			// However, that property does not hold when wrapped in a nullable, of course
-			expectedResult = expectedResultWithNullSensitiveComparison ?? expectedResult;
-			Assert.Equal(expectedResult < 0, (StringId?)one < (StringId?)two);
-			Assert.Equal(expectedResult >= 0, (StringId?)one >= (StringId?)two);
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, 1, -1)]
-		[InlineData(1, null, +1)]
 		[InlineData(1, 1, 0)]
 		[InlineData(1, 2, -1)]
 		[InlineData(2, 1, +1)]
-		public void GreaterThan_AsNullableOrNonNullableStruct_ShouldReturnExpectedResult(int? one, int? two, int expectedResult)
+		public void GreaterThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
 		{
-			var left = (DecimalId?)one;
-			var right = (DecimalId?)two;
+			var left = (DecimalId)one;
+			var right = (DecimalId)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
-
-			if (left is not null && right is not null)
-			{
-				Assert.Equal(left > right, (DecimalId)one! > (DecimalId)two!);
-				Assert.Equal(left <= right, (DecimalId)one! <= (DecimalId)two!);
-			}
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, 1, -1)]
-		[InlineData(1, null, +1)]
 		[InlineData(1, 1, 0)]
 		[InlineData(1, 2, -1)]
 		[InlineData(2, 1, +1)]
-		public void LessThan_AsNullableOrNonNullableStruct_ShouldReturnExpectedResult(int? one, int? two, int expectedResult)
+		public void LessThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
 		{
-			var left = (DecimalId?)one;
-			var right = (DecimalId?)two;
+			var left = (DecimalId)one;
+			var right = (DecimalId)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
-
-			if (left is not null && right is not null)
-			{
-				Assert.Equal(left < right, (DecimalId)one! < (DecimalId)two!);
-				Assert.Equal(left >= right, (DecimalId)one! >= (DecimalId)two!);
-			}
 		}
 
 		[Theory]
@@ -929,9 +893,9 @@ namespace Architect.DomainModeling.Tests
 		{
 			var interfaces = typeof(FormatAndParseTestingUriWrapperId).GetInterfaces();
 			Assert.Contains(interfaces, interf => interf.Name == "ISpanFormattable");
-			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable`1");
 			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
-			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable`1");
 		}
 	}
 

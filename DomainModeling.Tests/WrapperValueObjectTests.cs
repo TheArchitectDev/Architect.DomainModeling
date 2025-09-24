@@ -36,7 +36,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void Construct_WithNullValueType_ShouldThrow()
 		{
-			Assert.Throws<ArgumentNullException>(() => new IntValue(null));
+			Assert.Throws<ArgumentNullException>(() => new IntValue(null!));
 		}
 
 		[Fact]
@@ -255,9 +255,6 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -265,25 +262,16 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = (StringValue?)one;
-			var right = (StringValue?)two;
+			var left = (StringValue)one;
+			var right = (StringValue)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
-
-			if (left is not null && right is not null)
-			{
-				Assert.Equal(left > right, (StringValue)one! > (StringValue)two!);
-				Assert.Equal(left <= right, (StringValue)one! <= (StringValue)two!);
-			}
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -291,63 +279,39 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = (StringValue?)one;
-			var right = (StringValue?)two;
+			var left = (StringValue)one;
+			var right = (StringValue)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
-
-			if (left is not null && right is not null)
-			{
-				Assert.Equal(left < right, (StringValue)one! < (StringValue)two!);
-				Assert.Equal(left >= right, (StringValue)one! >= (StringValue)two!);
-			}
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, 1, -1)]
-		[InlineData(1, null, +1)]
 		[InlineData(1, 1, 0)]
 		[InlineData(1, 2, -1)]
 		[InlineData(2, 1, +1)]
-		public void GreaterThan_AsNullableOrNonNullableStruct_ShouldReturnExpectedResult(int? one, int? two, int expectedResult)
+		public void GreaterThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
 		{
-			var left = (DecimalValue?)one;
-			var right = (DecimalValue?)two;
+			var left = (DecimalValue)one;
+			var right = (DecimalValue)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
-
-			if (left is not null && right is not null)
-			{
-				Assert.Equal(left > right, (DecimalValue)one! > (DecimalValue)two!);
-				Assert.Equal(left <= right, (DecimalValue)one! <= (DecimalValue)two!);
-			}
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, 1, -1)]
-		[InlineData(1, null, +1)]
 		[InlineData(1, 1, 0)]
 		[InlineData(1, 2, -1)]
 		[InlineData(2, 1, +1)]
-		public void LessThan_AsNullableOrNonNullableStruct_ShouldReturnExpectedResult(int? one, int? two, int expectedResult)
+		public void LessThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
 		{
-			var left = (DecimalValue?)one;
-			var right = (DecimalValue?)two;
+			var left = (DecimalValue)one;
+			var right = (DecimalValue)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
-
-			if (left is not null && right is not null)
-			{
-				Assert.Equal(left < right, (DecimalValue)one! < (DecimalValue)two!);
-				Assert.Equal(left >= right, (DecimalValue)one! >= (DecimalValue)two!);
-			}
 		}
 
 		[Theory]
@@ -873,9 +837,9 @@ namespace Architect.DomainModeling.Tests
 		{
 			var interfaces = typeof(FormatAndParseTestingUriWrapper).GetInterfaces();
 			Assert.Contains(interfaces, interf => interf.Name == "ISpanFormattable");
-			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable`1");
 			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
-			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable`1");
 		}
 	}
 

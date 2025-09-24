@@ -58,7 +58,7 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 				{
 					couldDigDeeper = true;
 					result = ref item;
-					nextTypeName = (item.CustomCoreTypeFullyQualifiedName ?? item.UnderlyingTypeFullyQualifiedName).AsSpan();
+					nextTypeName = item.CoreTypeFullyQualifiedName.AsSpan();
 					break;
 				}
 			}
@@ -74,7 +74,7 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 		string typeName, string containingNamespace)
 	{
 		var directParentOfCoreType = GetDirectParentOfCoreType(valueWrappers, typeName, containingNamespace);
-		return directParentOfCoreType.CustomCoreTypeFullyQualifiedName ?? directParentOfCoreType.UnderlyingTypeFullyQualifiedName;
+		return directParentOfCoreType.CoreTypeFullyQualifiedName;
 	}
 
 	// ATTENTION: This method cannot be combined with the other recursive one, because this one's results are affected by intermediate items, not just the deepest item
@@ -134,10 +134,9 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 		public string ContainingNamespace { get; }
 		public string UnderlyingTypeFullyQualifiedName { get; }
 		/// <summary>
-		/// Set only if manually chosen by the developer.
 		/// Helps implement wrappers around unofficial wrapper types, such as a WrapperValueObject&lt;Uri&gt; that pretends its core type is <see langword="string"/>.
 		/// </summary>
-		public string? CustomCoreTypeFullyQualifiedName { get; }
+		public string CoreTypeFullyQualifiedName { get; }
 		public bool CoreTypeIsStruct { get; }
 		/// <summary>
 		/// A core Value property declared as non-null is a desirable property to propagate, such as to return a non-null value from a conversion operator.
@@ -155,13 +154,16 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 			ITypeSymbol underlyingType,
 			ITypeSymbol? customCoreType)
 		{
-			var coreType = customCoreType ?? underlyingType;
+			var coreType =
+				customCoreType ??
+				underlyingType.AllInterfaces.FirstOrDefault(interf => interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2))?.TypeArguments[1] ??
+				underlyingType;
 
 			this.IsIdentity = isIdentity;
 			this.TypeName = wrapperType.Name;
 			this.ContainingNamespace = containingNamespace;
 			this.UnderlyingTypeFullyQualifiedName = underlyingType.ToString();
-			this.CustomCoreTypeFullyQualifiedName = customCoreType?.ToString();
+			this.CoreTypeFullyQualifiedName = coreType.ToString();
 			this.CoreTypeIsStruct = coreType.IsValueType;
 			this.CoreValueCouldBeNull = !CoreValueIsReachedAsNonNull(wrapperType);
 			this.IsSpanFormattable = underlyingType.SpecialType == SpecialType.System_String || underlyingType.AllInterfaces.Any(interf =>
