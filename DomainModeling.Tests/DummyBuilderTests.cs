@@ -20,6 +20,29 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Fact]
+		public void Build_WithReuseOfRecordTypedBuilder_ShouldReturnExpectedResult()
+		{
+			var builder = new TestEntityDummyBuilder()
+				.WithCount(5);
+
+			var result1 = builder
+				.WithCreationDate(DateOnly.FromDateTime(DateTime.UnixEpoch))
+				.Build();
+
+			var result2 = builder
+				.WithModificationDateTime(DateTime.UnixEpoch)
+				.Build();
+
+			Assert.Equal(5, result1.Count);
+			Assert.Equal(DateOnly.FromDateTime(DateTime.UnixEpoch), result1.CreationDate);
+			Assert.NotEqual(DateTime.UnixEpoch, result1.ModificationDateTime);
+
+			Assert.Equal(5, result2.Count);
+			Assert.NotEqual(DateOnly.FromDateTime(DateTime.UnixEpoch), result2.CreationDate);
+			Assert.Equal(DateTime.UnixEpoch, result2.ModificationDateTime);
+		}
+
+		[Fact]
 		public void Build_WithCustomizations_ShouldReturnExpectedResult()
 		{
 			var expectedCreationDateTime = new DateTime(3000, 01, 01, 00, 00, 00, DateTimeKind.Utc).ToLocalTime();
@@ -62,7 +85,7 @@ namespace Architect.DomainModeling.Tests
 	namespace DummyBuilderTestTypes
 	{
 		[DummyBuilder<TestEntity>]
-		public sealed partial class TestEntityDummyBuilder
+		public sealed partial record class TestEntityDummyBuilder
 		{
 			// Demonstrate that we can take priority over the generated members
 			public TestEntityDummyBuilder WithCreationDateTime(DateTime value) => this.With(b => b.CreationDateTime = value);

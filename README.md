@@ -227,7 +227,7 @@ The simple act of adding one property would require dozens of additional changes
 The Builder pattern fixes this problem:
 
 ```cs
-public class PaymentDummyBuilder
+public record class PaymentDummyBuilder
 {
 	// Have a default value for each property, along with a fluent method to change it
 
@@ -255,7 +255,7 @@ public class PaymentDummyBuilder
 }
 ```
 
-Test methods avoid constructor invocations, e.g. `new Payment("EUR", 1.00m)`, and instead use the following:
+Test methods can then avoid constructor invocations, e.g. `new Payment("EUR", 1.00m)`, and instead use the following:
 
 ```cs
 new PaymentBuilder().Build(); // Completely default instance
@@ -278,7 +278,7 @@ Change the type as follows to get source generation for it:
 
 ```cs
 [DummyBuilder<Payment>]
-public partial class PaymentDummyBuilder
+public partial record class PaymentDummyBuilder
 {
 	// Anything defined manually will cause the source generator to outcomment its conflicting code, i.e. manual code always takes precedence
 
@@ -293,6 +293,8 @@ public partial class PaymentDummyBuilder
 The generated `Build()` method opts for _the most visible, simplest parameterized constructor_, since it tends to represent the most "regular" way of constructing the domain object. Specifically, it picks by { greatest visibility, parameterized over default, fewest parameters }. The builder's properties and fluent methods are based on that same constructor. We can deviate by manually implementing the `Build()` method and manually adding properties and fluent methods. To remove generated fluent methods, we can obscure them by manually implementing them as private, protected, or internal.
 
 Dummy builders generally live in a test project, or in a library project consumed solely by test projects.
+
+Note that, if the dummy builder is a record class, a new copy is made on every mutation. This allows a partially constructed builder to be reused in multiple directions.
 
 ## Constructor Validation
 

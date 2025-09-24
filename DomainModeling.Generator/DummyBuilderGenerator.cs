@@ -297,14 +297,15 @@ namespace {containingNamespace}
 	/// That way, if the constructor changes, only the builder needs to be adjusted, rather than lots of test methods.
 	/// </para>
 	/// </summary>
-	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} partial{(builder.IsRecord ? " record" : "")} class {typeName}
+	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} partial {(builder.IsRecord ? "record " : "")}class {typeName}
 	{{
 {joinedComponents}
 
 		private {typeName} With(Action<{typeName}> assignment)
 		{{
-			assignment(this);
-			return this;
+			var instance = this{(builder.IsRecord ? " with { }" : "")}; // If the type is a record, a copy is made, to enable reuse per step
+			assignment(instance);
+			return instance;
 		}}
 
 		{(hasBuildMethod ? "/*" : "")}

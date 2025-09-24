@@ -65,6 +65,7 @@ Misc:
 - Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", as this could cover up mistakes instead of revealing them.
 - Semi-breaking: IIdentity now implements IWrapperValueObject.
 - Feature: Non-generic Wrapper/Identity interfaces.
+- Feature: DummyBuilder records clone themselves on each step, for reuse.
 - Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. This avoids accidentally comparing unrelated types.
 - Fix: Fixed bug where source-generated records would always generate ToString()/Equals()/GetHashCode(), even if you wrote your own.
 - Fix: Fixed bug where source-generated Wrappers/Identities would not recognize manual member implementations if they were explicit interface implementations.
