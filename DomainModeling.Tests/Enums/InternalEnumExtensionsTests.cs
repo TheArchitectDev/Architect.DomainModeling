@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Architect.DomainModeling.Tests.Enums;
 
-public class EnumExtensionsTests
+public class InternalEnumExtensionsTests
 {
 	private enum ByteEnum : byte
 	{

@@ -64,7 +64,7 @@ Performance:
 Misc:
 - Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", which covered up mistakes instead of revealing them.
 - Semi-breaking: IIdentity now implements IWrapperValueObject.
-- Feature: DefinedEnum&lt;TEnum&gt; wrapper.
+- Feature: Analyzer and extensions for defined enums.
 - Feature: Non-generic Wrapper/Identity interfaces.
 - Feature: DummyBuilder records clone on each step, for reuse.
 - Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. Avoids accidentally comparing unrelated types.

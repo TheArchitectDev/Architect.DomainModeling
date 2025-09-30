@@ -143,7 +143,6 @@ using System.Runtime.CompilerServices;
 using Architect.DomainModeling;
 using Architect.DomainModeling.Configuration;
 using Architect.DomainModeling.Conversions;
-using Architect.DomainModeling.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -363,7 +362,7 @@ namespace {ownAssemblyName}
 		IDatabaseProvider? DatabaseProvider,
 		Action InvokeConfigurationCallbacks,
 		ValueWrapperConfigurationOptions? Options)
-		: IIdentityConfigurator, IWrapperValueObjectConfigurator, IModelInitializedConvention, IPropertyAddedConvention, IModelFinalizingConvention
+		: IIdentityConfigurator, IWrapperValueObjectConfigurator, IModelInitializedConvention, IModelFinalizingConvention
 	{{
 		private Dictionary<Type, StringComparison> DesiredCaseSensitivityPerType {{ get; }} = [];
 
@@ -391,23 +390,6 @@ namespace {ownAssemblyName}
 		public void ProcessModelInitialized(IConventionModelBuilder modelBuilder, IConventionContext<IConventionModelBuilder> context)
 		{{
 			this.InvokeConfigurationCallbacks();
-		}}
-
-		public void ProcessPropertyAdded(IConventionPropertyBuilder propertyBuilder, IConventionContext<IConventionPropertyBuilder> context)
-		{{
-			// Map DefinedEnum properties
-			var clrType = propertyBuilder.Metadata.ClrType;
-			if (clrType.IsConstructedGenericType && clrType.GetGenericTypeDefinition() == typeof(Nullable<>))
-				clrType = clrType.GenericTypeArguments[0]; // Dig through nullable
-			if (clrType.IsConstructedGenericType && clrType.GetGenericTypeDefinition() == typeof(DefinedEnum<,>))
-			{{
-				var primitiveType = clrType.GenericTypeArguments[1];
-				propertyBuilder.HasConverter(typeof(WrapperValueObjectConverter<,>).MakeGenericType(clrType, primitiveType), fromDataAnnotation: true);
-				if (primitiveType == typeof(string) && propertyBuilder.CanSetMaxLength(64))
-					propertyBuilder.HasMaxLength(64); // A reasonable maximum, which the developer can choose to override per property
-				if (primitiveType == typeof(string) && ValueWrapperConfigurator.GetApplicableCollationFromOptions(StringComparison.OrdinalIgnoreCase, this.Options) is string targetCollation)
-					propertyBuilder.UseCollation(targetCollation, fromDataAnnotation: true); // Ignore-case for convenience
-			}}
 		}}
 
 		public void ConfigureIdentity<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity, TUnderlying, TCore>(
@@ -651,6 +633,20 @@ namespace {ownAssemblyName}
 						.UseCollation(targetCollation);
 			}}
 		}}
+
+		[CompilerGenerated]
+		private sealed class WrapperValueObjectConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
+			: ValueConverter<TModel, TProvider>
+			where TModel : IValueWrapper<TModel, TProvider>
+		{{
+			public WrapperValueObjectConverter()
+				: base(
+					model => DomainObjectSerializer.Serialize<TModel, TProvider>(model)!,
+					provider => DomainObjectSerializer.Deserialize<TModel, TProvider>(provider)!,
+					mappingHints: null)
+			{{
+			}}
+		}}
 	}}
 
 	[CompilerGenerated]
@@ -738,20 +734,6 @@ namespace {ownAssemblyName}
 			{{
 				return this;
 			}}
-		}}
-	}}
-
-	[CompilerGenerated]
-	file sealed class WrapperValueObjectConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TProvider>
-		: ValueConverter<TModel, TProvider>
-		where TModel : IValueWrapper<TModel, TProvider>
-	{{
-		public WrapperValueObjectConverter()
-			: base(
-				model => DomainObjectSerializer.Serialize<TModel, TProvider>(model)!,
-				provider => DomainObjectSerializer.Deserialize<TModel, TProvider>(provider)!,
-				mappingHints: null)
-		{{
 		}}
 	}}
 

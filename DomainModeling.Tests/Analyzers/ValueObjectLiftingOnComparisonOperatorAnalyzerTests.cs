@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
 using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 
@@ -16,8 +15,6 @@ public class ValueObjectLiftingOnComparisonOperatorAnalyzerTests
 	{
 #pragma warning disable CS0464 // Comparing with null of struct type always produces 'false' -- We still want to test our analyzer on this syntax
 
-		_ = new DefinedEnum<HttpStatusCode>(HttpStatusCode.OK) > (HttpStatusCode?)null;
-		_ = (HttpStatusCode?)null > new DefinedEnum<HttpStatusCode>(HttpStatusCode.OK);
 		_ = new IntId(1) > null;
 		_ = null > new IntId(1);
 		_ = new DecimalValue(1) > null;

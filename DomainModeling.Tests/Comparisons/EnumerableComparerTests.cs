@@ -412,7 +412,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 			public StringWrapperValueObject(string value, StringComparison stringComparison)
 			{
 				this.Value = value ?? throw new ArgumentNullException(nameof(value));
-				this.StringComparison = stringComparison;
+				this.StringComparison = stringComparison.AsDefined();
 			}
 		}
 	}

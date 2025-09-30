@@ -1,6 +1,5 @@
 ﻿using System.Collections.Immutable;
 using System.Composition;
-using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
@@ -40,25 +39,24 @@ public sealed class MissingStringComparisonCodeFixProvider : CodeFixProvider
 
 		var ordinalFix = CodeAction.Create(
 			title: "Implement StringComparison { get; } with StringComparison.Ordinal",
-			createChangedDocument: ct => AddStringComparisonMemberAsync(context.Document, root, tds, stringComparisonExpression: "StringComparison.Ordinal", ct),
+			createChangedDocument: ct => AddStringComparisonMemberAsync(context.Document, root, tds, stringComparisonExpression: "StringComparison.Ordinal"),
 			equivalenceKey: "ImplementStringComparisonOrdinalGetter");
-		context.RegisterCodeFix(ordinalFix, context.Diagnostics.First());
+		context.RegisterCodeFix(ordinalFix, diagnostic);
 
 		var ordinalIgnoreCaseFix = CodeAction.Create(
 			title: "Implement StringComparison { get; } with StringComparison.OrdinalIgnoreCase",
-			createChangedDocument: ct => AddStringComparisonMemberAsync(context.Document, root, tds, stringComparisonExpression: "StringComparison.OrdinalIgnoreCase", ct),
+			createChangedDocument: ct => AddStringComparisonMemberAsync(context.Document, root, tds, stringComparisonExpression: "StringComparison.OrdinalIgnoreCase"),
 			equivalenceKey: "ImplementStringComparisonOrdinalIgnoreCaseGetter");
-		context.RegisterCodeFix(ordinalIgnoreCaseFix, context.Diagnostics.First());
+		context.RegisterCodeFix(ordinalIgnoreCaseFix, diagnostic);
 	}
 
 	private static Task<Document> AddStringComparisonMemberAsync(
 		Document document,
 		SyntaxNode root,
 		TypeDeclarationSyntax tds,
-		string stringComparisonExpression,
-		CancellationToken _)
+		string stringComparisonExpression)
 	{
-		var newlineTrivia = GetNewlineTrivia(tds);
+		var newlineTrivia = root.GetNewlineTrivia();
 
 		var property = SyntaxFactory.PropertyDeclaration(
 				SyntaxFactory.ParseTypeName("StringComparison"),
@@ -75,28 +73,5 @@ public sealed class MissingStringComparisonCodeFixProvider : CodeFixProvider
 		var updatedTds = tds.WithMembers(tds.Members.Insert(0, property));
 		var updatedRoot = root.ReplaceNode(tds, updatedTds);
 		return Task.FromResult(document.WithSyntaxRoot(updatedRoot));
-	}
-
-	private static SyntaxTrivia GetNewlineTrivia(SyntaxNode node)
-	{
-		var allTrivia = node.DescendantTrivia(descendIntoTrivia: true);
-
-		var (nCount, rnCount) = (0, 0);
-
-		foreach (var trivia in allTrivia)
-		{
-			if (!trivia.IsKind(SyntaxKind.EndOfLineTrivia))
-				continue;
-
-			var length = trivia.Span.Length;
-			var lengthIsOne = length == 1;
-			var lengthIsTwo = length == 2;
-			nCount += Unsafe.As<bool, int>(ref lengthIsOne);
-			rnCount += Unsafe.As<bool, int>(ref lengthIsTwo);
-		}
-
-		return rnCount > nCount
-			? SyntaxFactory.ElasticCarriageReturnLineFeed
-			: SyntaxFactory.ElasticLineFeed;
 	}
 }

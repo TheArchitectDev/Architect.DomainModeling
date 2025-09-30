@@ -128,95 +128,78 @@ In fact, this can even be advisable. It reduces heap allocations (and thus garba
 Structs always have a default constructor, and they can also be created via the `default` keyword.
 To prevent the creation of unvalidated instances, the default constructor for struct wrapper value objects is marked as obsolete, and an included analyzer warns against the use of the `default` keyword for such types.
 
-Structs are usually the way to go. If shenanigans are expected, such as the use of a generic method to produce unvalidated values, then classes can be used to enforce the constructor validation more thoroughly.
+Structs are usually the way to go. However, if shenanigans are expected, such as the use of a generic method to produce unvalidated values, then classes can be used to enforce the constructor validation more thoroughly.
 
 #### Enums
 
-Special wrapper value objects for enums are provided out-of-the-box. They help avoid the following common boilerplate code:
-
-- Checking `Enum.IsDefined(value)` when it is injected into a constructor or method.
-- Manually mapping to string or the enum's underlying integer type with Entity Framework.
-- Configuring how the enum should be JSON-serialized.
-
-Instead, we can do the following:
+Enums can be considered a special kind of wrapper value object.
+In fact, one could opt to create a dedicated wrapper value object for each enum used in a domain model.
+Fortunately, there is a less cumbersome option.
 
 ```cs
-public class MyEntity
+[ValueObject]
+public partial record class Address
 {
-	// Maps and serializes to string automatically
-	public DefinedEnum<Kind, string> Kind { get; private set; }
+	public ProperName StreetAndNumber { get; private init; }
+	public ProperName City { get; private init; }
+	public ZipCode ZipCode { get; private init; }
+	public AddressKind Kind { get; private init; } // Enum: Person, Company
 
-	// Maps and serializes to int automatically
-	public DefinedEnum<HttpStatusCode, int> StatusCode { get; private set; }
-
-	public MyEntity(
-		// No need to repeat string/int here
-		DefinedEnum<Kind> kind,
-		DefinedEnum<HttpStatuscode> statusCode)
+	public Address(
+		ProperName streetAndNumber,
+		ProperName city,
+		ZipCode zipCode,
+		Kind kind)
 	{
-		// No need to check if the values are defined
-		this.Kind = kind;
-		this.StatusCode = statusCode;
+		this.StreetAndNumber = streetAndNumber;
+		this.City = city;
+		this.ZipCode = zipCode;
+
+		this.Kind = kind; // Compiler warning - possibly undefined enum assigned to domain object member
+		this.Kind = kind.AsDefined(); // OK - throws if value is undefined
 	}
 }
 ```
 
-`DefinedEnum<TEnum, TPrimitive>` can serve as a property or field, which warrants specifying the underlying representation.
-`DefinedEnum<TEnum>` is a simplification intended for passing values around. An analyzer prevents the latter from being stored in a field or property.
+An included analyzer warns if an unvalidated enum value is assigned to a member of a domain object.
+Defined constant values are exempt, e.g. `this.Kind = AddressKind.Person`.
 
-The validation is performed whenever a `DefinedEnum<TEnum>` or `DefinedEnum<TEnum, TPrimitive>` is constructed from a primitive.
-By default, `ArgumentException` is thrown for an input other than a defined value for the enum, and `ArgumentNullException` for a null input.
-However, you can customize the exceptions globally:
+The exception can be fully customized:
 
 ```cs
 public class Program
 {
 	[ModuleInitializer]
-	internal static void InitializeModule()
+	internal static void Initialize()
 	{
-		DefinedEnum.ExceptionFactoryForNullInput = (Type enumType) =>
-			throw new NullValidationException($"{enumType.Name} expects a non-null value.");
-		DefinedEnum.ExceptionFactoryForUndefinedInput = (Type enumType, Int128 value) =>
-			throw new ValidationException($"Only recognized {enumType.Name} values are permitted.");
+		DefinedEnum.ExceptionFactoryForUndefinedInput = (Type type, Int128 value, string? state) =>
+			throw new ValidationException(HttpStatusCode.BadRequest, errorCode: state ?? "OptionInvalid", message: $"Only recognized {type.Name} values are permitted.");
 	}
 }
 ```
 
-Type inference and implicit conversions make it easy to produce values:
+The following extension methods are available:
 
 ```cs
-public DefinedEnum<Kind, string> Kind { get; private set; }
-
-public void AdjustKind(DefinedEnum<Kind> kind)
-{
-	this.Kind = kind;
-}
-
-public void DemonstrateUsage(Kind someInputThatMightBeUndefined)
-{
-	// From a constant that represents a defined value:
-	this.Kind = Kind.Regular; // Valid
-	this.AdjustKind(Kind.Regular); // Valid
-
-	// Otherwise:
-	this.Kind = someInputThatMightBeUndefined; // Compiler error
-	this.Kind = (Kind)(-1); // Compiler error
-	this.AdjustKind((Kind)(-1)); // Compiler error
-	this.Kind = DefinedEnum.Create(Kind.Regular); // Valid
-	this.AdjustKind(DefinedEnum.Create(Kind.Regular)); // Valid
-}
+this.Kind = kind.AsDefined(); // Throws if value is undefined
+this.Kind = kind.AsDefinedFlags(); // Throws if value contains a bit not used in any defined values (for flags)
+this.Kind = kind.AsUnvalidated(); // Merely circumvents the warning
 ```
 
-When writing a mapper to map from a DTO to a domain object, enums can be converted like this:
+Note how, if all constructor parameters of the above `Address` type are [_struct_ wrapper value objects](#structs), it is almost impossible to pass invalid data.
+The quick enum validation becomes the only check required.
+
+When writing a mapper from DTO to domain object, enums can be converted like this:
 
 ```cs
-public static DefinedEnum<Kind> ToDomain(KindDto dto)
+public static AddressKind ToDomain(AddressKindDto dto)
 {
-	return new DefinedEnum<Kind>(dto switch
+	return dto switch
 	{
-		KindDto.A => Kind.A,
-		KindDto.B => Kind.B,
-		_ => DefinedEnum<Kind>.ThrowUndefinedInput(), // Or: DefinedEnum<Kind>.UndefinedValue!.Value, to have the constructor throw the same thing
+		AddressKindDto.Person => AddressKind.Person,
+		AddressKindDto.Company => AddressKind.Company,
+		_ => DefinedEnum.ThrowUndefinedInput(dto, errorState: "AddressKindInvalid"),
+			// Or: DefinedEnum.UndefinedValues<AddressKind>.UndefinedValue, to rely on AsDefined() throwing later on in the constructor
 	});
 }
 ```

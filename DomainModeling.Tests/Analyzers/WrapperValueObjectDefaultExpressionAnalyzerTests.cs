@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
 using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 
 namespace Architect.DomainModeling.Tests.Analyzers;
@@ -14,15 +13,11 @@ public class WrapperValueObjectDefaultExpressionAnalyzerTests
 	public static void UseDefaultExpressionOnWrapperValueObjectStruct_Always_ShouldWarn()
 	{
 		_ = default(DecimalValue);
-		_ = default(DefinedEnum<HttpStatusCode, int>);
 	}
 
 	public static void UseDefaultLiteralOnWrapperValueObjectStruct_Always_ShouldWarn()
 	{
 		DecimalValue value = default;
 		_ = value;
-
-		DefinedEnum<HttpStatusCode, int> definedEnum = default;
-		_ = definedEnum;
 	}
 }
