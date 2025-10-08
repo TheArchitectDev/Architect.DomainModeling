@@ -9,9 +9,12 @@ using Microsoft.CodeAnalysis.Simplification;
 
 namespace Architect.DomainModeling.CodeFixProviders;
 
+/// <summary>
+/// Provides code fixes for unvalid assignments of enum values to domain object members.
+/// </summary>
 [Shared]
-[ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UnvalidatedEnumMemberAssignmentCodeFixer))]
-public sealed class UnvalidatedEnumMemberAssignmentCodeFixer : CodeFixProvider
+[ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UnvalidatedEnumMemberAssignmentCodeFixProvider))]
+public sealed class UnvalidatedEnumMemberAssignmentCodeFixProvider : CodeFixProvider
 {
 	private static readonly ImmutableArray<string> FixableDiagnosticIdConstant = ["UnvalidatedEnumAssignmentToDomainobject"];
 
@@ -26,7 +29,8 @@ public sealed class UnvalidatedEnumMemberAssignmentCodeFixer : CodeFixProvider
 	{
 		var diagnostic = context.Diagnostics.First(diagnostic => diagnostic.Id == FixableDiagnosticIdConstant[0]);
 		var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-		if (root is null) return;
+		if (root is null)
+			return;
 
 		var node = root.FindNode(diagnostic.Location.SourceSpan);
 		if (node is not ExpressionSyntax unvalidatedValue)

@@ -25,22 +25,31 @@ public class IdentityGenerator : SourceGenerator
 				FilterSyntaxNode,
 				(context, ct) => context.SemanticModel.GetDeclaredSymbol((TypeDeclarationSyntax)context.Node) switch
 				{
-					INamedTypeSymbol type when LooksLikeEntity(type) && IsEntity(type, out var entityInterface) && entityInterface.TypeArguments[0].TypeKind == TypeKind.Error &&
-						entityInterface.TypeArguments[1] is ITypeSymbol underlyingType =>
+					// ID generation requested in Entity base class (legacy)
+					INamedTypeSymbol type when RequestsIdGenerationViaEntityBase(type, out var entityBaseType) && entityBaseType.TypeArguments[0].TypeKind == TypeKind.Error =>
 						new ValueWrapperGenerator.BasicGeneratable(
 							isIdentity: true,
 							containingNamespace: type.ContainingNamespace.ToString(),
-							wrapperType: entityInterface.TypeArguments[0],
-							underlyingType: underlyingType,
+							wrapperType: entityBaseType.TypeArguments[0],
+							underlyingType: entityBaseType.TypeArguments[1],
 							customCoreType: null),
-					INamedTypeSymbol type when HasRequiredAttribute(type, out var attribute) && attribute.AttributeClass!.TypeArguments[0] is ITypeSymbol underlyingType =>
-						GetFirstProblem((TypeDeclarationSyntax)context.Node, type, underlyingType) is { }
+					// ID generation requested in EntityAttribute
+					INamedTypeSymbol type when HasRelevantEntityAttribute(type, out var attributeType) && attributeType.TypeArguments[0].TypeKind == TypeKind.Error =>
+						new ValueWrapperGenerator.BasicGeneratable(
+							isIdentity: true,
+							containingNamespace: type.ContainingNamespace.ToString(),
+							wrapperType: attributeType.TypeArguments[0],
+							underlyingType: attributeType.TypeArguments[1],
+							customCoreType: null),
+					// ID type with IdentityValueObjectAttribute
+					INamedTypeSymbol type when HasIdentityAttribute(type, out var attributeType) =>
+						GetFirstProblem((TypeDeclarationSyntax)context.Node, type, attributeType.TypeArguments[0]) is { }
 							? default
 							: new ValueWrapperGenerator.BasicGeneratable(
 								isIdentity: true,
 								containingNamespace: type.ContainingNamespace.ToString(),
 								wrapperType: type,
-								underlyingType: underlyingType,
+								underlyingType: attributeType.TypeArguments[0],
 								customCoreType: type.AllInterfaces.FirstOrDefault(interf => interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2))?.TypeArguments[1]),
 					_ => default,
 				})
@@ -68,24 +77,26 @@ public class IdentityGenerator : SourceGenerator
 		context.RegisterSourceOutput(aggregatedProvider, DomainModelConfiguratorGenerator.GenerateSourceForIdentities);
 	}
 
-	private static bool LooksLikeEntity(INamedTypeSymbol type)
+	private static bool HasRelevantEntityAttribute(INamedTypeSymbol type, out INamedTypeSymbol attributeType)
 	{
-		var result = type.IsOrInheritsClass(baseType => baseType.Name == "Entity", out _);
-		return result;
+		attributeType = null!;
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("EntityAttribute", "Architect", "DomainModeling", arity: 2, out _)) is { } attribute)
+			attributeType = attribute;
+		return attributeType is not null;
 	}
 
-	private static bool IsEntity(INamedTypeSymbol type, out INamedTypeSymbol entityInterface)
+	private static bool HasIdentityAttribute(INamedTypeSymbol type, out INamedTypeSymbol attributeType)
 	{
-		var result = type.IsOrInheritsClass(baseType => baseType.Arity == 2 && baseType.IsType("Entity", "Architect", "DomainModeling"), out entityInterface);
-		return result;
+		attributeType = null!;
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("IdentityValueObjectAttribute", "Architect", "DomainModeling", arity: 1, out _)) is { } attribute)
+			attributeType = attribute;
+		return attributeType is not null;
 	}
 
-	private static bool HasRequiredAttribute(INamedTypeSymbol type, out AttributeData attribute)
+	private static bool RequestsIdGenerationViaEntityBase(INamedTypeSymbol type, out INamedTypeSymbol entityBaseType)
 	{
-		attribute = null!;
-		if (type.GetAttribute("IdentityValueObjectAttribute", "Architect.DomainModeling", arity: 1) is AttributeData { AttributeClass: not null } attributeOutput)
-			attribute = attributeOutput;
-		return attribute != null;
+		var result = type.IsOrInheritsClass("Entity", "Architect", "DomainModeling", arity: 2, out entityBaseType);
+		return result;
 	}
 
 	private static Diagnostic? GetFirstProblem(TypeDeclarationSyntax tds, INamedTypeSymbol type, ITypeSymbol underlyingType)
@@ -143,7 +154,7 @@ public class IdentityGenerator : SourceGenerator
 		Diagnostic CreateDiagnostic(string id, string title, string description, DiagnosticSeverity severity)
 		{
 			return Diagnostic.Create(
-				new DiagnosticDescriptor(id, title, description, "Architect.DomainModeling", severity, isEnabledByDefault: true),
+				new DiagnosticDescriptor(id, title, description, "Design", severity, isEnabledByDefault: true),
 				type.Locations.FirstOrDefault());
 		}
 	}
@@ -154,19 +165,20 @@ public class IdentityGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is StructDeclarationSyntax or ClassDeclarationSyntax or RecordDeclarationSyntax)
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("IdentityValueObject"))
+			if (tds.HasAttributeWithInfix("Identity"))
 				return true;
 		}
 
-		// Non-generic class with any inherited/implemented types
-		if (node is ClassDeclarationSyntax cds && cds.Arity == 0 && cds.BaseList is not null)
+		// Class
+		if (node is ClassDeclarationSyntax cds)
 		{
-			// Consider any type with SOME 2-param generic "Entity" inheritance/implementation
-			foreach (var baseType in cds.BaseList.Types)
-			{
-				if (baseType.Type.HasArityAndName(2, "Entity"))
-					return true;
-			}
+			// With SOME arity-2 generic "Entity" inheritance
+			if (cds.BaseList is { Types: { Count: > 0 } baseTypes } && baseTypes[0].Type is NameSyntax { Arity: 2 } nameSyntax && nameSyntax.GetNameOrDefault() == "Entity")
+				return true;
+
+			// With relevant attribute
+			if (cds.HasAttributeWithInfix("Entity"))
+				return true;
 		}
 
 		return false;
@@ -186,18 +198,19 @@ public class IdentityGenerator : SourceGenerator
 			return null;
 
 		ITypeSymbol underlyingType;
-		var isBasedOnEntity = LooksLikeEntity(type);
 
-		// Path A: An Entity subclass that might be an Entity<TId, TUnderlying> for which TId may have to be generated
-		if (isBasedOnEntity)
+		var hasIdentityAttribute = HasIdentityAttribute(type, out var attributeType);
+		var hasEntityAttribute = !hasIdentityAttribute && HasRelevantEntityAttribute(type, out attributeType);
+
+		// Path A (legacy): An Entity subclass that might be an Entity<TId, TUnderlying> for which TId may have to be generated
+		if (attributeType is null)
 		{
-			// Only an actual Entity<TId, TUnderlying>
-			if (!IsEntity(type, out var entityInterface))
+			// Only an actual Entity<TId, TIdPrimitive>
+			if (!RequestsIdGenerationViaEntityBase(type, out var entityBaseType))
 				return null;
 
-			var idType = entityInterface.TypeArguments[0];
-			underlyingType = entityInterface.TypeArguments[1];
-			result.EntityTypeName = type.Name;
+			var idType = entityBaseType.TypeArguments[0];
+			underlyingType = entityBaseType.TypeArguments[1];
 
 			// The ID type exists if it is not of TypeKind.Error
 			result.IdTypeExists = idType.TypeKind != TypeKind.Error;
@@ -205,9 +218,15 @@ public class IdentityGenerator : SourceGenerator
 			if (result.IdTypeExists)
 			{
 				// Entity<TId, TUnderlying> was needlessly used, with a preexisting TId
-				result.Problem = Diagnostic.Create(new DiagnosticDescriptor("EntityIdentityTypeAlreadyExists", "Entity identity type already exists", "Architect.DomainModeling",
-					"Base class Entity<TId, TIdPrimitive> is intended to generate source for TId, but TId refers to an existing type. To use an existing identity type, inherit from Entity<TId> instead.",
-					DiagnosticSeverity.Warning, isEnabledByDefault: true), type.Locations.FirstOrDefault());
+				result.Problem = Diagnostic.Create(
+					new DiagnosticDescriptor(
+						"EntityIdentityTypeAlreadyExists",
+						"Entity identity type already exists",
+						"Base class Entity<TId, TIdPrimitive> is intended to generate source for TId, but TId refers to an existing type. To use an existing identity type, inherit from Entity<TId> instead.",
+						"Design",
+						DiagnosticSeverity.Warning,
+						isEnabledByDefault: true),
+					tds.BaseList?.Types.FirstOrDefault()?.GetLocation() ?? type.Locations.FirstOrDefault());
 				return result;
 			}
 
@@ -219,14 +238,42 @@ public class IdentityGenerator : SourceGenerator
 			// The entity could be a private nested type (for example), and a private non-nested ID type would have insufficient accessibility, so then we need at least "internal"
 			result.Accessibility = type.DeclaredAccessibility.AtLeast(Accessibility.Internal);
 		}
-		// Path B: An annotated type for which a partial may need to be generated
+		// Path B: An Entity type that might have EntityAttribute<TId, TIdUnderlying> for which TId may have to be generated
+		else if (hasEntityAttribute)
+		{
+			var idType = attributeType.TypeArguments[0];
+			underlyingType = attributeType.TypeArguments[1];
+
+			// The ID type exists if it is not of TypeKind.Error
+			result.IdTypeExists = idType.TypeKind != TypeKind.Error;
+
+			if (result.IdTypeExists)
+			{
+				// EntityAttribute<TId, TIdUnderlying> was needlessly used, with a preexisting TId
+				result.Problem = Diagnostic.Create(
+					new DiagnosticDescriptor(
+						"EntityIdentityTypeAlreadyExists",
+						"Entity identity type already exists",
+						"EntityAttribute<TId, TIdUnderlying> is intended to generate source for TId, but TId refers to an existing type. To use an existing identity type, simply use the non-generic EntityAttribute.",
+						"Design",
+						DiagnosticSeverity.Warning,
+						isEnabledByDefault: true),
+					type.Locations.FirstOrDefault());
+				return result;
+			}
+
+			result.IsStruct = true;
+			result.ContainingNamespace = type.ContainingNamespace.ToString();
+			result.IdTypeName = idType.Name;
+
+			// We do not support combining with a manual definition, so we honor the entity's accessibility
+			// The entity could be a private nested type (for example), and a private non-nested ID type would have insufficient accessibility, so then we need at least "internal"
+			result.Accessibility = type.DeclaredAccessibility.AtLeast(Accessibility.Internal);
+		}
+		// Path C: An annotated type for which a partial may need to be generated
 		else
 		{
-			// Only with the attribute
-			if (!HasRequiredAttribute(type, out var attribute))
-				return null;
-
-			underlyingType = attribute.AttributeClass!.TypeArguments[0];
+			underlyingType = attributeType.TypeArguments[0];
 
 			result.IdTypeExists = true;
 			result.IsIIdentity = type.IsOrImplementsInterface(interf => interf.IsType("IIdentity", "Architect", "DomainModeling", arity: 1), out _);
@@ -451,7 +498,6 @@ public class IdentityGenerator : SourceGenerator
 
 		var containingNamespace = generatable.ContainingNamespace;
 		var idTypeName = generatable.IdTypeName;
-		var entityTypeName = generatable.EntityTypeName;
 		var underlyingTypeIsStruct = generatable.UnderlyingTypeIsStruct;
 		var isRecord = generatable.IsRecord;
 		var isINumber = generatable.UnderlyingTypeIsINumber;
@@ -464,7 +510,7 @@ public class IdentityGenerator : SourceGenerator
 
 		var accessibility = generatable.Accessibility;
 		var existingComponents = generatable.ExistingComponents;
-		var hasIdentityValueObjectAttribute = generatable.IdTypeExists;
+		var idTypeExists = generatable.IdTypeExists;
 
 		var directParentOfCore = ValueWrapperGenerator.GetDirectParentOfCoreType(valueWrappers, idTypeName, containingNamespace);
 		var coreTypeFullyQualifiedName = directParentOfCore.CoreTypeFullyQualifiedName ?? generatable.UnderlyingTypeFullyQualifiedName;
@@ -483,11 +529,6 @@ public class IdentityGenerator : SourceGenerator
 			: Char.IsUpper(coreTypeFullyQualifiedName[0]) && !coreTypeFullyQualifiedName.Contains('<')
 				? coreTypeFullyQualifiedName.Split('.').Last()
 				: coreTypeFullyQualifiedName;
-
-		var summary = entityTypeName is null ? null : $@"
-	/// <summary>
-	/// The identity type used for the <see cref=""{entityTypeName}""/> entity.
-	/// </summary>";
 
 		// Special case for strings, unless they are explicitly annotated as nullable
 		// An ID wrapping a null string (such as a default instance) acts as if it contains an empty string instead
@@ -521,13 +562,11 @@ using Architect.DomainModeling.Conversions;
 
 namespace {containingNamespace}
 {{
-	{summary}
-
 	{(existingComponents.HasFlags(IdTypeComponents.SystemTextJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteJsonConverterAttribute(idTypeName, underlyingTypeFullyQualifiedName, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
 	{(existingComponents.HasFlags(IdTypeComponents.NewtonsoftJsonConverter) ? "//" : "")}{JsonSerializationGenerator.WriteNewtonsoftJsonConverterAttribute(idTypeName, underlyingTypeFullyQualifiedName, numericAsString: underlyingTypeIsNumericUnsuitableForJson)}
-	{(hasIdentityValueObjectAttribute ? "" : $"[IdentityValueObject<{underlyingTypeFullyQualifiedName}>]")}
+	{(idTypeExists ? "" : $"[IdentityValueObject<{underlyingTypeFullyQualifiedName}>]")}
 	[DebuggerDisplay(""{{ToString(){(coreTypeFullyQualifiedName == "string" ? "" : ",nq")}}}"")]
-	[CompilerGenerated] {accessibility.ToCodeString()} readonly{(entityTypeName is null ? " partial" : "")}{(isRecord ? " record" : "")} struct {idTypeName} :
+	[CompilerGenerated] {accessibility.ToCodeString()} readonly{(idTypeExists ? " partial" : "")}{(isRecord ? " record" : "")} struct {idTypeName} :
 		IIdentity<{underlyingTypeFullyQualifiedName}>,
 		IEquatable<{idTypeName}>,
 		IComparable<{idTypeName}>,
@@ -815,7 +854,6 @@ namespace {containingNamespace}
 	{
 		private uint _bits;
 		public bool IdTypeExists { get => this._bits.GetBit(0); set => this._bits.SetBit(0, value); }
-		public string EntityTypeName { get; set; } = null!;
 		public bool IsIIdentity { get => this._bits.GetBit(1); set => this._bits.SetBit(1, value); }
 		public bool IsPartial { get => this._bits.GetBit(2); set => this._bits.SetBit(2, value); }
 		public bool IsRecord { get => this._bits.GetBit(3); set => this._bits.SetBit(3, value); }

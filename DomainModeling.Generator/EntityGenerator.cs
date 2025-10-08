@@ -30,7 +30,7 @@ public class EntityGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is ClassDeclarationSyntax or RecordDeclarationSyntax { ClassOrStructKeyword.ValueText: "class" })
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("Entity"))
+			if (tds.HasAttributeWithInfix("Entity"))
 				return true;
 		}
 
@@ -49,7 +49,7 @@ public class EntityGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("EntityAttribute", "Architect.DomainModeling", arity: 0) is null)
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("EntityAttribute", "Architect", "DomainModeling", out _)) is null)
 			return null;
 
 		// Only concrete
@@ -90,7 +90,7 @@ public class EntityGenerator : SourceGenerator
 		if (!generatable.IsEntity)
 		{
 			context.ReportDiagnostic("EntityGeneratorMissingInterface", "Missing IEntity interface",
-				"Type marked as entity lacks IEntity interface.", DiagnosticSeverity.Warning, generatable.TypeLocation);
+				"Type marked as entity lacks IEntity interface.", DiagnosticSeverity.Error, generatable.TypeLocation);
 			return;
 		}
 	}

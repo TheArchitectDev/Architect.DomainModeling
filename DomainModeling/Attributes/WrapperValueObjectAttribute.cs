@@ -13,10 +13,13 @@ namespace Architect.DomainModeling;
 /// This attribute should only be applied to concrete types.
 /// For example, if ProperName is a concrete wrapper value object type inheriting from abstract type Text, then only ProperName should have the attribute.
 /// </para>
+/// <para>
+/// Subclasses of this attribute are also honored, provided that they contain "Wrapper" in their name.
+/// </para>
 /// </summary>
 /// <typeparam name="TValue">The underlying type wrapped by the annotated wrapper value object type.</typeparam>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
-public class WrapperValueObjectAttribute<TValue> : ValueObjectAttribute
+[AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public class WrapperValueObjectAttribute<TValue> : Attribute
 	where TValue : notnull
 {
 }

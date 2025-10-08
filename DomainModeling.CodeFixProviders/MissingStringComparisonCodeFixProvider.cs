@@ -8,6 +8,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Architect.DomainModeling.CodeFixProviders;
 
+/// <summary>
+/// Provides code fixes to add a missing StringComparison property to [Wrapper]ValueObjects with string members.
+/// </summary>
 [Shared]
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(MissingStringComparisonCodeFixProvider))]
 public sealed class MissingStringComparisonCodeFixProvider : CodeFixProvider
@@ -25,7 +28,6 @@ public sealed class MissingStringComparisonCodeFixProvider : CodeFixProvider
 	{
 		var diagnostic = context.Diagnostics.First(diagnostic => diagnostic.Id == FixableDiagnosticIdConstant[0] || diagnostic.Id == FixableDiagnosticIdConstant[1]);
 		var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-
 		if (root is null)
 			return;
 
@@ -33,7 +35,6 @@ public sealed class MissingStringComparisonCodeFixProvider : CodeFixProvider
 		var tds = token.Parent?.AncestorsAndSelf()
 			.OfType<TypeDeclarationSyntax>()
 			.FirstOrDefault();
-
 		if (tds is null)
 			return;
 

@@ -8,15 +8,6 @@ namespace Architect.DomainModeling.Generator;
 internal static class TypeDeclarationSyntaxExtensions
 {
 	/// <summary>
-	/// Returns whether the <see cref="TypeDeclarationSyntax"/> is a nested type.
-	/// </summary>
-	public static bool IsNested(this TypeDeclarationSyntax typeDeclarationSyntax)
-	{
-		var result = typeDeclarationSyntax.Parent is not BaseNamespaceDeclarationSyntax;
-		return result;
-	}
-
-	/// <summary>
 	/// Returns whether the <see cref="TypeDeclarationSyntax"/> has any attributes.
 	/// </summary>
 	public static bool HasAttributes(this TypeDeclarationSyntax typeDeclarationSyntax)
@@ -37,8 +28,25 @@ internal static class TypeDeclarationSyntaxExtensions
 	{
 		foreach (var attributeList in typeDeclarationSyntax.AttributeLists)
 			foreach (var attribute in attributeList.Attributes)
-				if ((attribute.Name is IdentifierNameSyntax identifierName && identifierName.Identifier.ValueText.StartsWith(namePrefix)) ||
-					(attribute.Name	is GenericNameSyntax genericName && genericName.Identifier.ValueText.StartsWith(namePrefix)))
+				if (attribute.Name.TryGetNameOnly(out var name) && name.StartsWith(namePrefix))
+					return true;
+
+		return false;
+	}
+
+	/// <summary>
+	/// <para>
+	/// Returns whether the <see cref="TypeDeclarationSyntax"/> is directly annotated with an attribute whose name contains the given prefix.
+	/// </para>
+	/// <para>
+	/// Prefixes are useful because a developer may type either "[Obsolete]" or "[ObsoleteAttribute]", and infixes are useful for custom subclasses.
+	/// </para>
+	/// </summary>
+	public static bool HasAttributeWithInfix(this TypeDeclarationSyntax typeDeclarationSyntax, string nameInfix)
+	{
+		foreach (var attributeList in typeDeclarationSyntax.AttributeLists)
+			foreach (var attribute in attributeList.Attributes)
+				if (attribute.Name.TryGetNameOnly(out var name) && name.Contains(nameInfix))
 					return true;
 
 		return false;

@@ -30,7 +30,7 @@ public class DomainEventGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is ClassDeclarationSyntax or RecordDeclarationSyntax { ClassOrStructKeyword.ValueText: "class" })
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("DomainEvent"))
+			if (tds.HasAttributeWithInfix("Event"))
 				return true;
 		}
 
@@ -49,7 +49,7 @@ public class DomainEventGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("DomainEventAttribute", "Architect.DomainModeling", arity: 0) is null)
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("DomainEventAttribute", "Architect", "DomainModeling", arity: 0, out _)) is null)
 			return null;
 
 		// Only concrete

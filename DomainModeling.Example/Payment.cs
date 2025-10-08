@@ -1,20 +1,23 @@
 namespace Architect.DomainModeling.Example;
 
+// An Entity identified by a PaymentId, the latter being a source-generated struct wrapping a string
 // Use "Go To Definition" on the PaymentId type to view its source-generated implementation
-public class Payment : Entity<PaymentId, string> // Entity<PaymentId, string>: An Entity identified by a PaymentId, which is a source-generated struct wrapping a string
+[Entity<PaymentId, string>]
+public sealed class Payment : Entity<PaymentId> // Base class is optional, but offers ID-based equality and a decent ToString() override
 {
-	// A default ToString() property based on the type and the Id value is provided by the base class
-	// Hash code and equality implementations based on the Id value are provided by the base class
+	// Property Id is declared by base class
 
-	// The Id property is provided by the base class
-
-	public string Currency { get; } // Note that Currency deserves its own value object in practice
+	public Currency Currency { get; }
 	public decimal Amount { get; }
 
-	public Payment(string currency, decimal amount)
-		: base(new PaymentId(Guid.NewGuid().ToString("N"))) // ID generated on construction (see also: https://github.com/TheArchitectDev/Architect.Identities#distributed-ids)
+	public Payment(
+		Currency currency,
+		decimal amount)
+		: base(new PaymentId(Guid.CreateVersion7().ToString("N"))) // ID generated on construction (see also: https://github.com/TheArchitectDev/Architect.Identities#distributed-ids)
 	{
-		this.Currency = currency ?? throw new ArgumentNullException(nameof(currency));
+		// Note how, thanks to the chosen types, it is hard to pass an invalid value
+		// (The use of the "default" keyword for struct WrapperValueObjects is prevented by an analyzer)
+		this.Currency = currency;
 		this.Amount = amount;
 	}
 }

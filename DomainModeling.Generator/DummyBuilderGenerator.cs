@@ -25,7 +25,7 @@ public class DummyBuilderGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is StructDeclarationSyntax or ClassDeclarationSyntax or RecordDeclarationSyntax)
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("DummyBuilder"))
+			if (tds.HasAttributeWithInfix("Builder"))
 				return true;
 		}
 
@@ -44,10 +44,10 @@ public class DummyBuilderGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("DummyBuilderAttribute", "Architect.DomainModeling", arity: 1) is not AttributeData { AttributeClass: not null } attribute)
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("DummyBuilderAttribute", "Architect", "DomainModeling", arity: 1, out _)) is not { } attribute)
 			return null;
 
-		var modelType = attribute.AttributeClass.TypeArguments[0];
+		var modelType = attribute.TypeArguments[0];
 
 		var result = new Builder()
 		{
@@ -121,8 +121,8 @@ public class DummyBuilderGenerator : SourceGenerator
 			context.CancellationToken.ThrowIfCancellationRequested();
 
 			var type = compilation.GetTypeByMetadataName(builder.TypeFullMetadataName);
-			var modelType = type?.GetAttribute("DummyBuilderAttribute", "Architect.DomainModeling", arity: 1) is AttributeData { AttributeClass: not null } attribute
-				? attribute.AttributeClass.TypeArguments[0]
+			var modelType = type?.GetAttribute(attr => attr.IsOrInheritsClass("DummyBuilderAttribute", "Architect", "DomainModeling", arity: 1, out _)) is { } attribute
+				? attribute.TypeArguments[0]
 				: null;
 
 			// No source generation, only above analyzers

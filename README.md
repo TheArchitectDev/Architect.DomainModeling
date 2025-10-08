@@ -2,8 +2,8 @@
 
 A complete Domain-Driven Design (DDD) toolset for implementing domain models, including base types and source generators.
 
-- Base types, including: `ValueObject`, `WrapperValueObject`, `Entity`, `IIdentity`, `IApplicationService`, `IDomainService`.
-- Source generators, for types including: `ValueObject`, `WrapperValueObject`, `DummyBuilder`, `IIdentity`.
+- Base types and interfaces, including: `[I]ValueObject`, `[I]WrapperValueObject`, `[I]Entity`, `IIdentity`, `IApplicationService`, `IDomainService`.
+- Source generators, for types including: `IValueObject`, `IWrapperValueObject`, `IIdentity`, `DummyBuilder`.
 - Structural implementations for hash codes and equality on collections (also used automatically by source-generated value objects containing collections).
 - (De)serialization support, such as for JSON.
 - Optional generated mapping code for Entity Framework.
@@ -12,7 +12,8 @@ A complete Domain-Driven Design (DDD) toolset for implementing domain models, in
 
 This package uses source generators (introduced in .NET 5). Source generators write additional C# code as part of the compilation process.
 
-Among other advantages, source generators enable IntelliSense on generated code. They are primarily used here to generate boilerplate code, such as overrides of `ToString()`, `GetHashCode()`, and `Equals()`, as well as operator overloads.
+Among other advantages, source generators enable IntelliSense on generated code.
+They are primarily used here to generate boilerplate code, such as overrides of `ToString()`, `GetHashCode()`, and `Equals()`, as well as operator overloads.
 
 ## Domain Object Types
 
@@ -25,8 +26,13 @@ Consider the following type:
 ```cs
 public class Color
 {
+	[JsonInclude, JsonPropertyName("Red")]
 	public ushort Red { get; private init; }
+	
+	[JsonInclude, JsonPropertyName("Green")]
 	public ushort Green { get; private init; }
+	
+	[JsonInclude, JsonPropertyName("Blue")]
 	public ushort Blue { get; private init; }
 
 	public Color(ushort red, ushort green, ushort blue)
@@ -38,7 +44,10 @@ public class Color
 }
 ```
 
-This is the non-boilerplate portion of the value object, i.e. everything that we would like to define by hand. However, the type is missing the following:
+_As a side note, if a value object is ever serialized to JSON, then the sensible `private init` makes `[JsonInclude]` necessary to include the property,
+and `[JsonPropertyName("UnchangingStringConstant")]` provides backward compatibility if the names are ever changed (an easy oversight)._
+
+The above is the non-boilerplate portion of the value object, i.e. everything that we would like to define by hand. However, the type is missing the following:
 
 - A `ToString()` override.
 - A `GetHashCode()` override.
@@ -91,16 +100,18 @@ public class Description
 	{
 		this.Value = value ?? throw new ArgumentNullException(nameof(value));
 
-		if (this.Value.Length == 0) throw new ArgumentException($"A {nameof(Description)} must not be empty.");
-		if (this.Value.Length > MaxLength) throw new ArgumentException($"A {nameof(Description)} must not be over {MaxLength} characters long.");
-		if (ContainsNonPrintableCharacters(this.Value, flagNewLinesAndTabs: false)) throw new ArgumentException($"A {nameof(Description)} must contain only printable characters.");
+		if (this.Value.Length == 0)
+			throw new ArgumentException($"A {nameof(Description)} must not be empty.");
+		if (this.Value.Length > MaxLength)
+			throw new ArgumentException($"A {nameof(Description)} must not be over {MaxLength} characters long.");
+		if (ValueObjectStringValidator.ContainsNonPrintableCharacters(this.Value, flagNewLinesAndTabs: false))
+			throw new ArgumentException($"A {nameof(Description)} must contain only printable characters.");
 	}
 }
 ```
 
 Besides all the things that the value object in the previous section was missing, this type is missing the following:
 
-- An implementation of the `ContainsNonPrintableCharacters()` method.
 - An explicit conversion from `string` (explicit since not every string is a `Description`).
 - An implicit conversion to `string` (implicit since every `Description` is a valid `string`).
 - If the underlying type had been a value type (e.g. `int`), conversions from and to its nullable counterpart (e.g. `int?`).
@@ -140,9 +151,16 @@ Fortunately, there is a less cumbersome option.
 [ValueObject]
 public partial record class Address
 {
+	[JsonInclude, JsonPropertyName("StreetAndNumber")]
 	public ProperName StreetAndNumber { get; private init; }
+	
+	[JsonInclude, JsonPropertyName("City")]
 	public ProperName City { get; private init; }
+	
+	[JsonInclude, JsonPropertyName("ZipCode")]
 	public ZipCode ZipCode { get; private init; }
+	
+	[JsonInclude, JsonPropertyName("Kind")]
 	public AddressKind Kind { get; private init; } // Enum: Person, Company
 
 	public Address(
@@ -204,62 +222,6 @@ public static AddressKind ToDomain(AddressKindDto dto)
 }
 ```
 
-### Entity
-
-An entity is a data model that is defined by its identity and a thread of continuity. It may be mutated during its life cycle. Entities are often stored in a database.
-
-For entities themselves, the package offers base types, with no source generation required. However, it is often desirable to have a custom type for an entity's ID. For example, `PaymentId` tends to be a more expressive type than `ulong`. Unfortunately, such custom ID types tend to consist of boilerplate code that gets in the way, is a hassle to write, and is easy to make mistakes in.
-
-Consider the following type:
-
-```cs
-[Entity]
-public class Payment : Entity<PaymentId>
-{
-	public string Currency { get; }
-	public decimal Amount { get; }
-
-	public Payment(string currency, decimal amount)
-		: base(new PaymentId())
-	{
-		this.Currency = currency ?? throw new ArgumentNullException(nameof(currency));
-		this.Amount = amount;
-	}
-}
-```
-
-The entity needs a `PaymentId` type. This type could be a full-fledged `WrapperValueObject<ulong>` or `WrapperValueObject<string>`, with `IComparable<PaymentId>`.
-In fact, it might also be desirable for such a type to be a struct.
-
-Change the type as follows to get a source-generated ID type for the entity:
-
-```cs
-[Entity]
-public class Payment : Entity<PaymentId, string>
-{
-	// Snip
-}
-```
-
-The `Entity<TId, TIdPrimitive>` base class is what triggers source generation of the `TId`, if no such type exists.
-The `TIdPrimitive` type parameter specifies the underlying primitive to use.
-Using this base class to have the ID type generated is equivalent to [manually declaring one](#identity).
-
-When entities share a custom base class, such as in a scenario with a `Banana` and a `Strawberry` entity each inheriting from `Fruit`, then it is possible to have `Fruit` inherit from `Entity<FruitId, TPrimitive>`, causing `FruitId` to be generated.
-The `[Entity]` attribute, however, should only be applied to the concrete types, `Banana` and `Strawberry`'.
-
-Furthermore, the above example entity could be modified to create a new, unique ID on construction:
-
-```cs
-public Payment(string currency, decimal amount)
-	: base(new PaymentId(Guid.NewGuid().ToString("N")))
-{
-	// Snip
-}
-```
-
-For a more database-friendly alternative to UUIDs, see [Distributed IDs](https://github.com/TheArchitectDev/Architect.Identities#distributed-ids).
-
 ### Identity
 
 Identity types are a special case of wrapper value object, with some noteworthy characteristics:
@@ -278,9 +240,67 @@ public partial record struct ExternalId;
 
 Note that an [entity](#entity) has the option of having its own ID type generated implicitly, with practically no code at all.
 
+### Entity
+
+An entity is a data model that is defined by its identity and a thread of continuity. It may be mutated during its life cycle. Entities are often stored in a database.
+
+The package offers the `Entity<TId>` base class, which offers ID-based equality, with no source generation required.
+Consider the following type:
+
+```cs
+[Entity]
+public class Payment : Entity<PaymentId>
+{
+	public Currency Currency { get; private set; } // Struct WrapperValueObject :)
+	public decimal Amount { get; private set; }
+
+	public Payment(
+		Currency currency,
+		decimal amount)
+		: base(new PaymentId())
+	{
+		this.Currency = currency;
+		this.Amount = amount;
+	}
+}
+```
+
+The entity needs a `PaymentId` type, a lightweight, more expressive wrapper around something like `Guid`. We could have it generated with a oneliner:
+
+```cs
+[IdentityValueObject<Guid>] public partial record struct PaymentId;
+```
+
+We can even avoid that extra type declaration we would otherwise need to put somewhere:
+
+```cs
+[Entity<PaymentId, Guid>]
+public class Payment : Entity<PaymentId>
+{
+	// Snip
+}
+```
+
+The `[Entity<TId, TIdUnderlying>]` attribute triggers source generation of `TId` as an `IIdentity<TIdUnderlying>` wrapping that underlying type.
+
+Furthermore, the above example entity could be modified to create a new, unique ID on construction:
+
+```cs
+public Payment(
+	Currency currency,
+	decimal amount)
+	: base(new PaymentId(Guid.CreateVersion7()))
+{
+	// Snip
+}
+```
+
+For a more developer-friendly _and_ database-friendly alternative to UUIDs, see the [DistributedId](https://github.com/TheArchitectDev/Architect.Identities#distributed-ids) and [DistributedId128](https://github.com/TheArchitectDev/Architect.Identities#distributedid128).
+
 ### Domain Event
 
-There are many ways of working with domain events, and this package does not advocate any particular one. As such, no interfaces, base types, or source generators are included that directly implement domain events.
+There are many ways of working with domain events, and this package does not advocate any particular one.
+As such, no interfaces, base types, or source generators are included that directly implement domain events.
 
 To mark domain event types as such, irrespective of how they are implemented, the `[DomainEvent]` attribute can be used:
 
@@ -289,7 +309,8 @@ To mark domain event types as such, irrespective of how they are implemented, th
 public class OrderCreatedEvent : // Snip
 ```
 
-Besides providing consistency, such a marker attribute can enable miscellaneous concerns. For example, if this package's [Entity Framework conventions](#entity-framework-conventions) are used, domain events can be included.
+Besides providing consistency, such a marker attribute can enable miscellaneous concerns.
+For example, if this package's [Entity Framework conventions](#entity-framework-conventions) are used, domain events can be included.
 
 ### DummyBuilder
 
@@ -383,13 +404,14 @@ public Description(string value)
 {
 	this.Value = value ?? throw new ArgumentNullException(nameof(value));
 
-	if (this.Value.Length == 0) throw new ArgumentException($"A {nameof(Description)} must not be empty.");
-	if (this.Value.Length > MaxLength) throw new ArgumentException($"A {nameof(Description)} must not be over {MaxLength} characters long.");
-	if (ContainsNonPrintableCharacters(this.Value, flagNewLinesAndTabs: false)) throw new ArgumentException($"A {nameof(Description)} must contain only printable characters.");
+	if (this.Value.Length == 0)
+		throw new ArgumentException($"A {nameof(Description)} must not be empty.");
+	if (this.Value.Length > MaxLength)
+		throw new ArgumentException($"A {nameof(Description)} must not be over {MaxLength} characters long.");
+	if (ValueObjectStringValidator.ContainsNonPrintableCharacters(this.Value, flagNewLinesAndTabs: false))
+		throw new ArgumentException($"A {nameof(Description)} must contain only printable characters.");
 }
 ```
-
-Any type that inherits from `ValueObject` also gains access to a set of (highly optimized) validation helpers, such as `ContainsNonPrintableCharacters()` and `ContainsNonAlphanumericCharacters()`.
 
 ### Construct Once
 
@@ -451,7 +473,7 @@ internal sealed class MyDbContext : DbContext
 {
 	// Snip
 
-	[SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression", Justification = "Suppression is necessary.")]
+	[SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression", Justification = "False positive.")]
 	[SuppressMessage("Usage", "CA2263:Prefer generic overload when type is known", Justification = "We have no generic info for types received from callbacks.")]
 	protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
 	{
@@ -466,6 +488,7 @@ internal sealed class MyDbContext : DbContext
 			domainModel.ConfigureEntityConventions();
 			domainModel.ConfigureDomainEventConventions();
 
+			// Customizations
 			domainModel.CustomizeIdentityConventions(context =>
 			{
 				// Example: Use fixed-length strings with a binary collation for all string IIdentities
@@ -477,7 +500,8 @@ internal sealed class MyDbContext : DbContext
 						.UseCollation("Latin1_General_100_BIN2");
 				}
 			});
-
+			
+			// Customizations
 			domainModel.CustomizeWrapperValueObjectConventions(context =>
 			{
 				// Example: Use DECIMAL(19, 9) for all decimal wrappers
@@ -492,9 +516,10 @@ internal sealed class MyDbContext : DbContext
 }
 ```
 
-`ConfigureDomainModelConventions()` itself does not have any effect other than to invoke its action, which allows the specific mapping kinds to be chosen.
+`ConfigureDomainModelConventions()` itself does not have any effect other than to invoke its lambda, which allows the specific mapping kinds to be chosen.
 The inner calls, such as to `ConfigureIdentityConventions()`, configure the various conventions.
 The `Customize*()` methods make it easy to specify your own conventions, such as for every identity or wrapper value object with a string at its core.
+(This works even for nested ones, since both the direct underlying type and the core type are exposed.)
 
 Thanks to the provided conventions, no manual boilerplate mappings are needed, like conversions to primitives.
 Property-specific mappings are only needed where they are meaningful, such as the maximum length of a particular string property.
@@ -545,11 +570,11 @@ For example, `new Color(1, 1, 1) == new Color(1, 1, 1)` should evaluate to `true
 The source generators provide this for all `Equals()` overloads and for `GetHashCode()`.
 Where applicable, `CompareTo()` is treated the same way.
 
-The provided structural equality is non-recursive: a value object's properties are expected to each be of a type that itself provides structural equality, such as a primitive, a `ValueObject`, a `WrapperValueObject<TValue>`, or an `IIdentity<T>`.
+The provided structural equality is non-recursive: a value object's properties are expected to each be of a type that _itself_ provides structural equality, such as a primitive, a `ValueObject`, a `WrapperValueObject<TValue>`, or an `IIdentity<T>`. Collection members form an exception to this rule.
 
-The generators also provide structural equality for members that are of collection types, by comparing the elements.
+The generators provide structural equality for members that are of collection types, by comparing the elements.
 Even nested collections are account for, as long as the nesting is direct, e.g. `int[][]`, `Dictionary<int, List<string>>`, or `int[][][]`.
-For `CompareTo()`, a structural implementation for collections is not supported, and the generators will skip `CompareTo()` if any property lacks the `IComparable<TSelf>` interface.
+For `CompareTo()`, a structural implementation for collections is not supported: the generators will omit the `CompareTo()` method if any property lacks the `IComparable<TSelf>` interface.
 
 The logic for structurally comparing collection types is made publicly available through the `EnumerableComparer`, `DictionaryComparer`, and `LookupComparer` types.
 
@@ -561,7 +586,7 @@ Dictionary and lookup equality is similar to set equality when it comes to their
 For the sake of completeness, the collection comparers also provide overloads for the non-generic `IEnumerable`.
 These should be avoided.
 Working with non-generic enumerables tends to be inefficient due to virtual calls and boxing.
-These overloads work hard to return identical results to the generic overloads, at additional costs to efficiency.
+As a best effort, these overloads work hard to return identical results to the generic overloads, at additional costs to efficiency.
 
 ## Testing
 
@@ -579,7 +604,8 @@ To have source generators write a copy to a file for each generated piece of cod
 
 ### Debugging
 
-Source generators can be debugged by enabling the following (outcommented) line in the `DomainModeling.Generator` project. To start debugging, rebuild and choose the current Visual Studio instance in the dialog that appears.
+Source generators can be debugged by directly including the source `DomainModeling.Generator` project and enabling the following (outcommented) line there.
+To start debugging, rebuild and choose the current Visual Studio instance in the dialog that appears.
 
 ```cs
 if (!System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Launch();

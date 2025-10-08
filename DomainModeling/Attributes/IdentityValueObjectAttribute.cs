@@ -13,10 +13,13 @@ namespace Architect.DomainModeling;
 /// For example, even though no entity might exist for IDs 0 and 999999999999, they are still valid ID values for which such a question could be asked.
 /// If validation <em>is</em> desirable for an ID type, such as for a third-party <see cref="String"/> ID that is expected to fit within given length, then a wrapper value object is worth considering.
 /// </para>
+/// <para>
+/// Subclasses of this attribute are also honored, provided that they contain "Identity" in their name.
+/// </para>
 /// </summary>
 /// <typeparam name="T">The underlying type wrapped by the annotated identity type.</typeparam>
 [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class IdentityValueObjectAttribute<T> : ValueObjectAttribute
+public class IdentityValueObjectAttribute<T> : Attribute
 	where T : notnull, IEquatable<T>, IComparable<T>
 {
 }

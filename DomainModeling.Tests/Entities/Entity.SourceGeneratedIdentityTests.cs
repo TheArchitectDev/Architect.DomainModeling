@@ -427,7 +427,8 @@ public class SourceGeneratedIdentityTests
 		return 0;
 	}
 
-	private sealed class StringBasedEntity : Entity<StringId, string>
+	[Entity<StringId, string>]
+	private sealed class StringBasedEntity : Entity<StringId>
 	{
 		public StringBasedEntity(StringId id)
 			: base(id)
@@ -435,7 +436,8 @@ public class SourceGeneratedIdentityTests
 		}
 	}
 
-	private sealed class IntBasedEntity : Entity<IntId, int>
+	[Entity<IntId, int>]
+	private sealed class IntBasedEntity : Entity<IntId>
 	{
 		public IntBasedEntity(IntId id)
 			: base(id)
@@ -443,7 +445,8 @@ public class SourceGeneratedIdentityTests
 		}
 	}
 
-	private sealed class DecimalBasedEntity : Entity<DecimalId, decimal>
+	[Entity<DecimalId, decimal>]
+	private sealed class DecimalBasedEntity : Entity<DecimalId>
 	{
 		public DecimalBasedEntity(DecimalId id)
 			: base(id)
@@ -451,7 +454,8 @@ public class SourceGeneratedIdentityTests
 		}
 	}
 
-	public sealed class ObjectBasedEntity : Entity<ObjectId, ComparableObject>
+	[Entity<ObjectId, ComparableObject>]
+	public sealed class ObjectBasedEntity : Entity<ObjectId>
 	{
 		public ObjectBasedEntity(ObjectId id)
 			: base(id)

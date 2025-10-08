@@ -42,6 +42,7 @@ The base class is dead - long live the interface!
 - Feature: Generated [Wrapper]ValueObjects can now be records or use custom base.
 - BREAKING: [Wrapper]ValueObject generator replaced base class by interface. StringComparison property may need to drop "override" keyword and become private.
 - BREAKING: Lack of ValueObject base class requires the string validation methods to be accessed via ValueObjectStringValidator class.
+- BREAKING: Entity&lt;TId, TPrimitive&gt; type params moved from base class to attribute.
 
 Completed support for nested wrappers:
 - Feature: Nested Wrappers/Identities can now also convert, wrap/unwrap, and serialize/deserialize directly to/from their core (deepest) underlying type.
@@ -62,6 +63,7 @@ Performance:
 - Enhancement: Improved source generator performance.
 
 Misc:
+- Semi-breaking: Entity&lt;TId&gt; now has ID-based ==/!=.
 - Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", which covered up mistakes instead of revealing them.
 - Semi-breaking: IIdentity now implements IWrapperValueObject.
 - Feature: Analyzer and extensions for defined enums.
@@ -69,14 +71,14 @@ Misc:
 - Feature: DummyBuilder records clone on each step, for reuse.
 - Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. Avoids accidentally comparing unrelated types.
 - Feature: Analyzer warns when '>' or similar operator risks unintended null handling.
-- Fix: Fixed bug where source-generated records would ignore hand-written ToString()/Equals()/GetHashCode().
-- Fix: Fixed bug where source-generated Wrappers/Identities would not recognize manual member implementations if they were explicit interface implementations.
-- Fix: Fixed bug where DummyBuilder generator struggled with nested types.
-- Fix: Fixed bug where "no source generation on nested type" warning would not show.
+- Fixed: Attribute inheritence.
+- Fixed: Source-generated records would ignore hand-written ToString()/Equals()/GetHashCode().
+- Fixed: Source-generated Wrappers/Identities would not recognize manual member implementations if they were explicit interface implementations.
+- Fixed: DummyBuilder generator would struggle with nested types.
+- Fixed: "No source generation on nested type" warning would not show.
 - Enhancement: CompilerGeneratedAttribute throughout.
 - Enhancement: DebuggerDisplay for Wrappers/Identities.
 - Enhancement: Analyzer warning clarity.
-- Enhancement: Improved correctness of trimming.
 		</Description>
 		<Copyright>The Architect</Copyright>
 		<Company>The Architect</Company>

@@ -116,6 +116,8 @@ internal static class TypeSymbolExtensions
 		return result;
 	}
 
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
 	public static bool IsType(this ITypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2)
 	{
 		var result =
@@ -132,6 +134,8 @@ internal static class TypeSymbolExtensions
 		return result;
 	}
 
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
 	public static bool IsType(this ITypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2, int arity)
 	{
 		var result =
@@ -149,6 +153,9 @@ internal static class TypeSymbolExtensions
 		return result;
 	}
 
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent3">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
 	public static bool IsType(this ITypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2, string namespaceComponent3)
 	{
 		var result =
@@ -169,6 +176,9 @@ internal static class TypeSymbolExtensions
 		return result;
 	}
 
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent3">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
 	public static bool IsType(this ITypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2, string namespaceComponent3, int arity)
 	{
 		var result =
@@ -274,6 +284,173 @@ internal static class TypeSymbolExtensions
 		return result;
 	}
 
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsOrInheritsClass(this INamedTypeSymbol typeSymbol, string typeName, string namespaceComponent1, out INamedTypeSymbol targetType)
+	{
+		System.Diagnostics.Debug.Assert((typeName, namespaceComponent1) != ("Object", "System"), "This method was optimized in such a way that System.Object cannot be recognized.");
+
+		while (typeSymbol is { SpecialType: not SpecialType.System_Object })
+		{
+			if (typeSymbol.Name == typeName && typeSymbol.ContainingNamespace is { ContainingNamespace.IsGlobalNamespace: true } ns1 && ns1.Name == namespaceComponent1)
+			{
+				targetType = typeSymbol;
+				return true;
+			}
+
+			typeSymbol = typeSymbol.BaseType!;
+		}
+
+		targetType = null!;
+		return false;
+	}
+
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsOrInheritsClass(this INamedTypeSymbol typeSymbol, string typeName, string namespaceComponent1, int arity, out INamedTypeSymbol targetType)
+	{
+		System.Diagnostics.Debug.Assert((typeName, namespaceComponent1) != ("Object", "System"), "This method was optimized in such a way that System.Object cannot be recognized.");
+
+		while (typeSymbol is { SpecialType: not SpecialType.System_Object })
+		{
+			if (typeSymbol.Name == typeName && typeSymbol.ContainingNamespace is { ContainingNamespace.IsGlobalNamespace: true } ns1 && ns1.Name == namespaceComponent1 &&
+				typeSymbol.Arity == arity)
+			{
+				targetType = typeSymbol;
+				return true;
+			}
+
+			typeSymbol = typeSymbol.BaseType!;
+		}
+
+		targetType = null!;
+		return false;
+	}
+
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	public static bool IsOrInheritsClass(this INamedTypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2, out INamedTypeSymbol targetType)
+	{
+		while (typeSymbol is { SpecialType: not SpecialType.System_Object })
+		{
+			if (typeSymbol.Name == typeName &&
+				typeSymbol.ContainingNamespace is
+				{
+					ContainingNamespace:
+					{
+						ContainingNamespace.IsGlobalNamespace: true,
+					} ns1
+				} ns2 &&
+				ns1.Name == namespaceComponent1 &&
+				ns2.Name == namespaceComponent2)
+			{
+				targetType = typeSymbol;
+				return true;
+			}
+
+			typeSymbol = typeSymbol.BaseType!;
+		}
+
+		targetType = null!;
+		return false;
+	}
+
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	public static bool IsOrInheritsClass(this INamedTypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2, int arity, out INamedTypeSymbol targetType)
+	{
+		while (typeSymbol is { SpecialType: not SpecialType.System_Object })
+		{
+			if (typeSymbol.Name == typeName &&
+				typeSymbol.Arity == arity &&
+				typeSymbol.ContainingNamespace is
+				{
+					ContainingNamespace:
+					{
+						ContainingNamespace.IsGlobalNamespace: true,
+					} ns1
+				} ns2 &&
+				ns1.Name == namespaceComponent1 &&
+				ns2.Name == namespaceComponent2)
+			{
+				targetType = typeSymbol;
+				return true;
+			}
+
+			typeSymbol = typeSymbol.BaseType!;
+		}
+
+		targetType = null!;
+		return false;
+	}
+
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent3">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	public static bool IsOrInheritsClass(this INamedTypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2, string namespaceComponent3, out INamedTypeSymbol targetType)
+	{
+		while (typeSymbol is { SpecialType: not SpecialType.System_Object })
+		{
+			if (typeSymbol.Name == typeName &&
+				typeSymbol.ContainingNamespace is
+				{
+					ContainingNamespace:
+					{
+						ContainingNamespace:
+						{
+							ContainingNamespace.IsGlobalNamespace: true,
+						} ns1
+					} ns2
+				} ns3 &&
+				ns1.Name == namespaceComponent1 &&
+				ns2.Name == namespaceComponent2 &&
+				ns3.Name == namespaceComponent3)
+			{
+				targetType = typeSymbol;
+				return true;
+			}
+
+			typeSymbol = typeSymbol.BaseType!;
+		}
+
+		targetType = null!;
+		return false;
+	}
+
+	/// <param name="namespaceComponent1">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent2">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	/// <param name="namespaceComponent3">A single namespace component, e.g. "Architect", but <em>not</em> "Architect.DomainModeling".</param>
+	public static bool IsOrInheritsClass(this INamedTypeSymbol typeSymbol, string typeName, string namespaceComponent1, string namespaceComponent2, string namespaceComponent3, int arity, out INamedTypeSymbol targetType)
+	{
+		while (typeSymbol is { SpecialType: not SpecialType.System_Object })
+		{
+			if (typeSymbol.Name == typeName &&
+				typeSymbol.Arity == arity &&
+				typeSymbol.ContainingNamespace is
+				{
+					ContainingNamespace:
+					{
+						ContainingNamespace:
+						{
+							ContainingNamespace.IsGlobalNamespace: true,
+						} ns1
+					} ns2
+				} ns3 &&
+				ns1.Name == namespaceComponent1 &&
+				ns2.Name == namespaceComponent2 &&
+				ns3.Name == namespaceComponent3)
+			{
+				targetType = typeSymbol;
+				return true;
+			}
+
+			typeSymbol = typeSymbol.BaseType!;
+		}
+
+		targetType = null!;
+		return false;
+	}
+
 	/// <summary>
 	/// Returns whether the <see cref="ITypeSymbol"/> is or inherits from a certain class, as determined by the given <paramref name="predicate"/>.
 	/// </summary>
@@ -287,12 +464,8 @@ internal static class TypeSymbolExtensions
 
 		var baseType = typeSymbol.BaseType;
 
-		while (baseType is not null)
+		while (baseType is { SpecialType: not SpecialType.System_Object })
 		{
-			// End of inheritance chain
-			if (baseType.SpecialType == SpecialType.System_Object)
-				break;
-
 			if (predicate(baseType))
 			{
 				targetType = baseType;
@@ -544,29 +717,23 @@ internal static class TypeSymbolExtensions
 	}
 
 	/// <summary>
-	/// Returns whether the <see cref="ITypeSymbol"/> is annotated with the specified attribute.
+	/// Returns the class of the first matching attribute that is on the <see cref="ITypeSymbol"/>, or null if there is none.
 	/// </summary>
-	public static AttributeData? GetAttribute<TAttribute>(this ITypeSymbol typeSymbol)
+	public static INamedTypeSymbol? GetAttribute(this ITypeSymbol typeSymbol, Func<INamedTypeSymbol, bool> predicate)
 	{
-		var result = typeSymbol.GetAttribute(attribute => attribute.IsType<TAttribute>());
-		return result;
+		foreach (var attribute in typeSymbol.GetAttributes())
+			if (attribute.AttributeClass is { } result && predicate(result))
+				return result;
+
+		return null;
 	}
 
 	/// <summary>
-	/// Returns whether the <see cref="ITypeSymbol"/> is annotated with the specified attribute.
+	/// Returns the data of the first matching attribute that is on the <see cref="ITypeSymbol"/>, or null if there is none.
 	/// </summary>
-	public static AttributeData? GetAttribute(this ITypeSymbol typeSymbol, string typeName, string containingNamespace, int? arity = null)
+	public static AttributeData? GetAttributeData(this ITypeSymbol typeSymbol, Func<INamedTypeSymbol, bool> predicate)
 	{
-		var result = typeSymbol.GetAttribute(attribute => (arity is null || attribute.Arity == arity) && attribute.IsTypeWithNamespace(typeName, containingNamespace));
-		return result;
-	}
-
-	/// <summary>
-	/// Returns whether the <see cref="ITypeSymbol"/> is annotated with the specified attribute.
-	/// </summary>
-	public static AttributeData? GetAttribute(this ITypeSymbol typeSymbol, Func<INamedTypeSymbol, bool> predicate)
-	{
-		var result = typeSymbol.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass is not null && predicate(attribute.AttributeClass));
+		var result = typeSymbol.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass is { } type && predicate(type));
 		return result;
 	}
 
@@ -807,11 +974,11 @@ internal static class TypeSymbolExtensions
 
 			// Special-case wrapper value objects to use the param name rather than the type name (e.g. "FirstName" and "LastName" instead of "ProperName" and "ProperName")
 			// As a bonus, this also handles constructors generated by this very package (which are not visible to us)
-			if ((typeSymbol.GetAttribute("WrapperValueObjectAttribute", "Architect.DomainModeling", arity: 1) ??
-				typeSymbol.GetAttribute("IdentityValueObjectAttribute", "Architect.DomainModeling", arity: 1))
-				is AttributeData wrapperAttribute)
+			if ((typeSymbol.GetAttribute(attr => attr.IsOrInheritsClass("WrapperValueObjectAttribute", "Architect", "DomainModeling", arity: 1, out _)) ??
+				typeSymbol.GetAttribute(attr => attr.IsOrInheritsClass("IdentityValueObjectAttribute", "Architect", "DomainModeling", arity: 1, out _)))
+				is { } wrapperAttribute)
 			{
-				return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({wrapperAttribute.AttributeClass!.TypeArguments[0].CreateDummyInstantiationExpression(symbolName, customizedTypes, createCustomTypeExpression, seenTypeSymbols)})";
+				return $"new {typeSymbol.WithNullableAnnotation(NullableAnnotation.None)}({wrapperAttribute.TypeArguments[0].CreateDummyInstantiationExpression(symbolName, customizedTypes, createCustomTypeExpression, seenTypeSymbols)})";
 			}
 
 			if (typeSymbol.SpecialType == SpecialType.System_String) return $@"""{symbolName.ToTitleCase()}""";

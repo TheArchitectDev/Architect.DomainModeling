@@ -1031,7 +1031,8 @@ namespace Architect.DomainModeling.Tests
 				this.SomeValue = someValue;
 			}
 
-			public sealed class Entity : Entity<FullyGeneratedId, ulong>
+			[Entity<FullyGeneratedId, ulong>]
+			public sealed class Entity : Entity<FullyGeneratedId>
 			{
 				public Entity()
 					: base(default)

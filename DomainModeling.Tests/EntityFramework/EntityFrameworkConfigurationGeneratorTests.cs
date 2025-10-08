@@ -182,7 +182,7 @@ internal sealed class TestDbContext(
 	}
 }
 
-[DomainEvent]
+[TestDomainEvent]
 internal sealed class DomainEventForEF : IDomainObject
 {
 	/// <summary>
@@ -202,7 +202,7 @@ internal sealed class DomainEventForEF : IDomainObject
 		this.Id = id;
 	}
 }
-[IdentityValueObject<decimal>]
+[TestIdentity<decimal>]
 public readonly partial record struct DomainEventForEFId;
 
 [IdentityValueObject<string>]
@@ -211,7 +211,7 @@ public partial record struct EntityForEFId
 	private StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 }
 
-[Entity]
+[TestEntity]
 internal sealed class EntityForEF : Entity<EntityForEFId>
 {
 	/// <summary>
@@ -240,7 +240,7 @@ internal sealed class EntityForEF : Entity<EntityForEFId>
 #pragma warning restore IDE0079
 }
 
-[WrapperValueObject<string>]
+[TestWrapper<string>]
 internal sealed partial class Wrapper1ForEF
 {
 	private StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
@@ -291,7 +291,7 @@ internal sealed partial class LazyIntWrapper : ICoreValueWrapper<LazyIntWrapper,
 	static LazyIntWrapper IValueWrapper<LazyIntWrapper, int>.Deserialize(int value) => DomainObjectSerializer.Deserialize<LazyIntWrapper, Lazy<int>>(new Lazy<int>(value));
 }
 
-[IdentityValueObject<string>]
+[TestIdentity<string>]
 internal partial struct NumericStringId : ICoreValueWrapper<NumericStringId, int> // Custom core value
 {
 	// Manual interface implementation to support custom core value
@@ -301,7 +301,7 @@ internal partial struct NumericStringId : ICoreValueWrapper<NumericStringId, int
 	static NumericStringId IValueWrapper<NumericStringId, int>.Deserialize(int value) => DomainObjectSerializer.Deserialize<NumericStringId, string>(value.ToString());
 }
 
-[ValueObject]
+[TestValueObject]
 internal sealed partial class ValueObjectForEF
 {
 	/// <summary>

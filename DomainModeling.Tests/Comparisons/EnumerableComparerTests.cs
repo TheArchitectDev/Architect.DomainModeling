@@ -392,7 +392,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 			Assert.Equal(expectedResult, leftHashCode == rightHashCode);
 		}
 
-		private sealed class StringIdEntity : Entity<SomeStringId, string>
+		[Entity<SomeStringId, string>]
+		private sealed class StringIdEntity : Entity<SomeStringId>
 		{
 			public StringIdEntity(SomeStringId id)
 				: base(id)

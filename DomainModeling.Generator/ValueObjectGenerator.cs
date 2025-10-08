@@ -22,7 +22,7 @@ public class ValueObjectGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is StructDeclarationSyntax or ClassDeclarationSyntax or RecordDeclarationSyntax)
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("ValueObject"))
+			if (tds.HasAttributeWithInfix("ValueObject"))
 				return true;
 		}
 
@@ -43,7 +43,7 @@ public class ValueObjectGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("ValueObjectAttribute", "Architect.DomainModeling", arity: 0) is null)
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("ValueObjectAttribute", "Architect", "DomainModeling", arity: 0, out _)) is null)
 			return null;
 
 		result.IsValueObject = type.IsOrImplementsInterface(type => type.IsType("IValueObject", "Architect", "DomainModeling", arity: 0), out _);
@@ -122,7 +122,7 @@ public class ValueObjectGenerator : SourceGenerator
 		existingComponents |= ValueObjectTypeComponents.StringComparison.If(members.Any(member =>
 			member is IPropertySymbol { Name: "StringComparison", IsImplicitlyDeclared: false, } prop));
 
-		existingComponents |= ValueObjectTypeComponents.ValueObjectBaseClass.If(type.IsOrInheritsClass(type => type.IsType("ValueObject", "Architect", "DomainModeling", arity: 0), out _));
+		existingComponents |= ValueObjectTypeComponents.ValueObjectBaseClass.If(type.IsOrInheritsClass("ValueObject", "Architect", "DomainModeling", arity: 0, out _));
 
 		result.ExistingComponents = existingComponents;
 

@@ -19,6 +19,9 @@ namespace Architect.DomainModeling;
 /// This attribute should only be applied to concrete types.
 /// For example, if PaymentDummyBuilder is a concrete dummy builder type inheriting from abstract type FinancialDummyBuilder, then only PaymentDummyBuilder should have the attribute.
 /// </para>
+/// <para>
+/// Subclasses of this attribute are also honored, provided that they contain "Builder" in their name.
+/// </para>
 /// </summary>
 /// <typeparam name="TModel">The model type produced by the annotated dummy builder.</typeparam>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]

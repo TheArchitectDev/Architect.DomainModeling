@@ -26,7 +26,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 				FilterSyntaxNode,
 				(context, ct) => context.SemanticModel.GetDeclaredSymbol((TypeDeclarationSyntax)context.Node) switch
 				{
-					INamedTypeSymbol type when HasRequiredAttribute(type, out var attribute) && attribute.AttributeClass!.TypeArguments[0] is ITypeSymbol underlyingType =>
+					INamedTypeSymbol type when HasRequiredAttribute(type, out var attribute) && attribute.TypeArguments[0] is ITypeSymbol underlyingType =>
 						GetFirstProblem((TypeDeclarationSyntax)context.Node, type, underlyingType) is { }
 							? default
 							: new ValueWrapperGenerator.BasicGeneratable(
@@ -61,12 +61,12 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		context.RegisterSourceOutput(aggregatedProvider, DomainModelConfiguratorGenerator.GenerateSourceForWrapperValueObjects);
 	}
 
-	private static bool HasRequiredAttribute(INamedTypeSymbol type, out AttributeData attribute)
+	private static bool HasRequiredAttribute(INamedTypeSymbol type, out INamedTypeSymbol attributeType)
 	{
-		attribute = null!;
-		if (type.GetAttribute("WrapperValueObjectAttribute", "Architect.DomainModeling", arity: 1) is AttributeData { AttributeClass: not null } attributeOutput)
-			attribute = attributeOutput;
-		return attribute != null;
+		attributeType = null!;
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("WrapperValueObjectAttribute", "Architect", "DomainModeling", arity: 1, out _)) is { } attribute)
+			attributeType = attribute;
+		return attributeType is not null;
 	}
 
 	private static Diagnostic? GetFirstProblem(TypeDeclarationSyntax tds, INamedTypeSymbol type, ITypeSymbol underlyingType)
@@ -118,7 +118,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		Diagnostic CreateDiagnostic(string id, string title, string description, DiagnosticSeverity severity)
 		{
 			return Diagnostic.Create(
-				new DiagnosticDescriptor(id, title, description, "Architect.DomainModeling", severity, isEnabledByDefault: true),
+				new DiagnosticDescriptor(id, title, description, "Design", severity, isEnabledByDefault: true),
 				type.Locations.FirstOrDefault());
 		}
 	}
@@ -129,7 +129,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is StructDeclarationSyntax or ClassDeclarationSyntax or RecordDeclarationSyntax)
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("WrapperValueObject"))
+			if (tds.HasAttributeWithInfix("Wrapper"))
 				return true;
 		}
 
@@ -151,7 +151,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		if (!HasRequiredAttribute(type, out var attribute))
 			return null;
 
-		var underlyingType = attribute.AttributeClass!.TypeArguments[0];
+		var underlyingType = attribute.TypeArguments[0];
 
 		var result = new Generatable();
 		result.IsWrapperValueObject = type.IsOrImplementsInterface(type => type.IsType("IWrapperValueObject", "Architect", "DomainModeling", arity: 1), out _);
@@ -181,7 +181,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		// It is also implemented if the underlying type is an annotated identity
 		result.IsComparable = type.AllInterfaces.Any(interf => interf.IsSystemType("IComparable", arity: 1) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default)) &&
 			underlyingType.IsComparable(seeThroughNullable: true);
-		result.IsComparable |= underlyingType.GetAttribute("IdentityValueObjectAttribute", "Architect.DomainModeling", arity: 1) is not null;
+		result.IsComparable |= underlyingType.GetAttribute(attr => attr.IsOrInheritsClass("IdentityValueObjectAttribute", "Architect", "DomainModeling", arity: 1, out _)) is not null;
 
 		var members = type.GetMembers();
 
@@ -362,7 +362,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 			interf.IsType("ICoreValueWrapper", "Architect", "DomainModeling", arity: 2) && !interf.IsImplicitlyDeclared &&
 			interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default)));
 
-		existingComponents |= WrapperValueObjectTypeComponents.WrapperBaseClass.If(type.IsOrInheritsClass(type => type.IsType("WrapperValueObject", "Architect", "DomainModeling", arity: 1), out _));
+		existingComponents |= WrapperValueObjectTypeComponents.WrapperBaseClass.If(type.IsOrInheritsClass("WrapperValueObject", "Architect", "DomainModeling", arity: 1, out _));
 
 		result.ExistingComponents = existingComponents;
 		result.ValueMemberLocation = members.FirstOrDefault(member => member.Name == "Value" && member is IFieldSymbol or IPropertySymbol)?.Locations.FirstOrDefault();

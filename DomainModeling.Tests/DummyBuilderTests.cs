@@ -91,8 +91,8 @@ namespace Architect.DomainModeling.Tests
 			public TestEntityDummyBuilder WithCreationDateTime(DateTime value) => this.With(b => b.CreationDateTime = value);
 		}
 
-		[Entity]
-		public sealed class TestEntity : Entity<TestEntityId, string>
+		[Entity<TestEntityId, string>]
+		public sealed class TestEntity : Entity<TestEntityId>
 		{
 			public DateTime CreationDateTime { get; }
 			public DateOnly CreationDate { get; }
