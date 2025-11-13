@@ -74,8 +74,8 @@ public class DomainEventGenerator : SourceGenerator
 
 		var existingComponents = DomainEventTypeComponents.None;
 
-		existingComponents |= DomainEventTypeComponents.DefaultConstructor.If(type.Constructors.Any(ctor =>
-			!ctor.IsStatic && ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
+		existingComponents |= DomainEventTypeComponents.DefaultConstructor.If(type.InstanceConstructors.Any(ctor =>
+			ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
 
 		result.ExistingComponents = existingComponents;
 

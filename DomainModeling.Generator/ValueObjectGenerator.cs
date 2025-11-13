@@ -62,8 +62,10 @@ public class ValueObjectGenerator : SourceGenerator
 
 		var existingComponents = ValueObjectTypeComponents.None;
 
-		existingComponents |= ValueObjectTypeComponents.DefaultConstructor.If(type.Constructors.Any(ctor =>
-			!ctor.IsStatic && ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
+		existingComponents |= ValueObjectTypeComponents.DefaultConstructor.If(type.InstanceConstructors.Any(ctor =>
+			ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/) ||
+			!type.BasePermitsDefaultConstruction() || // Base offers no visible default ctor
+			type.HasPrimaryConstructor()); // Type has a primary ctor
 
 		// Records override this, but our implementation is superior
 		existingComponents |= ValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>

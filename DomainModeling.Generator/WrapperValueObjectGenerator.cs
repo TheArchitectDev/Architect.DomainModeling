@@ -182,6 +182,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 		result.IsComparable = type.AllInterfaces.Any(interf => interf.IsSystemType("IComparable", arity: 1) && interf.TypeArguments[0].Equals(type, SymbolEqualityComparer.Default)) &&
 			underlyingType.IsComparable(seeThroughNullable: true);
 		result.IsComparable |= underlyingType.GetAttribute(attr => attr.IsOrInheritsClass("IdentityValueObjectAttribute", "Architect", "DomainModeling", arity: 1, out _)) is not null;
+		result.LacksDefaultConstructor = !type.IsValueType && (!type.BasePermitsDefaultConstruction() || type.HasPrimaryConstructor());
 
 		var members = type.GetMembers();
 
@@ -191,14 +192,16 @@ public class WrapperValueObjectGenerator : SourceGenerator
 
 		existingComponents |= WrapperValueObjectTypeComponents.UnsettableValue.If(members.Any(member => member.Name == "Value" && member is not IFieldSymbol && member is not IPropertySymbol { SetMethod: not null }));
 
-		existingComponents |= WrapperValueObjectTypeComponents.Constructor.If(type.Constructors.Any(ctor =>
-			!ctor.IsStatic && ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
+		existingComponents |= WrapperValueObjectTypeComponents.Constructor.If(type.InstanceConstructors.Any(ctor =>
+			ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
 
-		existingComponents |= WrapperValueObjectTypeComponents.NullableConstructor.If(underlyingType.IsValueType && type.Constructors.Any(ctor =>
-			!ctor.IsStatic && ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.IsNullableOf(underlyingType)));
+		existingComponents |= WrapperValueObjectTypeComponents.NullableConstructor.If(underlyingType.IsValueType && type.InstanceConstructors.Any(ctor =>
+			ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.IsNullableOf(underlyingType)));
 
-		existingComponents |= WrapperValueObjectTypeComponents.DefaultConstructor.If(type.Constructors.Any(ctor =>
-			!ctor.IsStatic && ctor.Parameters.Length == 0 && ctor.DeclaringSyntaxReferences.Length > 0));
+		existingComponents |= WrapperValueObjectTypeComponents.DefaultConstructor.If(
+			type.InstanceConstructors.Any(ctor => ctor.Parameters.Length == 0 && ctor.DeclaringSyntaxReferences.Length > 0) ||
+			!type.BasePermitsDefaultConstruction() ||
+			type.HasPrimaryConstructor());
 
 		// Records override this, but our implementation is superior
 		existingComponents |= WrapperValueObjectTypeComponents.ToStringOverride.If(members.Any(member =>
@@ -609,7 +612,7 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.SerializeToUnderlying) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.DeserializeFromUnderlying) ? "/*" : "")}
-		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
+		{(generatable.LacksDefaultConstructor || existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
 		[UnsafeAccessor(UnsafeAccessorKind.Field, Name = ""{valueFieldName}"")]
 		private static extern ref {underlyingTypeFullyQualifiedName} GetValueFieldReference({typeName} instance);" : "")}
 
@@ -619,11 +622,14 @@ namespace {containingNamespace}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		static {typeName} IValueWrapper<{typeName}, {underlyingTypeFullyQualifiedName}>.Deserialize({underlyingTypeFullyQualifiedName} value)
 		{{
-			{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
+			{(generatable.LacksDefaultConstructor ? $@"
+			// To instead get syntax that is safe at compile time, use a value type or ensure that a default constructor is available
+			var result = ObjectInstantiator<{typeName}>.Instantiate(); GetValueFieldReference(result) = value; return result;" : "")}
+			{(!generatable.LacksDefaultConstructor && existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? $@"
 			// To instead get syntax that is safe at compile time, make the Value property '{{ get; private init; }}' (or let the source generator implement it)
 			var result = new {typeName}(); GetValueFieldReference(result) = value; return result;" : "")}
 #pragma warning disable CS0618 // Obsolete constructor is intended for us
-			{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? "//" : "")}return new {typeName}() {{ Value = value }};
+			{(generatable.LacksDefaultConstructor || existingComponents.HasFlags(WrapperValueObjectTypeComponents.UnsettableValue) ? "//" : "")}return new {typeName}() {{ Value = value }};
 #pragma warning restore CS0618
 		}}
 		{(existingComponents.HasFlags(WrapperValueObjectTypeComponents.DeserializeFromUnderlying) ? "*/" : "")}
@@ -793,6 +799,7 @@ namespace {containingNamespace}
 		public bool UnderlyingTypeIsString { get => this._bits.GetBit(10); set => this._bits.SetBit(10, value); }
 		public bool IsToStringNullable { get => this._bits.GetBit(11); set => this._bits.SetBit(11, value); }
 		public bool UnderlyingTypeIsInterface { get => this._bits.GetBit(12); set => this._bits.SetBit(12, value); }
+		public bool LacksDefaultConstructor { get => this._bits.GetBit(13); set => this._bits.SetBit(13, value); }
 		public string ValueFieldName { get; set; } = null!;
 		public Accessibility Accessibility { get; set; }
 		public WrapperValueObjectTypeComponents ExistingComponents { get; set; }

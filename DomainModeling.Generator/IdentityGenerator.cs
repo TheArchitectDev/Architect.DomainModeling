@@ -296,8 +296,8 @@ public class IdentityGenerator : SourceGenerator
 
 			existingComponents |= IdTypeComponents.UnsettableValue.If(members.Any(member => member.Name == "Value" && member is not IFieldSymbol && member is not IPropertySymbol { SetMethod: not null }));
 
-			existingComponents |= IdTypeComponents.Constructor.If(type.Constructors.Any(ctor =>
-				!ctor.IsStatic && ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
+			existingComponents |= IdTypeComponents.Constructor.If(type.InstanceConstructors.Any(ctor =>
+				ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
 
 			// Records override this, but our implementation is superior
 			existingComponents |= IdTypeComponents.ToStringOverride.If(members.Any(member =>

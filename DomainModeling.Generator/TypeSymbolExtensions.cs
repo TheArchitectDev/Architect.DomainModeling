@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Architect.DomainModeling.Generator;
 
@@ -500,6 +501,29 @@ internal static class TypeSymbolExtensions
 		}
 
 		targetType = null!;
+		return false;
+	}
+
+	/// <summary>
+	/// Returns whether the <see cref="INamedTypeSymbol"/> has either no base type, or a base type that (implicitly or explicitly) exposes a non-private default constructor.
+	/// </summary>
+	public static bool BasePermitsDefaultConstruction(this INamedTypeSymbol typeSymbol)
+	{
+		if (typeSymbol.BaseType is not { } baseType)
+			return true;
+
+		return baseType.InstanceConstructors.Any(ctor => ctor.Parameters.Length == 0 && ctor.DeclaredAccessibility != Accessibility.Private);
+	}
+
+	/// <summary>
+	/// Returns whether the <see cref="ITypeSymbol"/> declares a primary constructor.
+	/// </summary>
+	public static bool HasPrimaryConstructor(this ITypeSymbol typeSymbol)
+	{
+		foreach (var syntaxRef in typeSymbol.DeclaringSyntaxReferences)
+			if (syntaxRef.GetSyntax() is TypeDeclarationSyntax { ParameterList: not null })
+				return true;
+
 		return false;
 	}
 

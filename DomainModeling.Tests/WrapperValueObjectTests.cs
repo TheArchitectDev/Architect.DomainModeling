@@ -858,8 +858,9 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		// Should compile in spite of already consisting of multiple partials, both with and without the attribute
-		public partial class AlreadyPartial
+		public partial class AlreadyPartial(int value)
 		{
+			public int Value { get; private init; } = value;
 		}
 
 		// Should be recognized in spite of the attribute and the interface being defined on different partials
@@ -887,15 +888,17 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[WrapperValueObject<string>]
-		public readonly partial record struct StringValue : IComparable<StringValue>
+		public readonly partial struct StringValue(string value) : IComparable<StringValue>
 		{
 			private StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
 			public StringComparison GetStringComparison() => this.StringComparison;
+
+			public string Value { get; private init; } = value ?? throw new ArgumentNullException(nameof(value));
 		}
 
 		[WrapperValueObject<decimal>]
-		public readonly partial struct DecimalValue : IComparable<DecimalValue>
+		public readonly partial record struct DecimalValue : IComparable<DecimalValue>
 		{
 		}
 
