@@ -48,7 +48,7 @@ public static class Utf8JsonReaderExtensions
 		where T : IUtf8SpanParsable<T>
 	{
 #pragma warning disable IDE0302 // Simplify collection initialization -- Analyzer fails to see that that does not work here
-		ReadOnlySpan<byte> chars = reader.HasValueSequence
+		var chars = reader.HasValueSequence
 			? stackalloc byte[0]
 			: reader.ValueSpan;
 #pragma warning restore IDE0302 // Simplify collection initialization

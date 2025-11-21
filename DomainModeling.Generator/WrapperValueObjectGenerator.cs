@@ -671,7 +671,7 @@ namespace {containingNamespace}
 
 		#region Formatting & Parsing
 
-//#if !NET10_0_OR_GREATER // Starting with .NET 10, these operations are provided by default implementations and extension methods
+#if !NET10_0_OR_GREATER // Starting with .NET 10, these operations are provided by default implementations and extension methods
 
 		{(!isSpanFormattable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.FormattableToStringOverride) ? "/*" : "")}
 		public string ToString(string? format, IFormatProvider? formatProvider) =>
@@ -724,7 +724,7 @@ namespace {containingNamespace}
 			({typeName})ParsingHelper.Parse<{underlyingTypeFullyQualifiedName}>(utf8Text, provider);
 		{(!isUtf8SpanParsable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.Utf8SpanParsableParseMethod) ? "*/" : "")}
 
-//#endif
+#endif
 
 		#endregion
 	}}

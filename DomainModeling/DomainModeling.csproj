@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+		<TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
 		<CheckEolTargetFramework>False</CheckEolTargetFramework>
 		<AssemblyName>Architect.DomainModeling</AssemblyName>
 		<RootNamespace>Architect.DomainModeling</RootNamespace>
 		<NuGetAudit>True</NuGetAudit>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
-		<LangVersion>13</LangVersion>
+		<LangVersion>14</LangVersion>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<IsTrimmable>True</IsTrimmable>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
@@ -35,7 +35,7 @@ Release notes:
 4.0.0:
 
 Platforms:
-- BREAKING: Dropped support for .NET 6/7 (EOL).
+- BREAKING: .NET ⛔6-7 ✅8-10.
 
 The base class is dead - long live the interface!
 - Feature: Generated Wrappers can now be structs. Unvalidated instances are avoided via analyzer warning against `default`.
@@ -58,9 +58,9 @@ Correct string comparisons with EF via ConfigureIdentityConventions()/ConfigureW
 - Feature: ConfigureDomainModelConventions() now has convenience extension methods CustomizeIdentityConventions()/CustomizeWrapperValueObjectConventions(), for easy custom conventions, such as based on core underlying type.
 
 Performance:
-- Enhancement: Reduced assembly size by using generic JSON serializers instead of generated ones.
-- Enhancement: Reduced assembly size by moving type-inferred Equals() and Compare() helpers from generated ValueObjects into helper class.
-- Enhancement: Source generator performance.
+- Enhancement: Reduced assembly size: generic JSON serializers instead of generated ones.
+- Enhancement: Reduced assembly size: moved type-inferred Equals() and Compare() helpers out of generated code.
+- Enhancement: Source gen performance.
 
 Misc:
 - Semi-breaking: Entity&lt;TId&gt; now has ID-based ==/!=.

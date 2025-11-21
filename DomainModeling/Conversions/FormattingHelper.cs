@@ -13,9 +13,9 @@ namespace Architect.DomainModeling.Conversions;
 /// This type is intended for use by source-generated code, to avoid compiler errors in situations where the presence of the required interfaces is extremely likely but cannot be guaranteed.
 /// </para>
 /// </summary>
-//#if NET10_0_OR_GREATER
-//[Obsolete("New default interface implementations and extension members alleviate the need for this helper.")]
-//#endif
+#if NET10_0_OR_GREATER
+[Obsolete("New default interface implementations and extension members alleviate the need for this helper.")]
+#endif
 public static class FormattingHelper
 {
 	/// <summary>

@@ -1090,7 +1090,7 @@ namespace Architect.DomainModeling.Tests
 
 			#region Formatting & Parsing
 
-//#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
+#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
 
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -1125,7 +1125,7 @@ namespace Architect.DomainModeling.Tests
 			public static FullySelfImplementedIdentity Parse(ReadOnlySpan<byte> utf8Text, IFormatProvider? provider) =>
 				(FullySelfImplementedIdentity)ParsingHelper.Parse<int>(utf8Text, provider);
 
-//#endif
+#endif
 
 			#endregion
 		}
