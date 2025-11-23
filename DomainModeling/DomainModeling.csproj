@@ -40,7 +40,7 @@ Platforms:
 The base class is dead - long live the interface!
 - Feature: Generated Wrappers can now be structs. Unvalidated instances are avoided via analyzer warning against `default`.
 - Feature: Generated [Wrapper]ValueObjects can now be records or use custom base.
-- BREAKING: [Wrapper]ValueObject generator replaced base class by interface. StringComparison property may need to drop "override" keyword and become private.
+- BREAKING: [Wrapper]ValueObject generator replaced base class by interface. StringComparison property should drop "override" and become private.
 - BREAKING: Lack of ValueObject base class requires the string validation methods to be accessed via ValueObjectStringValidator class.
 - BREAKING: Entity&lt;TId, TPrimitive&gt; type params moved from base class to attribute.
 
@@ -63,12 +63,13 @@ Performance:
 - Enhancement: Source gen performance.
 
 Misc:
+- BREAKING: ValueObject comparison operators disallow null.
 - Semi-breaking: Entity&lt;TId&gt; now has ID-based ==/!=.
-- Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", which covered up mistakes instead of revealing them.
-- Semi-breaking: IIdentity now implements IWrapperValueObject.
+- Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", to better reveal mistakes.
+- Semi-breaking: IIdentity implements IWrapperValueObject.
 - Feature: Analyzer and extensions for defined enums.
 - Feature: Non-generic Wrapper/Identity interfaces.
-- Feature: DummyBuilder records clone on each step, for reuse.
+- Feature: DummyBuilder records cloned on each step, for reuse.
 - Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. Avoids accidentally comparing unrelated types.
 - Feature: Analyzer warns when '>' or similar operator risks unintended null handling.
 - Feature: Analyzer warns if field initializers might be skipped.

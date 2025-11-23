@@ -754,9 +754,6 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -764,25 +761,22 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = one is null ? null : new StringValue(one, "7");
-			var right = two is null ? null : new StringValue(two, "7");
+			var left = new StringValue(one, "7");
+			var right = new StringValue(two, "7");
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
 
-			left = one is null ? null : new StringValue("7", one);
-			right = two is null ? null : new StringValue("7", two);
+			left = new StringValue("7", one);
+			right = new StringValue("7", two);
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -790,16 +784,16 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = one is null ? null : new StringValue(one, "7");
-			var right = two is null ? null : new StringValue(two, "7");
+			var left = new StringValue(one, "7");
+			var right = new StringValue(two, "7");
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
 
-			left = one is null ? null : new StringValue("7", one);
-			right = two is null ? null : new StringValue("7", two);
+			left = new StringValue("7", one);
+			right = new StringValue("7", two);
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
@@ -816,14 +810,6 @@ namespace Architect.DomainModeling.Tests
 			Assert.True(null != nullValued);
 			Assert.False(nullValued == null);
 			Assert.True(nullValued != null);
-			Assert.True(null < nullValued);
-			Assert.True(null <= nullValued);
-			Assert.False(null >= nullValued);
-			Assert.False(null >= nullValued);
-			Assert.False(nullValued < null);
-			Assert.False(nullValued <= null);
-			Assert.True(nullValued > null);
-			Assert.True(nullValued >= null);
 #pragma warning restore xUnit2024 // Do not use boolean asserts for simple equality tests
 #pragma warning restore IDE0079 // Remove unnecessary suppressions
 		}

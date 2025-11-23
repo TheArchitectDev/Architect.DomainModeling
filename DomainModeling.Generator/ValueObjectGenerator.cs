@@ -343,10 +343,10 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
 
 		{(isComparable ? "" : "/*")}
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({typeName}? left, {typeName}? right) => left is null ? false : left.CompareTo(right) > 0;
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({typeName}? left, {typeName}? right) => left is null ? right is not null : left.CompareTo(right) < 0;
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({typeName}? left, {typeName}? right) => !(left < right);
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({typeName}? left, {typeName}? right) => !(left > right);
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({typeName} left, {typeName} right) => left.CompareTo(right) > 0;
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessThanOperator) ? "//" : "")}public static bool operator <({typeName} left, {typeName} right) => left.CompareTo(right) < 0;
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterEqualsOperator) ? "//" : "")}public static bool operator >=({typeName} left, {typeName} right) => !(left < right);
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.LessEqualsOperator) ? "//" : "")}public static bool operator <=({typeName} left, {typeName} right) => !(left > right);
 		{(isComparable ? "" : "*/")}
 	}}
 }}
