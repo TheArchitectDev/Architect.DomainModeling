@@ -14,7 +14,8 @@
 
 	<PropertyGroup>
 		<!-- IDE0290: Use primary constructor - domain objects tend to have complex ctor logic, and we want to be consistent even when ctors are simple -->
-		<NoWarn>IDE0290</NoWarn>
+		<!-- SYSLIB1045: Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time - simplicity preferred in example project -->
+		<NoWarn>IDE0290;SYSLIB1045;</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

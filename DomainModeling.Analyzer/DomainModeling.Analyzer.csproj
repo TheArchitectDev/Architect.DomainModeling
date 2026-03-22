@@ -6,7 +6,7 @@
 		<RootNamespace>Architect.DomainModeling.Analyzer</RootNamespace>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
-		<LangVersion>13</LangVersion>
+		<LangVersion>14</LangVersion>
 		<IsPackable>False</IsPackable>
 		<DevelopmentDependency>True</DevelopmentDependency>
 		<EnforceExtendedAnalyzerRules>True</EnforceExtendedAnalyzerRules>
