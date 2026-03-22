@@ -24,8 +24,8 @@ internal static class SyntaxNodeExtensions
 			var length = trivia.Span.Length;
 			var lengthIsOne = length == 1;
 			var lengthIsTwo = length == 2;
-			nCount += Unsafe.As<bool, int>(ref lengthIsOne);
-			rnCount += Unsafe.As<bool, int>(ref lengthIsTwo);
+			nCount += Unsafe.As<bool, byte>(ref lengthIsOne);
+			rnCount += Unsafe.As<bool, byte>(ref lengthIsTwo);
 		}
 
 		return rnCount > nCount

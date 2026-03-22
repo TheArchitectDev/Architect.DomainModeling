@@ -1,9 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json;
 
 namespace Architect.DomainModeling.Example;
 
 public static class Program
 {
+	[UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "Merely demoing JSON serialization.")]
 	public static void Main()
 	{
 		// ValueObject

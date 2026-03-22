@@ -71,7 +71,7 @@ Misc:
 - Feature: Non-generic Wrapper/Identity interfaces.
 - Feature: DummyBuilder records cloned on each step, for reuse.
 - Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. Avoids accidentally comparing unrelated types.
-- Feature: Analyzer warns when '>' or similar operator risks unintended null handling.
+- Feature: Analyzer warns when '&gt;' or similar operator risks unintended null handling.
 - Feature: Analyzer warns if field initializers might be skipped.
 - Fixed: Source-generated default ctor should not exist in case of primary ctor or lacking base default ctor.
 - Fixed: Source-generated records would ignore hand-written ToString()/Equals()/GetHashCode().
@@ -97,7 +97,7 @@ Misc:
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 	</ItemGroup>
 
 	<ItemGroup>
