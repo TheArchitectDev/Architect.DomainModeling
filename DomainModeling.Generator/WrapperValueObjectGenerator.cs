@@ -605,7 +605,7 @@ namespace {containingNamespace}
 		/// </summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		[return: MaybeNull]
-		{underlyingTypeFullyQualifiedName} IValueWrapper<{typeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
+		{underlyingTypeFullyQualifiedName} IValueWrapper<{underlyingTypeFullyQualifiedName}>.Serialize()
 		{{
 			return this.Value;
 		}}
@@ -636,7 +636,7 @@ namespace {containingNamespace}
 
 		{(generatable.ExistingComponents.HasFlags(WrapperValueObjectTypeComponents.CoreValueWrapperInterface) ? "/* Up to developer because core type was customized" : coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "/* For nested wrapper types only" : "")}
 		[MaybeNull]
-		{coreTypeFullyQualifiedName} IValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>.Value => this.Value is {{ }} actual ? ValueWrapperUnwrapper.Unwrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(actual) : default;
+		{coreTypeFullyQualifiedName} IValueWrapper<{coreTypeFullyQualifiedName}>.Value => this.Value is {{ }} actual ? ValueWrapperUnwrapper.Unwrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(actual) : default;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		static {typeName} IValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>.Create({coreTypeFullyQualifiedName} value)
@@ -650,7 +650,7 @@ namespace {containingNamespace}
 		/// </summary>
 		[return: MaybeNull]
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		{coreTypeFullyQualifiedName} IValueWrapper<{typeName}, {coreTypeFullyQualifiedName}>.Serialize()
+		{coreTypeFullyQualifiedName} IValueWrapper<{coreTypeFullyQualifiedName}>.Serialize()
 		{{
 			var intermediateValue = DomainObjectSerializer.Serialize<{typeName}, {underlyingTypeFullyQualifiedName}>(this);
 			return DomainObjectSerializer.Serialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(intermediateValue);
@@ -688,7 +688,7 @@ namespace {containingNamespace}
 			ParsingHelper.TryParse(s, provider, out {underlyingTypeFullyQualifiedName}{(generatable.UnderlyingTypeIsStruct ? "" : "?")} value)
 				? (result = ({typeName})value) is var _
 				: !((result = default) is var _);
-		{(!isSpanFormattable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ParsableTryParseMethod) ? "*/" : "")}
+		{(!isSpanParsable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.ParsableTryParseMethod) ? "*/" : "")}
 		
 		{(!isSpanParsable || existingComponents.HasFlags(WrapperValueObjectTypeComponents.SpanParsableTryParseMethod) ? "/*" : "")}
 		public static bool TryParse(ReadOnlySpan<char> s, IFormatProvider? provider, [MaybeNullWhen(false)] out {typeName} result) =>

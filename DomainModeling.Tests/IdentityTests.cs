@@ -1073,7 +1073,7 @@ namespace Architect.DomainModeling.Tests
 			/// <summary>
 			/// Serializes a domain object as a plain value.
 			/// </summary>
-			int IValueWrapper<FullySelfImplementedIdentity, int>.Serialize()
+			int IValueWrapper<int>.Serialize()
 			{
 				return this.Value;
 			}

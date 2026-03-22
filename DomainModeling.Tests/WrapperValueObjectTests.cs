@@ -1137,7 +1137,7 @@ namespace Architect.DomainModeling.Tests
 			/// <summary>
 			/// Serializes a domain object as a plain value.
 			/// </summary>
-			int IValueWrapper<FullySelfImplementedWrapperValueObject, int>.Serialize()
+			int IValueWrapper<int>.Serialize()
 			{
 				return this.Value;
 			}
@@ -1155,9 +1155,9 @@ namespace Architect.DomainModeling.Tests
 			}
 
 			// Manual interface implementation to support custom core value
-			long IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Value => (long)this.Value;
+			long IValueWrapper<long>.Value => (long)this.Value;
 			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Create(long value) => new FullySelfImplementedWrapperValueObject((int)value);
-			long IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Serialize() => (long)this.Value;
+			long IValueWrapper<long>.Serialize() => (long)this.Value;
 			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Deserialize(long value) => DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>((int)value);
 
 			#endregion

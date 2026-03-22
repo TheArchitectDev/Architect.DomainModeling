@@ -198,8 +198,8 @@ public class ValueWrapperGenerator : IIncrementalGenerator
 			if (coreOrDirectValueWrapperInterface is null)
 				return !type.GetMembers("Value").Any(member => member is IPropertySymbol { NullableAnnotation: not NullableAnnotation.NotAnnotated });
 
-			// ICoreValueWrapper<,> implements IValueWrapper<,>, which declares the Value property
-			var valueWrapperInterface = coreOrDirectValueWrapperInterface.Interfaces.Single(interf => interf.Name == "IValueWrapper");
+			// ICoreValueWrapper<,> implements IValueWrapper<>, which declares the Value property
+			var valueWrapperInterface = coreOrDirectValueWrapperInterface.AllInterfaces.Single(interf => interf is { Arity: 1, Name: "IValueWrapper", });
 
 			var explicitValueMember = type.GetMembers().FirstOrDefault(member =>
 				member.Name.EndsWith(".Value") &&

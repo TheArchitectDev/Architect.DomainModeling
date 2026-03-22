@@ -689,7 +689,7 @@ namespace {containingNamespace}
 		/// Serializes a domain object as a plain value.
 		/// </summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		{underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")} IValueWrapper<{idTypeName}, {underlyingTypeFullyQualifiedName}>.Serialize()
+		{underlyingTypeFullyQualifiedName}{(underlyingTypeIsStruct || isNonNullString ? "" : "?")} IValueWrapper<{underlyingTypeFullyQualifiedName}>.Serialize()
 		{{
 			return this.Value;
 		}}
@@ -710,7 +710,7 @@ namespace {containingNamespace}
 
 		{(generatable.ExistingComponents.HasFlags(IdTypeComponents.CoreValueWrapperInterface) ? "/* Up to developer because core type was customized" : coreTypeFullyQualifiedName == underlyingTypeFullyQualifiedName ? "/* For nested wrapper types only" : "")}
 		[MaybeNull]
-		{coreTypeFullyQualifiedName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Value => this.Value is {{ }} actual ? ValueWrapperUnwrapper.Unwrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(actual) : default;
+		{coreTypeFullyQualifiedName} IValueWrapper<{coreTypeFullyQualifiedName}>.Value => this.Value is {{ }} actual ? ValueWrapperUnwrapper.Unwrap<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(actual) : default;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		static {idTypeName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Create({coreTypeFullyQualifiedName} value)
@@ -724,7 +724,7 @@ namespace {containingNamespace}
 		/// </summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		[return: MaybeNull]
-		{coreTypeFullyQualifiedName} IValueWrapper<{idTypeName}, {coreTypeFullyQualifiedName}>.Serialize()
+		{coreTypeFullyQualifiedName} IValueWrapper<{coreTypeFullyQualifiedName}>.Serialize()
 		{{
 			var intermediateValue = DomainObjectSerializer.Serialize<{idTypeName}, {underlyingTypeFullyQualifiedName}>(this);
 			return DomainObjectSerializer.Serialize<{underlyingTypeFullyQualifiedName}, {coreTypeFullyQualifiedName}>(intermediateValue);

@@ -154,7 +154,7 @@ public static class DomainObjectSerializer
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static TUnderlying? Serialize<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TUnderlying>(
 		TModel? instance)
-		where TModel : IValueWrapper<TModel, TUnderlying>
+		where TModel : IValueWrapper<TUnderlying>
 	{
 		return instance is null
 			? default
@@ -187,7 +187,7 @@ public static class DomainObjectSerializer
 	/// </para>
 	/// </summary>
 	public static Expression<Func<TModel, TUnderlying>> CreateSerializeExpression<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TModel, TUnderlying>()
-		where TModel : IValueWrapper<TModel, TUnderlying>
+		where TModel : IValueWrapper<TUnderlying>
 	{
 		var call = CreateSerializeExpressionCore(typeof(TModel), typeof(TUnderlying), out var parameter);
 		var lambda = Expression.Lambda<Func<TModel, TUnderlying>>(call, parameter);

@@ -48,7 +48,7 @@ public static class ValueWrapperUnwrapper
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static TValue? Unwrap<TWrapper, TValue>(TWrapper instance)
-		where TWrapper : IValueWrapper<TWrapper, TValue>
+		where TWrapper : IValueWrapper<TValue>
 	{
 		return instance.Value;
 	}
@@ -58,7 +58,7 @@ public static class ValueWrapperUnwrapper
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static TValue? Unwrap<TWrapper, TValue>(TWrapper? instance)
-		where TWrapper : struct, IValueWrapper<TWrapper, TValue>
+		where TWrapper : struct, IValueWrapper<TValue>
 	{
 		return instance is { } actual
 			? actual.Value
