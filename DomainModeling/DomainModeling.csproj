@@ -38,7 +38,7 @@ Platforms:
 - BREAKING: .NET ⛔6-7 ✅8-10.
 
 The base class is dead - long live the interface!
-- Feature: Generated Wrappers can now be structs. Unvalidated instances are avoided via analyzer warning against `default`.
+- Feature: Generated [Wrapper]ValueObjects can now be structs. Unvalidated instances avoided via analyzer warning on `default`.
 - Feature: Generated [Wrapper]ValueObjects can now be records or use custom base.
 - BREAKING: [Wrapper]ValueObject generator replaced base class by interface. StringComparison property should drop "override" and become private.
 - BREAKING: Lack of ValueObject base class requires the string validation methods to be accessed via ValueObjectStringValidator class.

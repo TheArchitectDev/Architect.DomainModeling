@@ -565,8 +565,8 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "B", true)] // Custom collection's hash code always returns 1
 		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
-			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
-			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
+			var left = new CustomCollectionValueObject(one is null ? null : new CustomCollectionValueObject.CustomCollection(one));
+			var right = new CustomCollectionValueObject(two is null ? null : new CustomCollectionValueObject.CustomCollection(two));
 
 			var leftHashCode = left.GetHashCode();
 			var rightHashCode = right.GetHashCode();
@@ -642,8 +642,8 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "B", true)] // Custom collection's equality always returns true
 		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
-			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
-			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
+			var left = new CustomCollectionValueObject(one is null ? null : new CustomCollectionValueObject.CustomCollection(one));
+			var right = new CustomCollectionValueObject(two is null ? null : new CustomCollectionValueObject.CustomCollection(two));
 			Assert.Equal(expectedResult, left.Equals(right));
 		}
 
@@ -1128,9 +1128,14 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[ValueObject]
-		public sealed partial record class CustomCollectionValueObject
+		public readonly partial record struct CustomCollectionValueObject
 		{
-			public CustomCollection? Values { get; set; }
+			public CustomCollection? Values { get; private init; }
+
+			public CustomCollectionValueObject(CustomCollection? values)
+			{
+				this.Values = values;
+			}
 
 			public class CustomCollection : IReadOnlyCollection<int>
 			{

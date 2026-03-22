@@ -62,8 +62,8 @@ public class ValueObjectGenerator : SourceGenerator
 
 		var existingComponents = ValueObjectTypeComponents.None;
 
-		existingComponents |= ValueObjectTypeComponents.DefaultConstructor.If(type.InstanceConstructors.Any(ctor =>
-			ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/) ||
+		existingComponents |= ValueObjectTypeComponents.DefaultConstructor.If(
+			type.InstanceConstructors.Any(ctor => ctor.Parameters.Length == 0 && !ctor.ContainingType.IsValueType) ||
 			!type.BasePermitsDefaultConstruction() || // Base offers no visible default ctor
 			type.HasPrimaryConstructor()); // Type has a primary ctor
 
@@ -181,14 +181,6 @@ public class ValueObjectGenerator : SourceGenerator
 		if (!generatable.IsPartial)
 			return;
 
-		// Only if class
-		if (!generatable.IsClass)
-		{
-			context.ReportDiagnostic("ValueObjectGeneratorValueType", "Source-generated struct value object",
-				"The type was not source-generated because it is a struct, while a class was expected. To disable source generation, remove the 'partial' keyword.", DiagnosticSeverity.Warning, type);
-			return;
-		}
-
 		// Only if non-abstract
 		if (generatable.IsAbstract)
 		{
@@ -214,6 +206,7 @@ public class ValueObjectGenerator : SourceGenerator
 		}
 
 		var isRecord = generatable.IsRecord;
+		var isClass = generatable.IsClass;
 
 		var typeName = type.Name; // Non-generic
 		var containingNamespace = type.ContainingNamespace.ToString();
@@ -278,7 +271,7 @@ using Architect.DomainModeling;
 
 namespace {containingNamespace}
 {{
-	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} sealed partial {(isRecord ? "record " : "")}class {typeName} :
+	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} {(isClass ? "sealed" : "readonly")} partial {(isRecord ? "record " : "")}{(isClass ? "class" : "struct")} {typeName} :
 		IValueObject,
 		IEquatable<{typeName}>{(isComparable ? "" : "/*")},
 		IComparable<{typeName}>{(isComparable ? "" : "*/")}
@@ -287,24 +280,27 @@ namespace {containingNamespace}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "/*" : "")}
 #pragma warning disable CS8618 // Deserialization constructor
+		/// <summary>
+		/// <strong>Obsolete:</strong> This constructor exists for deserialization purposes only.
+		/// </summary>
 		[System.Text.Json.Serialization.JsonConstructor]
 		[Newtonsoft.Json.JsonConstructor]
 		[Obsolete(""This constructor exists for deserialization purposes only."")]
-		private {typeName}()
+		{(isClass ? "private" : "public")} {typeName}()
 		{{
 		}}
 #pragma warning restore CS8618
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
-		public sealed override string ToString()
+		public {(isClass ? "sealed " : "")}override string ToString()
 		{{
 			{toStringBody}
 		}}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GetHashCodeOverride) ? "/*" : "")}
-		public sealed override int GetHashCode()
+		public {(isClass ? "sealed " : "")}override int GetHashCode()
 		{{
 #pragma warning disable RS1024 // Compare symbols correctly
 			{getHashCodeBody}
@@ -313,34 +309,30 @@ namespace {containingNamespace}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GetHashCodeOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOverride) ? "/*" : "")}
-		public sealed override bool Equals(object? other)
+		public {(isClass ? "sealed " : "")}override bool Equals(object? other)
 		{{
 			return other is {typeName} otherValue && this.Equals(otherValue);
 		}}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsMethod) ? "/*" : "")}
-		public bool Equals({typeName}? other)
+		public bool Equals({typeName}{(isClass ? "?" : "")} other)
 		{{
-			if (other is null) return false;
-
-			{equalsBodyIfInstanceNonNull};
+			{(!generatable.IsClass ? "" : "if (other is null) return false;\n\t\t\t")}{equalsBodyIfInstanceNonNull};
 		}}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsMethod) ? " */" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "/*" : "")}
 		{(isComparable ? "" : "/* Generated only if the ValueObject implements IComparable<T> against its own type and each data member implements IComparable<T> against its own type")}
-		public int CompareTo({typeName}? other)
+		public int CompareTo({typeName}{(isClass ? "?" : "")} other)
 		{{
-			if (other is null) return +1;
-
-			{compareToBodyIfInstanceNonNull}
+			{(!generatable.IsClass ? "" : "if (other is null) return +1;\n\t\t\t")}{compareToBodyIfInstanceNonNull}
 		}}
 		{(isComparable ? "" : "*/")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.CompareToMethod) ? "*/" : "")}
 
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOperator) ? "//" : "")}public static bool operator ==({typeName}? left, {typeName}? right) => left is null ? right is null : left.Equals(right);
-		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({typeName}? left, {typeName}? right) => !(left == right);
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.EqualsOperator) ? "//" : "")}public static bool operator ==({typeName}{(generatable.IsClass ? "?" : "")} left, {typeName}{(generatable.IsClass ? "?" : "")} right) => {(generatable.IsClass ? "left is null ? right is null : left.Equals(right)" : "left.Equals(right)")};
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.NotEqualsOperator) ? "//" : "")}public static bool operator !=({typeName}{(generatable.IsClass ? "?" : "")} left, {typeName}{(generatable.IsClass ? "?" : "")} right) => !(left == right);
 
 		{(isComparable ? "" : "/*")}
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GreaterThanOperator) ? "//" : "")}public static bool operator >({typeName} left, {typeName} right) => left.CompareTo(right) > 0;

@@ -6,6 +6,7 @@ using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
@@ -47,7 +48,10 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 			new LazyStringWrapper(new Lazy<string>("4")),
 			new LazyIntWrapper(new Lazy<int>(5)),
 			new NumericStringId("6"));
-		var entity = new EntityForEF(values);
+		var otherValues = new StructValueObjectForEF(
+			1,
+			"2");
+		var entity = new EntityForEF(values, otherValues);
 		var domainEvent = new DomainEventForEF(id: 2, ignored: null!);
 
 		this.DbContext.Database.EnsureCreated();
@@ -80,6 +84,9 @@ public sealed class EntityFrameworkConfigurationGeneratorTests : IDisposable
 		Assert.Equal("4", reloadedEntity.Values.Four.Value.Value);
 		Assert.Equal(5, reloadedEntity.Values.Five.Value.Value);
 		Assert.Equal("6", reloadedEntity.Values.Six?.Value);
+
+		Assert.Equal((byte)1, reloadedEntity.OtherValues.One);
+		Assert.Equal("2", reloadedEntity.OtherValues.Two);
 
 		// This property should be mapped to int via ICoreValueWrapper<NumericStringId, int>
 		var mappingForStringWithCustomIntCore = this.DbContext.Model.FindEntityType(typeof(EntityForEF))?.FindNavigation(nameof(EntityForEF.Values))?.TargetEntityType
@@ -139,6 +146,9 @@ internal sealed class TestDbContext(
 				}
 			});
 		});
+
+		// Pre-EF10 workaround for ComplexProperty() bug that requires ConstructorBindingConvention to be present (but it can fail if run before UninitializedInstantiationConvention): https://github.com/dotnet/efcore/issues/32437
+		configurationBuilder.Conventions.Add(services => ActivatorUtilities.CreateInstance<ConstructorBindingConvention>(services));
 	}
 
 	private class LazyStringWrapperConverter : ValueConverter<LazyStringWrapper, string>
@@ -168,6 +178,12 @@ internal sealed class TestDbContext(
 				values.Property(x => x.Four);
 				values.Property(x => x.Five);
 				values.Property(x => x.Six);
+			});
+
+			builder.ComplexProperty(x => x.OtherValues, values =>
+			{
+				values.Property(x => x.One);
+				values.Property(x => x.Two);
 			});
 
 			builder.HasKey(x => x.Id);
@@ -221,13 +237,16 @@ internal sealed class EntityForEF : Entity<EntityForEFId>
 
 	public ValueObjectForEF Values { get; }
 
-	public EntityForEF(ValueObjectForEF values)
+	public StructValueObjectForEF OtherValues { get; }
+
+	public EntityForEF(ValueObjectForEF values, StructValueObjectForEF otherValues)
 		: base(id: "A")
 	{
 		if (!EntityFrameworkConfigurationGeneratorTests.AllowParameterizedConstructors)
 			throw new InvalidOperationException("Deserialization was not allowed to use the parameterized constructors.");
 
 		this.Values = values;
+		this.OtherValues = otherValues;
 	}
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
@@ -333,5 +352,20 @@ internal sealed partial class ValueObjectForEF
 		this.Four = four;
 		this.Five = five;
 		this.Six = six;
+	}
+}
+
+[ValueObject]
+internal readonly partial struct StructValueObjectForEF : IComparable<StructValueObjectForEF>
+{
+	private StringComparison StringComparison => StringComparison.Ordinal;
+
+	public byte? One { get; private init; }
+	public string Two { get; private init; }
+
+	public StructValueObjectForEF(byte? one, string two)
+	{
+		this.One = one;
+		this.Two = two;
 	}
 }

@@ -31,12 +31,14 @@ public sealed class ValueObjectMissingStringComparisonAnalyzer : DiagnosticAnaly
 		context.EnableConcurrentExecution();
 		context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
-		context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration,
+		context.RegisterSyntaxNodeAction(AnalyzeTypeDeclaration,
 			SyntaxKind.ClassDeclaration,
-			SyntaxKind.RecordDeclaration);
+			SyntaxKind.StructDeclaration,
+			SyntaxKind.RecordDeclaration,
+			SyntaxKind.RecordStructDeclaration);
 	}
 
-	private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
+	private static void AnalyzeTypeDeclaration(SyntaxNodeAnalysisContext context)
 	{
 		var tds = (TypeDeclarationSyntax)context.Node;
 
