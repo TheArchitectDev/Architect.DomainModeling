@@ -285,9 +285,9 @@ internal sealed partial class LazyStringWrapper
 internal sealed partial class LazyIntWrapper : ICoreValueWrapper<LazyIntWrapper, int> // Custom core value
 {
 	// Manual interface implementation to support custom core value
-	int IValueWrapper<LazyIntWrapper, int>.Value => this.Value.Value;
+	int IValueWrapper<int>.Value => this.Value.Value;
 	static LazyIntWrapper IValueWrapper<LazyIntWrapper, int>.Create(int value) => new LazyIntWrapper(new Lazy<int>(value));
-	int IValueWrapper<LazyIntWrapper, int>.Serialize() => this.Value.Value;
+	int IValueWrapper<int>.Serialize() => this.Value.Value;
 	static LazyIntWrapper IValueWrapper<LazyIntWrapper, int>.Deserialize(int value) => DomainObjectSerializer.Deserialize<LazyIntWrapper, Lazy<int>>(new Lazy<int>(value));
 }
 
@@ -295,9 +295,9 @@ internal sealed partial class LazyIntWrapper : ICoreValueWrapper<LazyIntWrapper,
 internal partial struct NumericStringId : ICoreValueWrapper<NumericStringId, int> // Custom core value
 {
 	// Manual interface implementation to support custom core value
-	int IValueWrapper<NumericStringId, int>.Value => Int32.Parse(this.Value);
+	int IValueWrapper<int>.Value => Int32.Parse(this.Value);
 	static NumericStringId IValueWrapper<NumericStringId, int>.Create(int value) => new NumericStringId(value.ToString());
-	int IValueWrapper<NumericStringId, int>.Serialize() => Int32.Parse(this.Value);
+	int IValueWrapper<int>.Serialize() => Int32.Parse(this.Value);
 	static NumericStringId IValueWrapper<NumericStringId, int>.Deserialize(int value) => DomainObjectSerializer.Deserialize<NumericStringId, string>(value.ToString());
 }
 

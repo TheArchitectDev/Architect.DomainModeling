@@ -45,7 +45,7 @@ public class UnvalidatedEnumMemberAssignmentAnalyzerTests
 		entity.NullableStatus = (HttpStatusCode?)NonexistentStatus;
 		entity.NullableStatus = (HttpStatusCode)(HttpStatusCode?)NonexistentStatus;
 		entity.NullableStatus = (HttpStatusCode)1;
-		entity.NullableStatus = (HttpStatusCode?)1;
+		entity.NullableStatus = (HttpStatusCode?)(HttpStatusCode)1;
 		entity.NullableStatus = statusCode;
 		entity.NullableStatus = (HttpStatusCode?)statusCode;
 		entity.NullableStatus = (HttpStatusCode)(HttpStatusCode?)statusCode;
@@ -60,7 +60,7 @@ public class UnvalidatedEnumMemberAssignmentAnalyzerTests
 		valueObject.NullableLazyThreadSafetyMode = (LazyThreadSafetyMode?)NonexistentThreadSafetyMode;
 		valueObject.NullableLazyThreadSafetyMode = (LazyThreadSafetyMode)(LazyThreadSafetyMode?)NonexistentThreadSafetyMode;
 		valueObject.NullableLazyThreadSafetyMode = (LazyThreadSafetyMode)999;
-		valueObject.NullableLazyThreadSafetyMode = (LazyThreadSafetyMode?)999;
+		valueObject.NullableLazyThreadSafetyMode = (LazyThreadSafetyMode?)(LazyThreadSafetyMode)999;
 		valueObject.NullableLazyThreadSafetyMode = lazyThreadSafetyMode;
 		valueObject.NullableLazyThreadSafetyMode = (LazyThreadSafetyMode?)lazyThreadSafetyMode;
 		valueObject.NullableLazyThreadSafetyMode = (LazyThreadSafetyMode)(LazyThreadSafetyMode?)lazyThreadSafetyMode;

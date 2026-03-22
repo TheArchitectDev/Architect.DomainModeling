@@ -241,10 +241,12 @@ public class SourceGeneratedIdentityTests
 	{
 		IntId? instance = value is null ? null : new IntId(value.Value);
 
+#pragma warning disable IDE0221 // Add explicit cast -- This technically casts to (IntId) and then to (int), but we want to show what happens if you skip the intermediate step
 		if (expectedResult is null)
 			Assert.Throws<InvalidOperationException>(() => (int)instance!);
 		else
 			Assert.Equal(expectedResult, (int)instance!);
+#pragma warning restore IDE0221 // Add explicit cast
 	}
 
 	[Theory]
