@@ -296,12 +296,12 @@ namespace {containingNamespace}
 #pragma warning restore CS8618
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.DefaultConstructor) ? "*/" : "")}
 
-		{(!isRecord && existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "/*" : "")}
 		public sealed override string ToString()
 		{{
 			{toStringBody}
 		}}
-		{(!isRecord && existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "*/" : "")}
+		{(existingComponents.HasFlags(ValueObjectTypeComponents.ToStringOverride) ? "*/" : "")}
 
 		{(existingComponents.HasFlags(ValueObjectTypeComponents.GetHashCodeOverride) ? "/*" : "")}
 		public sealed override int GetHashCode()
