@@ -380,7 +380,7 @@ namespace {containingNamespace}
 	}
 
 	[Flags]
-	private enum ValueObjectTypeComponents : ulong
+	private enum ValueObjectTypeComponents : ushort
 	{
 		None = 0,
 

@@ -96,7 +96,7 @@ public class EntityGenerator : SourceGenerator
 	}
 
 	[Flags]
-	internal enum EntityTypeComponents : ulong
+	internal enum EntityTypeComponents : byte
 	{
 		None = 0,
 

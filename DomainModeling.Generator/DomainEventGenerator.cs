@@ -96,7 +96,7 @@ public class DomainEventGenerator : SourceGenerator
 	}
 
 	[Flags]
-	internal enum DomainEventTypeComponents : ulong
+	internal enum DomainEventTypeComponents : byte
 	{
 		None = 0,
 
