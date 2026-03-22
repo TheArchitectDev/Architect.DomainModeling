@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using Architect.DomainModeling.Enums;
 
 #pragma warning disable IDE0130 // Namespace does not match folder structure
@@ -68,9 +67,9 @@ public static class DefinedEnum
 		private static readonly bool IsFlags = typeof(TEnum).IsDefined(typeof(FlagsAttribute), inherit: false);
 		internal static readonly ulong AllFlags = Enum.GetValues<TEnum>().Aggregate(0UL, (current, next) => current | next.GetBinaryValue());
 
-		public static TEnum UndefinedValue { get; } = ~AllFlags is var unusedBits && Unsafe.As<ulong, TEnum>(ref unusedBits) is var value && value.GetBinaryValue() != 0UL // Any bits unused?
+		public static TEnum UndefinedValue { get; } = ~AllFlags is var unusedBits && InternalEnumExtensions.GetEnumValue<TEnum>(unusedBits) is var value && value.GetBinaryValue() is not 0UL // Any bits unused?
 			? value
-			: !IsFlags && InternalEnumExtensions.TryGetUndefinedValue(out value) // With all bits used, for non-flags we can still look for an individual unused value, since values are not combined
+			: !IsFlags && InternalEnumExtensions.TryGetUndefinedValue<TEnum>(out value) // With all bits used, for non-flags we can still look for an individual unused value, since values are not combined
 			? value
 			: throw new NotSupportedException($"Type {typeof(TEnum).Name} does not leave any possible values undefined (or flag bits unused).");
 	}

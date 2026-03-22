@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Architect.DomainModeling.Enums;
 using Xunit;
 
@@ -30,6 +29,7 @@ public class InternalEnumExtensionsTests
 	public void GetNumericValue_WithLong_ShouldReturnExpectedResult()
 	{
 		Assert.Equal((Int128)(-1), LongEnum.MinusOne.GetNumericValue());
+		Assert.Equal((Int128)(Int64.MinValue), LongEnum.Min.GetNumericValue());
 	}
 
 	[Fact]
@@ -39,33 +39,35 @@ public class InternalEnumExtensionsTests
 	}
 
 	[Fact]
-	public void GetBinaryValue_WithByte_ShouldCastAndUnsafeConvertToUnderlyingTypeCorrectly()
+	public void GetBinaryValue_WithByte_ShouldCastAndGetEnumValueToUnderlyingTypeCorrectly()
 	{
 		var result = ByteEnum.One.GetBinaryValue();
 		Assert.Equal(1, (byte)result);
-		Assert.Equal(1, Unsafe.As<ulong, byte>(ref result));
-		Assert.Equal(ByteEnum.One, Unsafe.As<ulong, ByteEnum>(ref result));
+		Assert.Equal(ByteEnum.One, (ByteEnum)result);
+		Assert.Equal(ByteEnum.One, InternalEnumExtensions.GetEnumValue<ByteEnum>(result));
 	}
 
 	[Fact]
-	public void GetBinaryValue_WithLong_ShouldCastAndUnsafeConvertToUnderlyingTypeCorrectly()
+	public void GetBinaryValue_WithLong_ShouldCastAndGetEnumValueToUnderlyingTypeCorrectly()
 	{
 		var result1 = LongEnum.MinusOne.GetBinaryValue();
 		var result2 = LongEnum.Min.GetBinaryValue();
 
 		Assert.Equal(-1, (long)result1);
-		Assert.Equal(-1, Unsafe.As<ulong, long>(ref result1));
-		Assert.Equal(LongEnum.MinusOne, Unsafe.As<ulong, LongEnum>(ref result1));
+		Assert.Equal(LongEnum.MinusOne, (LongEnum)result1);
+		Assert.Equal(LongEnum.MinusOne, InternalEnumExtensions.GetEnumValue<LongEnum>(result1));
 
 		Assert.Equal(Int64.MinValue, (long)result2);
-		Assert.Equal(Int64.MinValue, Unsafe.As<ulong, long>(ref result2));
-		Assert.Equal(LongEnum.Min, Unsafe.As<ulong, LongEnum>(ref result2));
+		Assert.Equal(LongEnum.Min, (LongEnum)result2);
+		Assert.Equal(LongEnum.Min, InternalEnumExtensions.GetEnumValue<LongEnum>(result2));
 	}
 
 	[Fact]
-	public void GetBinaryValue_WithUlong_ShouldCastAndUnsafeConvertToUnderlyingTypeCorrectly()
+	public void GetBinaryValue_WithUlong_ShouldCastAndGetEnumValueToUnderlyingTypeCorrectly()
 	{
 		var result = UlongEnum.Max.GetBinaryValue();
 		Assert.Equal(UInt64.MaxValue, result); // Already the type we would cast to
+		Assert.Equal(UlongEnum.Max, (UlongEnum)result);
+		Assert.Equal(UlongEnum.Max, InternalEnumExtensions.GetEnumValue<UlongEnum>(result));
 	}
 }

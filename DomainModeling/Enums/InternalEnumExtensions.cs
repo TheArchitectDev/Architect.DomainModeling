@@ -1,36 +1,31 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Architect.DomainModeling.Enums;
 
 internal static class InternalEnumExtensions
 {
-	private static readonly byte DefaultUndefinedValue = 191; // Greatest prime under 3/4 of Byte.MaxValue
-	private static readonly ushort FallbackUndefinedValue = 49139; // Greatest prime under 3/4 of UInt16.MaxValue
+	private static readonly ulong DefaultUndefinedValue = 191; // Greatest prime under 3/4 of Byte.MaxValue
+	private static readonly ulong FallbackUndefinedValue = 49139; // Greatest prime under 3/4 of UInt16.MaxValue
 
 	/// <summary>
 	/// <para>
 	/// Attempts to return one of a small set of predefined values if one is undefined for <typeparamref name="TEnum"/>.
 	/// </para>
 	/// <para>
-	/// Does not accounts for the <see cref="FlagsAttribute"/>.
+	/// Does not account for the <see cref="FlagsAttribute"/>.
 	/// </para>
 	/// </summary>
 	public static bool TryGetUndefinedValueFast<TEnum>(out TEnum value)
 		where TEnum : unmanaged, Enum
 	{
-		var defaultUndefined = Unsafe.As<byte, TEnum>(ref Unsafe.AsRef(in DefaultUndefinedValue));
-		if (!Enum.IsDefined(defaultUndefined))
-		{
-			value = defaultUndefined;
+		value = GetEnumValue<TEnum>(DefaultUndefinedValue);
+		if (!Enum.IsDefined(value))
 			return true;
-		}
 
-		var fallbackUndefined = Unsafe.As<ushort, TEnum>(ref Unsafe.AsRef(in FallbackUndefinedValue));
-		if (Unsafe.SizeOf<TEnum>() >= 2 && !Enum.IsDefined(fallbackUndefined))
-		{
-			value = fallbackUndefined;
+		value = GetEnumValue<TEnum>(FallbackUndefinedValue);
+		if (Unsafe.SizeOf<TEnum>() >= 2 && !Enum.IsDefined(value))
 			return true;
-		}
 
 		value = default;
 		return false;
@@ -41,7 +36,7 @@ internal static class InternalEnumExtensions
 	/// Attempts to find an undefined value for <typeparamref name="TEnum"/>.
 	/// </para>
 	/// <para>
-	/// Does not accounts for the <see cref="FlagsAttribute"/>.
+	/// Does not account for the <see cref="FlagsAttribute"/>.
 	/// </para>
 	/// </summary>
 	public static bool TryGetUndefinedValue<TEnum>(out TEnum value)
@@ -51,13 +46,13 @@ internal static class InternalEnumExtensions
 			return true;
 
 		var values = Enum.GetValues<TEnum>();
-		System.Diagnostics.Debug.Assert(values.Select(GetBinaryValue).Order().SequenceEqual(values.Select(GetBinaryValue)), "Enum.GetValues() was expected to return elements in binary order.");
+		Debug.Assert(values.Select(GetBinaryValue).Order().SequenceEqual(values.Select(GetBinaryValue)), "Enum.GetValues() was expected to return elements in binary order.");
 
 		// If we do not end with the binary maximum, then use that
 		var enumBinaryMax = ~0UL >> (64 - 8 * Unsafe.SizeOf<TEnum>()); // E.g. 64-0 bits for ulong/long, 64-32 for uint/int, and so on
 		if (values.Length == 0 || values[^1].GetBinaryValue() < enumBinaryMax)
 		{
-			value = Unsafe.As<ulong, TEnum>(ref enumBinaryMax);
+			value = GetEnumValue<TEnum>(enumBinaryMax);
 			return true;
 		}
 
@@ -75,8 +70,7 @@ internal static class InternalEnumExtensions
 			var currentValue = definedValue.GetBinaryValue();
 			if (currentValue > previousValue + 1)
 			{
-				previousValue++;
-				value = Unsafe.As<ulong, TEnum>(ref previousValue);
+				value = GetEnumValue<TEnum>(previousValue + 1);
 				return true;
 			}
 			previousValue = currentValue;
@@ -88,24 +82,22 @@ internal static class InternalEnumExtensions
 
 	/// <summary>
 	/// Returns the numeric value of the given <paramref name="enumValue"/>.
+	/// Unlike <see cref="GetBinaryValue"/>, this retains negative values for signed enum types.
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static Int128 GetNumericValue<T>(this T enumValue)
-		where T : unmanaged, Enum
+	public static Int128 GetNumericValue<TEnum>(this TEnum enumValue)
+		where TEnum : unmanaged, Enum
 	{
-		// Optimized by JIT, as Type.GetTypeCode(T) is treated as a constant
-		return Type.GetTypeCode(typeof(T)) switch
-		{
-			TypeCode.Byte => (Int128)Unsafe.As<T, byte>(ref enumValue),
-			TypeCode.SByte => (Int128)Unsafe.As<T, sbyte>(ref enumValue),
-			TypeCode.Int16 => (Int128)Unsafe.As<T, short>(ref enumValue),
-			TypeCode.UInt16 => (Int128)Unsafe.As<T, ushort>(ref enumValue),
-			TypeCode.Int32 => (Int128)Unsafe.As<T, int>(ref enumValue),
-			TypeCode.UInt32 => (Int128)Unsafe.As<T, uint>(ref enumValue),
-			TypeCode.Int64 => (Int128)Unsafe.As<T, long>(ref enumValue),
-			TypeCode.UInt64 => (Int128)Unsafe.As<T, ulong>(ref enumValue),
-			_ => default,
-		};
+		// Branches optimized away by JIT, as Type.GetEnumUnderlyingType() is [Intrinsic] and treated as a constant
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(byte)) return (Int128)Unsafe.As<TEnum, byte>(ref enumValue);
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(sbyte)) return (Int128)Unsafe.As<TEnum, sbyte>(ref enumValue);
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(ushort)) return (Int128)Unsafe.As<TEnum, ushort>(ref enumValue);
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(short)) return (Int128)Unsafe.As<TEnum, short>(ref enumValue);
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(uint)) return (Int128)Unsafe.As<TEnum, uint>(ref enumValue);
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(int)) return (Int128)Unsafe.As<TEnum, int>(ref enumValue);
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(ulong)) return (Int128)Unsafe.As<TEnum, ulong>(ref enumValue);
+		if (typeof(TEnum).GetEnumUnderlyingType() == typeof(long)) return (Int128)Unsafe.As<TEnum, long>(ref enumValue);
+		throw new UnreachableException();
 	}
 
 	/// <summary>
@@ -113,24 +105,46 @@ internal static class InternalEnumExtensions
 	/// Returns the binary value of the given <paramref name="enumValue"/>, contained in a <see cref="UInt64"/>.
 	/// </para>
 	/// <para>
-	/// The original value's bytes can be retrieved by doing a cast or <see cref="Unsafe.As{TFrom, TTo}"/> to the original enum or underlying type.
+	/// This method is the inverse of <see cref="GetEnumValue"/>.
 	/// </para>
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static ulong GetBinaryValue<T>(this T enumValue)
-		where T : unmanaged, Enum
+	public static ulong GetBinaryValue<TEnum>(this TEnum enumValue)
+		where TEnum : unmanaged, Enum
 	{
 		var result = 0UL;
 
-		// Since the actual value may be smaller than ulong's 8 bytes, we must align to the least significant byte
-		// This way, casting the ulong back to the original type gets back the exact original bytes
-		// On little-endian, that means aligning to the left of the bytes
-		// On big-endian, that means aligning to the right of the bytes
+		// TEnum could be shorter than 8 bytes
+		// Little-endian will automatically write into the least significant bytes, since those are on the left for little-endian
+		// For big-endian, they are on the right, so we need to look at the rightmost portion of the ulong, depending on size of TEnum
+		// For example, a ushort TEnum will look at the rightmost 2 bytes of the ulong
 		if (BitConverter.IsLittleEndian)
 			Unsafe.WriteUnaligned(ref Unsafe.As<ulong, byte>(ref result), enumValue);
 		else
-			Unsafe.WriteUnaligned(ref Unsafe.Add(ref Unsafe.As<ulong, byte>(ref result), sizeof(ulong) - Unsafe.SizeOf<T>()), enumValue);
+			Unsafe.WriteUnaligned(ref Unsafe.Add(ref Unsafe.As<ulong, byte>(ref result), sizeof(ulong) - Unsafe.SizeOf<TEnum>()), enumValue);
 
 		return result;
+	}
+
+	/// <summary>
+	/// <para>
+	/// Returns the <typeparamref name="TEnum"/> enum value of the given <paramref name="binaryValue"/>.
+	/// </para>
+	/// <para>
+	/// This method is the inverse of <see cref="GetBinaryValue"/>.
+	/// </para>
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static TEnum GetEnumValue<TEnum>(ulong binaryValue)
+		where TEnum : unmanaged, Enum
+	{
+		// TEnum could be shorter than 8 bytes
+		// Little-endian will automatically write into the least significant bytes, since those are on the left for little-endian
+		// For big-endian, they are on the right, so we need to look at the rightmost portion of the ulong, depending on size of TEnum
+		// For example, a ushort TEnum will look at the rightmost 2 bytes of the ulong
+		if (BitConverter.IsLittleEndian)
+			return Unsafe.ReadUnaligned<TEnum>(ref Unsafe.As<ulong, byte>(ref binaryValue));
+		else
+			return Unsafe.ReadUnaligned<TEnum>(ref Unsafe.Add(ref Unsafe.As<ulong, byte>(ref binaryValue), sizeof(ulong) - Unsafe.SizeOf<TEnum>()));
 	}
 }
