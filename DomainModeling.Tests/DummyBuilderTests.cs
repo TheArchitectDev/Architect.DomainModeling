@@ -222,5 +222,10 @@ namespace Architect.DomainModeling.Tests
 		public sealed partial class StringWrapperTestingDummyBuilder
 		{
 		}
+
+		[DummyBuilder<Lazy<string>>]
+		public sealed partial record class GenericTestingDummyBuilder
+		{
+		}
 	}
 }

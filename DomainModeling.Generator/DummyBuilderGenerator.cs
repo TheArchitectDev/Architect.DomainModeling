@@ -283,6 +283,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using {modelType.Name} = {modelType};
 
 #nullable disable
 
@@ -290,14 +291,14 @@ namespace {containingNamespace}
 {{
 	/// <summary>
 	/// <para>
-	/// Implements the Builder pattern to construct <see cref=""{modelType.ToString().Replace("<", "{").Replace(">", "}")}""/> objects for testing purposes.
+	/// Implements the Builder pattern to construct <see cref=""{modelType.Name.ToString().Replace("<", "{").Replace(">", "}")}""/> objects for testing purposes.
 	/// </para>
 	/// <para>
 	/// Where production code relies on the type's constructor, test code can rely on this builder.
 	/// That way, if the constructor changes, only the builder needs to be adjusted, rather than lots of test methods.
 	/// </para>
 	/// </summary>
-	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} partial {(builder.IsRecord ? "record " : "")}class {typeName}
+	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} partial {(builder.IsRecord ? "record " : "")}class {typeName} : IDummyBuilder<{modelType.Name}>
 	{{
 {joinedComponents}
 
@@ -309,9 +310,9 @@ namespace {containingNamespace}
 		}}
 
 		{(hasBuildMethod ? "/*" : "")}
-		public {modelType} Build()
+		public {modelType.Name} Build()
 		{{
-			var result = new {modelType}(
+			var result = new {modelType.Name}(
 				{modelCtorParams});
 			return result;
 		}}
