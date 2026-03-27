@@ -899,6 +899,16 @@ namespace Architect.DomainModeling.Tests
 			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
 			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable`1");
 		}
+
+		/// <summary>
+		/// A multi-param ctor with the 2nd and further parameters optional should prevent the single-param ctor from being generated.
+		/// </summary>
+		[Fact]
+		public void Construct_WithManualConstructorWithSecondParamOptional_ShouldUseThat()
+		{
+			var result = new ManualCtorIntId(1);
+			Assert.Equal(Int32.MinValue, result.Value); // Hand-written ctor should have been used
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -997,6 +1007,15 @@ namespace Architect.DomainModeling.Tests
 			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
 			{
 				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+		}
+		[IdentityValueObject<int>]
+		internal partial struct ManualCtorIntId
+		{
+			public ManualCtorIntId(int value, string? paramName = null)
+			{
+				this.Value = value is Int32.MinValue ? value : Int32.MinValue;
+				_ = paramName;
 			}
 		}
 

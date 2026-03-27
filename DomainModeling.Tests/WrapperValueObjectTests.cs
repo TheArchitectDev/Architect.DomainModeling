@@ -167,7 +167,7 @@ namespace Architect.DomainModeling.Tests
 #pragma warning disable IDE0004 // Deliberate casts to test specific operators
 #pragma warning disable CS8073 // Deliberate casts to test specific operators
 			Assert.True((StringValue?)null == (StringValue?)null);
-			Assert.True((DecimalValue?)null == (DecimalValue?) null);
+			Assert.True((DecimalValue?)null == (DecimalValue?)null);
 
 			Assert.False((StringValue?)null == (StringValue?)"");
 			Assert.False((DecimalValue?)null == (DecimalValue?)0);
@@ -382,7 +382,7 @@ namespace Architect.DomainModeling.Tests
 		[InlineData(1, 1)]
 		public void CastToNullableCoreType_Regularly_ShouldReturnExpectedResult(int? value, int? expectedResult)
 		{
-			var intInstance = value is null ? (NestedIntValue?)null: new NestedIntValue(new IntValue(value.Value));
+			var intInstance = value is null ? (NestedIntValue?)null : new NestedIntValue(new IntValue(value.Value));
 			Assert.Equal(expectedResult, (int?)intInstance);
 
 			var decimalInstance = value is null ? null : new NestedDecimalValue(new DecimalValue(value.Value));
@@ -601,7 +601,7 @@ namespace Architect.DomainModeling.Tests
 		{
 			Assert.IsType<FormatAndParseTestingIntWrapper>(Deserialize<FormatAndParseTestingIntWrapper, int>(value));
 			Assert.Equal(value, Deserialize<FormatAndParseTestingIntWrapper, int>(value).Value.Value);
-			
+
 			Assert.IsType<FormatAndParseTestingStringWrapper>(Deserialize<FormatAndParseTestingStringWrapper, string>(value.ToString()));
 			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringWrapper, string>(value.ToString()).Value.Value.Value.Value);
 		}
@@ -841,6 +841,16 @@ namespace Architect.DomainModeling.Tests
 			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
 			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable`1");
 		}
+
+		/// <summary>
+		/// A multi-param ctor with the 2nd and further parameters optional should prevent the single-param ctor from being generated.
+		/// </summary>
+		[Fact]
+		public void Construct_WithManualConstructorWithSecondParamOptional_ShouldUseThat()
+		{
+			var result = new ManualCtorIntWrapper(1);
+			Assert.Equal(Int32.MinValue, result.Value); // Hand-written ctor should have been used
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -1043,6 +1053,15 @@ namespace Architect.DomainModeling.Tests
 			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
 			{
 				throw new Exception("Serialization should have delegated to the wrapped value.");
+			}
+		}
+		[WrapperValueObject<int>]
+		internal partial struct ManualCtorIntWrapper
+		{
+			public ManualCtorIntWrapper(int value, string? paramName = null)
+			{
+				this.Value = value is Int32.MinValue ? value : Int32.MinValue;
+				_ = paramName;
 			}
 		}
 
