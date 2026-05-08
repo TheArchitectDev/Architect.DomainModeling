@@ -192,9 +192,7 @@ public class WrapperValueObjectGenerator : SourceGenerator
 
 		existingComponents |= WrapperValueObjectTypeComponents.UnsettableValue.If(members.Any(member => member.Name == "Value" && member is not IFieldSymbol && member is not IPropertySymbol { SetMethod: not null }));
 
-		existingComponents |= WrapperValueObjectTypeComponents.Constructor.If(type.InstanceConstructors.Any(ctor =>
-			ctor.Parameters.Length >= 1 && (ctor.Parameters.Length is 1 || ctor.Parameters[1].HasExplicitDefaultValue) && // Callable with exactly 1 parameter
-			ctor.Parameters[0].Type.Equals(underlyingType, SymbolEqualityComparer.Default)));
+		existingComponents |= WrapperValueObjectTypeComponents.Constructor.If(type.InstanceConstructors.Any(ctor => ctor is { Parameters.Length: >= 1, DeclaringSyntaxReferences.Length: > 0, }));
 
 		existingComponents |= WrapperValueObjectTypeComponents.NullableConstructor.If(underlyingType.IsValueType && type.InstanceConstructors.Any(ctor =>
 			ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.IsNullableOf(underlyingType)));

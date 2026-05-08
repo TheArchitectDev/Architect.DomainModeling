@@ -410,7 +410,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		{
 			protected sealed override StringComparison StringComparison { get; }
 
-			public StringWrapperValueObject(string value, StringComparison stringComparison)
+			public StringWrapperValueObject(string value, StringComparison stringComparison = default)
 			{
 				this.Value = value ?? throw new ArgumentNullException(nameof(value));
 				this.StringComparison = stringComparison.AsDefined();

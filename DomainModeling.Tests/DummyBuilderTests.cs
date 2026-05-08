@@ -136,7 +136,12 @@ namespace Architect.DomainModeling.Tests
 		[WrapperValueObject<decimal>]
 		public sealed partial class Amount
 		{
-			// The type's simplest non-default constructor should be used by the builder. It is source-generated.
+			// The type's simplest non-default constructor should be used by the builder
+
+			public Amount(decimal value)
+			{
+				this.Value = value;
+			}
 
 			[Obsolete("Just here to confirm that the generated source code is not invoking it.", error: true)]
 			public Amount(decimal value, string moreComplexConstructor)

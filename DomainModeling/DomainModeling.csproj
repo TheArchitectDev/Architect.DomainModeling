@@ -52,10 +52,10 @@ Completed support for nested wrappers:
 - BREAKING: IIdentityConfigurator/IWrapperValueObjectConfigurator now receive additional method type parameter TCore.
 
 Correct string comparisons with EF via ConfigureIdentityConventions()/ConfigureWrapperValueObjectConventions():
-- Feature: These now set a PROVIDER value comparer for each string wrapper property, matching type's case-sensitivity. Since EF Core 7, EF compares keys using provider type instead of model type.
-- Feature: These now warn if a string wrapper property has a collation mismatching the type's case-sensitivity (unless collation is explicit).
+- Feature: These now set PROVIDER value comparer for each string wrapper property, matching type's case-sensitivity. Since EF Core 7, EF compares keys using provider type, not model type.
+- Feature: These now warn if string wrapper property has collation mismatching model's case-sensitivity (unless collation is explicit).
 - Feature: These now accept "options" parameter, which allows specifying collations for case-sensitive vs. ignore-case string wrappers.
-- Feature: ConfigureDomainModelConventions() now has convenience extension methods CustomizeIdentityConventions()/CustomizeWrapperValueObjectConventions(), for easy custom conventions, such as based on core underlying type.
+- Feature: ConfigureDomainModelConventions() now has convenience extensions CustomizeIdentityConventions()/CustomizeWrapperValueObjectConventions(), for easy custom conventions, e.g. based on core underlying type.
 
 Performance:
 - Enhancement: Reduced assembly size: generic JSON serializers instead of generated ones.
@@ -67,6 +67,7 @@ Misc:
 - Semi-breaking: Entity&lt;TId&gt; now has ID-based ==/!=.
 - Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", to better reveal mistakes.
 - Semi-breaking: IIdentity implements IWrapperValueObject.
+- Semi-breaking: Wrappers/Identities generate no parameterized ctor if ANY parameterized exists.
 - Feature: Analyzer and extensions for defined enums.
 - Feature: Non-generic Wrapper/Identity interfaces.
 - Feature: DummyBuilder records cloned on each step, for reuse.
@@ -75,7 +76,7 @@ Misc:
 - Feature: Analyzer warns if field initializers might be skipped.
 - Fixed: Source-generated default ctor should not exist in case of primary ctor or lacking base default ctor.
 - Fixed: Source-generated records would ignore hand-written ToString()/Equals()/GetHashCode().
-- Fixed: Source-generated Wrappers/Identities would not recognize manual member implementations if they were explicit interface implementations.
+- Fixed: Source-generated Wrappers/Identities would not recognize manual explicit interface implementations.
 - Fixed: DummyBuilder generator would struggle with nested types.
 - Fixed: "No source generation on nested type" warning would not show.
 - Fixed: Custom attribute inheritance.

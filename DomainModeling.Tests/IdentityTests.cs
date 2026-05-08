@@ -943,6 +943,11 @@ namespace Architect.DomainModeling.Tests
 		[IdentityValueObject<FormatAndParseTestingIntWrapper>]
 		internal readonly partial struct FormatAndParseTestingIntId
 		{
+			public FormatAndParseTestingIntId(FormatAndParseTestingIntWrapper? value)
+			{
+				this.Value = value;
+			}
+
 			public FormatAndParseTestingIntId(int value)
 			{
 				this.Value = new FormatAndParseTestingIntWrapper(value);
@@ -964,7 +969,7 @@ namespace Architect.DomainModeling.Tests
 		[IdentityValueObject<JsonTestingIntWrapper>]
 		internal readonly partial struct JsonTestingIntId
 		{
-			public JsonTestingIntId(FormatAndParseTestingIntWrapper _)
+			public JsonTestingIntId(JsonTestingIntWrapper? _)
 			{
 				throw new Exception("This constructor should not be used. This lets tests confirm that concerns such as deserialization correctly avoid constructors.");
 			}
