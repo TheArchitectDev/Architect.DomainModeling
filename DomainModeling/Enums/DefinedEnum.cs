@@ -30,8 +30,9 @@ public static class DefinedEnum
 	/// <param name="enumType">The enum's type.</param>
 	/// <param name="numericValue">The enum's numeric value, such as (Int128)(int)HttpStatusCode.OK.</param>
 	/// <param name="errorState">An optional error state to be passed to <see cref="ExceptionFactoryForUndefinedInput"/>.</param>
+	/// <returns>Pretends to return an <see cref="Exception"/>, to facilitate use in expressions (e.g. switch expression), where a result or a throw is required.</returns>
 	[DoesNotReturn]
-	public static void ThrowUndefinedInput(Type enumType, Int128 numericValue, string? errorState = null)
+	public static Exception ThrowUndefinedInput(Type enumType, Int128 numericValue, string? errorState = null)
 	{
 		throw ExceptionFactoryForUndefinedInput?.Invoke(enumType, numericValue, errorState) ?? new ArgumentException($"Only recognized {enumType.Name} values are permitted.");
 	}
@@ -46,11 +47,12 @@ public static class DefinedEnum
 	/// </summary>
 	/// <param name="value">The enum's value.</param>
 	/// <param name="errorState">An optional error state to be passed to <see cref="ExceptionFactoryForUndefinedInput"/>.</param>
+	/// <returns>Pretends to return <typeparamref name="TEnum"/>, to facilitate use in expressions (e.g. switch expression), where a result or a throw is required.</returns>
 	[DoesNotReturn]
-	public static void ThrowUndefinedInput<TEnum>(TEnum value, string? errorState = null)
+	public static TEnum ThrowUndefinedInput<TEnum>(TEnum value, string? errorState = null)
 		where TEnum : unmanaged, Enum
 	{
-		ThrowUndefinedInput(typeof(TEnum), value.GetNumericValue(), errorState);
+		throw ThrowUndefinedInput(typeof(TEnum), value.GetNumericValue(), errorState);
 	}
 
 	/// <summary>

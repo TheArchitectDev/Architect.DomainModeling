@@ -40,7 +40,7 @@ Platforms:
 The base class is dead - long live the interface!
 - Feature: Generated [Wrapper]ValueObjects can now be structs. Unvalidated instances avoided via analyzer warning on `default`.
 - Feature: Generated [Wrapper]ValueObjects can now be records or use custom base.
-- BREAKING: [Wrapper]ValueObject generator replaced base class by interface. StringComparison property should drop "override" and become private.
+- BREAKING: [Wrapper]ValueObject gen replaced base class by interface. StringComparison property should drop "override" and become private.
 - BREAKING: Lack of ValueObject base class requires the string validation methods to be accessed via ValueObjectStringValidator class.
 - BREAKING: Entity&lt;TId, TPrimitive&gt; type params moved from base class to attribute.
 
@@ -67,18 +67,18 @@ Misc:
 - Semi-breaking: Entity&lt;TId&gt; now has ID-based ==/!=.
 - Semi-breaking: IFormattable &amp; co for string wrappers have stopped treating null strings as "", to better reveal mistakes.
 - Semi-breaking: IIdentity implements IWrapperValueObject.
-- Semi-breaking: Wrappers/Identities generate no parameterized ctor if ANY parameterized exists.
+- Semi-breaking: Wrappers/Identities generate no parameterized ctor if ANY ctor has params.
 - Feature: Analyzer and extensions for defined enums.
 - Feature: Non-generic Wrapper/Identity interfaces.
-- Feature: DummyBuilder records cloned on each step, for reuse.
-- Feature: Analyzer warns when '==' or similar operator implicitly casts some IValueObject to something else. Avoids accidentally comparing unrelated types.
+- Feature: DummyBuilder RECORDS cloned on each step, for reuse.
+- Feature: Analyzer warns when '==' or similar implicitly casts some IValueObject to something else, to Avoid incorrect comparison.
 - Feature: Analyzer warns when '&gt;' or similar operator risks unintended null handling.
 - Feature: Analyzer warns if field initializers might be skipped.
 - Fixed: Source-generated default ctor should not exist in case of primary ctor or lacking base default ctor.
 - Fixed: Source-generated records would ignore hand-written ToString()/Equals()/GetHashCode().
-- Fixed: Source-generated Wrappers/Identities would not recognize manual explicit interface implementations.
-- Fixed: DummyBuilder generator would struggle with nested types.
-- Fixed: "No source generation on nested type" warning would not show.
+- Fixed: Source-generated Wrappers/Identities would ignore hand-written explicit interface implementations.
+- Fixed: DummyBuilder gen would struggle with nested types.
+- Fixed: "No source gen on nested type" warning would not show.
 - Fixed: Custom attribute inheritance.
 - Enhancement: CompilerGeneratedAttribute throughout.
 - Enhancement: DebuggerDisplay for Wrappers/Identities.
