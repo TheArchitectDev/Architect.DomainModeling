@@ -11,12 +11,20 @@ public class DummyBuilderGenerator : SourceGenerator
 {
 	public override void Initialize(IncrementalGeneratorInitializationContext context)
 	{
-		var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
+		// Find all builders in the project being built, including those requiring source generation
+		var builderProvider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
 			.Where(builder => builder is not null)
 			.DeduplicatePartials()
 			.Collect();
 
-		context.RegisterSourceOutput(provider.Combine(context.CompilationProvider), GenerateSource!);
+		// Find all existing builders in the assemblies referenced by the project
+		var existingDummyBuilderProvider = context.CompilationProvider
+			.SelectMany(DiscoverExistingDummyBuilders)
+			.Collect();
+
+		var dataProvider = builderProvider.Combine(existingDummyBuilderProvider);
+
+		context.RegisterSourceOutput(dataProvider.Combine(context.CompilationProvider), GenerateSource!);
 	}
 
 	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
@@ -84,19 +92,67 @@ public class DummyBuilderGenerator : SourceGenerator
 		return result;
 	}
 
-	private static void GenerateSource(SourceProductionContext context, (ImmutableArray<Builder> Builders, Compilation Compilation) input)
+	private static ImmutableArray<(string ModelTypeName, string BuilderTypeName)> DiscoverExistingDummyBuilders(Compilation compilation, CancellationToken cancellationToken)
+	{
+		var result = ImmutableArray.CreateBuilder<(string, string)>();
+
+		foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			VisitNamespace(assembly.GlobalNamespace, result, cancellationToken);
+		}
+
+		return result.ToImmutable();
+
+		// Recursive local function that looks for DummyBuilders in a namespace
+		static void VisitNamespace(INamespaceSymbol ns, ImmutableArray<(string, string)>.Builder result, CancellationToken cancellationToken)
+		{
+			foreach (var type in ns.GetTypeMembers())
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+
+				if (type.IsAbstract || type.IsGenericType || type.TypeKind is not TypeKind.Class)
+					continue;
+
+				foreach (var attribute in type.GetAttributes())
+				{
+					// Match by name only — avoid taking a symbol dependency on the attribute type itself
+					if (attribute.AttributeClass is not { Name: "DummyBuilderAttribute", Arity: 1, } attributeClass)
+						continue;
+
+					// The T in DummyBuilder<T> is a type argument on the attribute class
+					if (attributeClass.TypeArguments[0] is not INamedTypeSymbol modelType)
+						continue;
+
+					result.Add((modelType.GetFullMetadataName(), type.GetFullMetadataName()));
+					break; // Attribute occurs at most once per type
+				}
+			}
+
+			foreach (var nestedNamespace in ns.GetNamespaceMembers())
+				VisitNamespace(nestedNamespace, result, cancellationToken);
+		}
+	}
+
+	private static void GenerateSource(SourceProductionContext context, ((ImmutableArray<Builder> Builders, ImmutableArray<(string ModelTypeName, string BuilderTypeName)> ExistingBuilders) Data, Compilation Compilation) input)
 	{
 		context.CancellationToken.ThrowIfCancellationRequested();
 
-		var builders = input.Builders.ToList();
+		var builders = input.Data.Builders.ToList();
+		var existingBuilders = input.Data.ExistingBuilders;
 		var compilation = input.Compilation;
 
-		var concreteBuilderTypesByModel = builders
+		var concreteBuilderTypesWithModel = builders
 			.Where(builder => !builder.IsAbstract && !builder.IsGeneric) // Concrete only
-			.GroupBy(builder => builder.ModelTypeFullMetadataName) // Deduplicate
-			.Select(group => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(group.Key), compilation.GetTypeByMetadataName(group.First().TypeFullMetadataName)?.ToString()!))
+			.Select(builder => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(builder.ModelTypeFullMetadataName), compilation.GetTypeByMetadataName(builder.TypeFullMetadataName)?.ToString()!));
+
+		var existingBuilderTypesWithModel = existingBuilders
+			.Select(pair => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(pair.ModelTypeName), compilation.GetTypeByMetadataName(pair.BuilderTypeName)?.ToString()!));
+
+		var concreteBuilderTypesByModel = concreteBuilderTypesWithModel.Concat(existingBuilderTypesWithModel)
 			.Where(pair => pair.Key is not null && pair.Value is not null)
-			.ToDictionary<KeyValuePair<ITypeSymbol?, string>, ITypeSymbol, string>(pair => pair.Key!, pair => pair.Value, SymbolEqualityComparer.Default);
+			.GroupBy(pair => pair.Key!, pair => pair.Value, (IEqualityComparer<ITypeSymbol>)SymbolEqualityComparer.Default) // Deduplicate
+			.ToDictionary(group => group.Key, group => group.First(), (IEqualityComparer<ITypeSymbol>)SymbolEqualityComparer.Default);
 
 		// Remove models for which multiple builders exist
 		{
@@ -331,6 +387,7 @@ namespace {containingNamespace}
 			return null;
 
 		var result = namedTypeSymbol.Constructors
+			.OrderBy(ctor => ctor.Parameters.All(param => param.RefKind is RefKind.None) ? 0 : 1) // Regular before by-ref (e.g. out param)
 			.OrderByDescending(ctor => ctor.DeclaredAccessibility) // Most accessible first
 			.ThenBy(ctor => ctor.Parameters.Length > 0 ? 0 : 1) // Prefer a non-default ctor
 			.ThenBy(ctor => ctor.Parameters.Length) // Shortest first (the most basic non-default option)
@@ -343,6 +400,7 @@ namespace {containingNamespace}
 	{
 		public string TypeFullMetadataName { get; set; } = null!;
 		public string ModelTypeFullMetadataName { get; set; } = null!;
+
 		public bool IsPartial { get; set; }
 		public bool IsRecord { get; set; }
 		public bool IsClass { get; set; }

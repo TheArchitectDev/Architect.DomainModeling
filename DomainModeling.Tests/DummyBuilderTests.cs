@@ -78,6 +78,12 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("FirstName", result.FirstName.Value); // Generated wrapper
 			Assert.Equal("LastName", result.LastName.Value); // Manual wrapper
 		}
+
+		[Fact]
+		public void Build_WithCtorParamForWhichThereIsExternalDummyBuilder_ShouldUseThatBuilder()
+		{
+			Assert.Throws<NotSupportedException>(() => new DummyBuilderRelyingOnExternalDummyBuilder().Build());
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -230,6 +236,21 @@ namespace Architect.DomainModeling.Tests
 
 		[DummyBuilder<Lazy<string>>]
 		public sealed partial record class GenericTestingDummyBuilder
+		{
+		}
+
+		public sealed class EntityRelyingOnExternalType
+		{
+			public IDummyBuilder Whatever { get; }
+
+			public EntityRelyingOnExternalType(IDummyBuilder whatever)
+			{
+				this.Whatever = whatever;
+			}
+		}
+
+		[DummyBuilder<EntityRelyingOnExternalType>]
+		public sealed partial record class DummyBuilderRelyingOnExternalDummyBuilder
 		{
 		}
 	}

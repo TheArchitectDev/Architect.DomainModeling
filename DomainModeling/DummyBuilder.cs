@@ -24,3 +24,12 @@ public abstract class DummyBuilder<TModel, TModelBuilder>
 
 	public abstract TModel Build();
 }
+
+[DummyBuilder<IDummyBuilder>]
+internal sealed class ExampleDummyBuilder
+{
+	public IDummyBuilder Build()
+	{
+		throw new NotSupportedException("This type exists for Architect.DomainModeling.Tests only.");
+	}
+}
