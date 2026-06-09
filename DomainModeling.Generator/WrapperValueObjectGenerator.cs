@@ -194,8 +194,8 @@ public class WrapperValueObjectGenerator : SourceGenerator
 
 		existingComponents |= WrapperValueObjectTypeComponents.Constructor.If(type.InstanceConstructors.Any(ctor => ctor is { Parameters.Length: >= 1, DeclaringSyntaxReferences.Length: > 0, }));
 
-		existingComponents |= WrapperValueObjectTypeComponents.NullableConstructor.If(underlyingType.IsValueType && type.InstanceConstructors.Any(ctor =>
-			ctor.Parameters.Length == 1 && ctor.Parameters[0].Type.IsNullableOf(underlyingType)));
+		existingComponents |= WrapperValueObjectTypeComponents.NullableConstructor.If(underlyingType.IsValueType &&
+			type.InstanceConstructors.Any(ctor => ctor is { Parameters.Length: >= 1, DeclaringSyntaxReferences.Length: > 0, }));
 
 		existingComponents |= WrapperValueObjectTypeComponents.DefaultConstructor.If(
 			type.InstanceConstructors.Any(ctor => ctor.Parameters.Length == 0 && ctor.DeclaringSyntaxReferences.Length > 0) ||
