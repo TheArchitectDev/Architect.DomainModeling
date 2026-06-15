@@ -47,9 +47,9 @@ public static class DefinedEnum
 	/// </summary>
 	/// <param name="value">The enum's value.</param>
 	/// <param name="errorState">An optional error state to be passed to <see cref="ExceptionFactoryForUndefinedInput"/>.</param>
-	/// <returns>Pretends to return <typeparamref name="TEnum"/>, to facilitate use in expressions (e.g. switch expression), where a result or a throw is required.</returns>
+	/// <returns>Pretends to return an <see cref="Exception"/>, to facilitate use in expressions (e.g. switch expression), where a result or a throw is required.</returns>
 	[DoesNotReturn]
-	public static TEnum ThrowUndefinedInput<TEnum>(TEnum value, string? errorState = null)
+	public static Exception ThrowUndefinedInput<TEnum>(TEnum value, string? errorState = null)
 		where TEnum : unmanaged, Enum
 	{
 		throw ThrowUndefinedInput(typeof(TEnum), value.GetNumericValue(), errorState);
