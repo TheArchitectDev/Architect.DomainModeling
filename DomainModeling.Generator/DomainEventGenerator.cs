@@ -30,7 +30,7 @@ public class DomainEventGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is ClassDeclarationSyntax or RecordDeclarationSyntax { ClassOrStructKeyword.ValueText: "class" })
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("DomainEvent"))
+			if (tds.HasAttributeWithInfix("Event"))
 				return true;
 		}
 
@@ -39,6 +39,8 @@ public class DomainEventGenerator : SourceGenerator
 
 	private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 	{
+		cancellationToken.ThrowIfCancellationRequested();
+
 		var model = context.SemanticModel;
 		var tds = (TypeDeclarationSyntax)context.Node;
 		var type = model.GetDeclaredSymbol(tds);
@@ -47,7 +49,7 @@ public class DomainEventGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("DomainEventAttribute", Constants.DomainModelingNamespace, arity: 0) is null)
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("DomainEventAttribute", "Architect", "DomainModeling", arity: 0, out _)) is null)
 			return null;
 
 		// Only concrete
@@ -65,15 +67,15 @@ public class DomainEventGenerator : SourceGenerator
 		var result = new Generatable()
 		{
 			TypeLocation = type.Locations.FirstOrDefault(),
-			IsDomainObject = type.IsOrImplementsInterface(type => type.IsType(Constants.DomainObjectInterfaceName, Constants.DomainModelingNamespace, arity: 0), out _),
+			IsDomainObject = type.IsOrImplementsInterface(type => type.IsType("IDomainObject", "Architect", "DomainModeling", arity: 0), out _),
 			TypeName = type.Name, // Non-generic by filter
 			ContainingNamespace = type.ContainingNamespace.ToString(),
 		};
 
 		var existingComponents = DomainEventTypeComponents.None;
 
-		existingComponents |= DomainEventTypeComponents.DefaultConstructor.If(type.Constructors.Any(ctor =>
-			!ctor.IsStatic && ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
+		existingComponents |= DomainEventTypeComponents.DefaultConstructor.If(type.InstanceConstructors.Any(ctor =>
+			ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
 
 		result.ExistingComponents = existingComponents;
 
@@ -87,21 +89,21 @@ public class DomainEventGenerator : SourceGenerator
 		// Require the expected inheritance
 		if (!generatable.IsDomainObject)
 		{
-			context.ReportDiagnostic("DomainEventGeneratorUnexpectedInheritance", "Unexpected inheritance",
+			context.ReportDiagnostic("DomainEventGeneratorMissingInterface", "Missing IDomainObject interface",
 				"Type marked as domain event lacks IDomainObject interface.", DiagnosticSeverity.Warning, generatable.TypeLocation);
 			return;
 		}
 	}
 
 	[Flags]
-	internal enum DomainEventTypeComponents : ulong
+	internal enum DomainEventTypeComponents : byte
 	{
 		None = 0,
 
 		DefaultConstructor = 1 << 1,
 	}
 
-	internal sealed record Generatable : IGeneratable
+	internal sealed record Generatable
 	{
 		public bool IsDomainObject { get; set; }
 		public string TypeName { get; set; } = null!;

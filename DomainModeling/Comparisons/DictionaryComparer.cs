@@ -76,10 +76,12 @@ public static class DictionaryComparer
 	public static bool DictionaryEquals<TKey, TValue>(IReadOnlyDictionary<TKey, TValue>? left, IReadOnlyDictionary<TKey, TValue>? right)
 	{
 		// Devirtualized path for practically all dictionaries
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
 #pragma warning disable CS8714 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'notnull' constraint. -- Was type-checked
 		if (left is Dictionary<TKey, TValue> leftDict && right is Dictionary<TKey, TValue> rightDict)
 			return DictionaryEquals(leftDict, rightDict);
 #pragma warning restore CS8714 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'notnull' constraint.
+#pragma warning restore IDE0079
 
 		return GetResult(left, right);
 
@@ -115,10 +117,12 @@ public static class DictionaryComparer
 	public static bool DictionaryEquals<TKey, TValue>(IDictionary<TKey, TValue>? left, IDictionary<TKey, TValue>? right)
 	{
 		// Devirtualized path for practically all dictionaries
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
 #pragma warning disable CS8714 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'notnull' constraint. -- Was type-checked
 		if (left is Dictionary<TKey, TValue> leftDict && right is Dictionary<TKey, TValue> rightDict)
 			return DictionaryEquals(leftDict, rightDict);
 #pragma warning restore CS8714 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'notnull' constraint.
+#pragma warning restore IDE0079
 
 		return GetResult(left, right);
 

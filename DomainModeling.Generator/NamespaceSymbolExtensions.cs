@@ -8,17 +8,6 @@ namespace Architect.DomainModeling.Generator;
 internal static class NamespaceSymbolExtensions
 {
 	/// <summary>
-	/// Returns whether the given <see cref="INamedTypeSymbol"/> is or resides in the System namespace.
-	/// </summary>
-	public static bool IsInSystemNamespace(this INamespaceSymbol namespaceSymbol)
-	{
-		while (namespaceSymbol?.ContainingNamespace is not null)
-			namespaceSymbol = namespaceSymbol.ContainingNamespace;
-
-		return namespaceSymbol?.Name == "System";
-	}
-
-	/// <summary>
 	/// Returns whether the given <see cref="INamedTypeSymbol"/> has the given <paramref name="fullName"/>.
 	/// </summary>
 	public static bool HasFullName(this INamespaceSymbol? namespaceSymbol, string fullName)

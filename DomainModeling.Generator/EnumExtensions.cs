@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 
 namespace Architect.DomainModeling.Generator;
@@ -9,13 +8,6 @@ namespace Architect.DomainModeling.Generator;
 /// </summary>
 internal static class EnumExtensions
 {
-	static EnumExtensions()
-	{
-		// Required to get correct behavior in GetNumericValue, where we overlap the enum type with a ulong, left-aligned
-		if (!BitConverter.IsLittleEndian)
-			throw new NotSupportedException("This type is only supported on little-endian architectures.");
-	}
-
 	/// <summary>
 	/// Returns the source <see cref="Accessibility"/>, or <paramref name="minimumAccessibility"/> if the source was less than that.
 	/// </summary>
@@ -59,10 +51,14 @@ internal static class EnumExtensions
 	/// <code>myEnum |= MyEnum.SomeFlag.If(1 == 2);</code>
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static T If<T>(this T enumValue, bool condition)
 		where T : unmanaged, Enum
 	{
-		return condition ? enumValue : default;
+		// Branch-free implementation
+		ReadOnlySpan<T> values = stackalloc T[] { default, enumValue, };
+		var index = Unsafe.As<bool, byte>(ref condition);
+		return values[index];
 	}
 
 	/// <summary>
@@ -77,41 +73,49 @@ internal static class EnumExtensions
 	/// <code>myEnum |= MyEnum.SomeFlag.Unless(1 == 2);</code>
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static T Unless<T>(this T enumValue, bool condition)
 		where T : unmanaged, Enum
 	{
-		return condition ? default : enumValue;
+		// Branch-free implementation
+		ReadOnlySpan<T> values = stackalloc T[] { enumValue, default, };
+		var index = Unsafe.As<bool, byte>(ref condition);
+		return values[index];
 	}
 
 	/// <summary>
-	/// Efficiently returns whether the <paramref name="enumValue"/> has the given <paramref name="flag"/> set.
+	/// Efficiently returns whether the <paramref name="subject"/> has the given <paramref name="flag"/>(s) set.
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool HasFlags<T>(this T subject, T flag)
 		where T : unmanaged, Enum
 	{
-		var numericSubject = GetNumericValue(subject);
-		var numericFlag = GetNumericValue(flag);
+		var numericSubject = GetBinaryValue(subject);
+		var numericFlag = GetBinaryValue(flag);
 
 		return (numericSubject & numericFlag) == numericFlag;
 	}
 
 	/// <summary>
 	/// <para>
-	/// Returns the numeric value of the given <paramref name="enumValue"/>.
-	/// </para>
-	/// <para>
-	/// The resulting <see cref="UInt64"/> can be cast to the intended integral type, even if it is a signed type.
+	/// Returns the binary value of the given <paramref name="enumValue"/>, contained in a <see cref="UInt64"/>.
 	/// </para>
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static ulong GetNumericValue<T>(T enumValue)
+	private static ulong GetBinaryValue<T>(T enumValue)
 		where T : unmanaged, Enum
 	{
-		Span<ulong> ulongSpan = stackalloc ulong[] { 0UL };
-		var span = MemoryMarshal.Cast<ulong, T>(ulongSpan);
+		var result = 0UL;
 
-		span[0] = enumValue;
+		// TEnum could be shorter than 8 bytes
+		// Little-endian will automatically write into the least significant bytes, since those are on the left for little-endian
+		// For big-endian, they are on the right, so we need to look at the rightmost portion of the ulong, depending on size of TEnum
+		// For example, a ushort TEnum will look at the rightmost 2 bytes of the ulong
+		if (BitConverter.IsLittleEndian)
+			Unsafe.WriteUnaligned(ref Unsafe.As<ulong, byte>(ref result), enumValue);
+		else
+			Unsafe.WriteUnaligned(ref Unsafe.Add(ref Unsafe.As<ulong, byte>(ref result), sizeof(ulong) - Unsafe.SizeOf<T>()), enumValue);
 
-		return ulongSpan[0];
+		return result;
 	}
 }

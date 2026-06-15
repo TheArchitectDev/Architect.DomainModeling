@@ -6,7 +6,7 @@ public sealed partial class PaymentDummyBuilder
 {
 	// The source-generated partial defines a default value for each property, along with a fluent method to change it
 
-	private string Currency { get; set; } = "EUR"; // Since the source generator cannot guess a decent default currency, we specify it manually
+	private Currency Currency { get; set; } = new Currency("EUR"); // Since the source generator cannot guess a decent default currency, we specify it manually
 
 	// The source-generated partial defines a Build() method that invokes the most visible, simplest parameterized constructor
 }

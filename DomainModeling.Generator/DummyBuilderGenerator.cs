@@ -11,12 +11,20 @@ public class DummyBuilderGenerator : SourceGenerator
 {
 	public override void Initialize(IncrementalGeneratorInitializationContext context)
 	{
-		var provider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
+		// Find all builders in the project being built, including those requiring source generation
+		var builderProvider = context.SyntaxProvider.CreateSyntaxProvider(FilterSyntaxNode, TransformSyntaxNode)
 			.Where(builder => builder is not null)
 			.DeduplicatePartials()
 			.Collect();
 
-		context.RegisterSourceOutput(provider.Combine(context.CompilationProvider), GenerateSource!);
+		// Find all existing builders in the assemblies referenced by the project
+		var existingDummyBuilderProvider = context.CompilationProvider
+			.SelectMany(DiscoverExistingDummyBuilders)
+			.Collect();
+
+		var dataProvider = builderProvider.Combine(existingDummyBuilderProvider);
+
+		context.RegisterSourceOutput(dataProvider.Combine(context.CompilationProvider), GenerateSource!);
 	}
 
 	private static bool FilterSyntaxNode(SyntaxNode node, CancellationToken cancellationToken = default)
@@ -25,7 +33,7 @@ public class DummyBuilderGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is StructDeclarationSyntax or ClassDeclarationSyntax or RecordDeclarationSyntax)
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("DummyBuilder"))
+			if (tds.HasAttributeWithInfix("Builder"))
 				return true;
 		}
 
@@ -34,6 +42,8 @@ public class DummyBuilderGenerator : SourceGenerator
 
 	private static Builder? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 	{
+		cancellationToken.ThrowIfCancellationRequested();
+
 		var model = context.SemanticModel;
 		var tds = (TypeDeclarationSyntax)context.Node;
 		var type = model.GetDeclaredSymbol((TypeDeclarationSyntax)context.Node);
@@ -42,15 +52,15 @@ public class DummyBuilderGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("DummyBuilderAttribute", Constants.DomainModelingNamespace, arity: 1) is not AttributeData { AttributeClass: not null } attribute)
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("DummyBuilderAttribute", "Architect", "DomainModeling", arity: 1, out _)) is not { } attribute)
 			return null;
 
-		var modelType = attribute.AttributeClass.TypeArguments[0];
+		var modelType = attribute.TypeArguments[0];
 
 		var result = new Builder()
 		{
-			TypeFullyQualifiedName = type.ToString(),
-			ModelTypeFullyQualifiedName = modelType.ToString(),
+			TypeFullMetadataName = type.GetFullMetadataName(),
+			ModelTypeFullMetadataName = modelType is INamedTypeSymbol namedModelType ? namedModelType.GetFullMetadataName() : modelType.ToString(),
 			IsPartial = tds.Modifiers.Any(SyntaxKind.PartialKeyword),
 			IsRecord = type.IsRecord,
 			IsClass = type.TypeKind == TypeKind.Class,
@@ -82,24 +92,72 @@ public class DummyBuilderGenerator : SourceGenerator
 		return result;
 	}
 
-	private static void GenerateSource(SourceProductionContext context, (ImmutableArray<Builder> Builders, Compilation Compilation) input)
+	private static ImmutableArray<(string ModelTypeName, string BuilderTypeName)> DiscoverExistingDummyBuilders(Compilation compilation, CancellationToken cancellationToken)
+	{
+		var result = ImmutableArray.CreateBuilder<(string, string)>();
+
+		foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			VisitNamespace(assembly.GlobalNamespace, result, cancellationToken);
+		}
+
+		return result.ToImmutable();
+
+		// Recursive local function that looks for DummyBuilders in a namespace
+		static void VisitNamespace(INamespaceSymbol ns, ImmutableArray<(string, string)>.Builder result, CancellationToken cancellationToken)
+		{
+			foreach (var type in ns.GetTypeMembers())
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+
+				if (type.IsAbstract || type.IsGenericType || type.TypeKind is not TypeKind.Class)
+					continue;
+
+				foreach (var attribute in type.GetAttributes())
+				{
+					// Match by name only — avoid taking a symbol dependency on the attribute type itself
+					if (attribute.AttributeClass is not { Name: "DummyBuilderAttribute", Arity: 1, } attributeClass)
+						continue;
+
+					// The T in DummyBuilder<T> is a type argument on the attribute class
+					if (attributeClass.TypeArguments[0] is not INamedTypeSymbol modelType)
+						continue;
+
+					result.Add((modelType.GetFullMetadataName(), type.GetFullMetadataName()));
+					break; // Attribute occurs at most once per type
+				}
+			}
+
+			foreach (var nestedNamespace in ns.GetNamespaceMembers())
+				VisitNamespace(nestedNamespace, result, cancellationToken);
+		}
+	}
+
+	private static void GenerateSource(SourceProductionContext context, ((ImmutableArray<Builder> Builders, ImmutableArray<(string ModelTypeName, string BuilderTypeName)> ExistingBuilders) Data, Compilation Compilation) input)
 	{
 		context.CancellationToken.ThrowIfCancellationRequested();
 
-		var builders = input.Builders.ToList();
+		var builders = input.Data.Builders.ToList();
+		var existingBuilders = input.Data.ExistingBuilders;
 		var compilation = input.Compilation;
 
-		var concreteBuilderTypesByModel = builders
+		var concreteBuilderTypesWithModel = builders
 			.Where(builder => !builder.IsAbstract && !builder.IsGeneric) // Concrete only
-			.GroupBy(builder => builder.ModelTypeFullyQualifiedName) // Deduplicate
-			.Select(group => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(group.Key), group.First().TypeFullyQualifiedName))
-			.Where(pair => pair.Key is not null)
-			.ToDictionary<KeyValuePair<ITypeSymbol?, string>, ITypeSymbol, string>(pair => pair.Key!, pair => pair.Value, SymbolEqualityComparer.Default);
+			.Select(builder => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(builder.ModelTypeFullMetadataName), compilation.GetTypeByMetadataName(builder.TypeFullMetadataName)?.ToString()!));
+
+		var existingBuilderTypesWithModel = existingBuilders
+			.Select(pair => new KeyValuePair<ITypeSymbol?, string>(compilation.GetTypeByMetadataName(pair.ModelTypeName), compilation.GetTypeByMetadataName(pair.BuilderTypeName)?.ToString()!));
+
+		var concreteBuilderTypesByModel = concreteBuilderTypesWithModel.Concat(existingBuilderTypesWithModel)
+			.Where(pair => pair.Key is not null && pair.Value is not null)
+			.GroupBy(pair => pair.Key!, pair => pair.Value, (IEqualityComparer<ITypeSymbol>)SymbolEqualityComparer.Default) // Deduplicate
+			.ToDictionary(group => group.Key, group => group.First(), (IEqualityComparer<ITypeSymbol>)SymbolEqualityComparer.Default);
 
 		// Remove models for which multiple builders exist
 		{
 			var buildersWithDuplicateModel = builders
-				.GroupBy(builder => builder.ModelTypeFullyQualifiedName)
+				.GroupBy(builder => builder.ModelTypeFullMetadataName)
 				.Where(group => group.Count() > 1)
 				.ToList();
 
@@ -110,7 +168,7 @@ public class DummyBuilderGenerator : SourceGenerator
 					builders.Remove(type);
 
 				context.ReportDiagnostic("DummyBuilderGeneratorDuplicateBuilders", "Duplicate builders",
-					$"Multiple dummy builders exist for {group.Key}. Source generation for these builders was skipped.", DiagnosticSeverity.Warning, compilation.GetTypeByMetadataName(group.Last().TypeFullyQualifiedName));
+					$"Multiple dummy builders exist for {group.Key}. Source generation for these builders was skipped.", DiagnosticSeverity.Warning, compilation.GetTypeByMetadataName(group.Last().TypeFullMetadataName));
 			}
 		}
 
@@ -118,9 +176,9 @@ public class DummyBuilderGenerator : SourceGenerator
 		{
 			context.CancellationToken.ThrowIfCancellationRequested();
 
-			var type = compilation.GetTypeByMetadataName(builder.TypeFullyQualifiedName);
-			var modelType = type?.GetAttribute("DummyBuilderAttribute", Constants.DomainModelingNamespace, arity: 1) is AttributeData { AttributeClass: not null } attribute
-				? attribute.AttributeClass.TypeArguments[0]
+			var type = compilation.GetTypeByMetadataName(builder.TypeFullMetadataName);
+			var modelType = type?.GetAttribute(attr => attr.IsOrInheritsClass("DummyBuilderAttribute", "Architect", "DomainModeling", arity: 1, out _)) is { } attribute
+				? attribute.TypeArguments[0]
 				: null;
 
 			// No source generation, only above analyzers
@@ -135,7 +193,7 @@ public class DummyBuilderGenerator : SourceGenerator
 			if (type is null)
 			{
 				context.ReportDiagnostic("DummyBuilderGeneratorUnexpectedType", "Unexpected type",
-					$"Type marked as dummy builder has unexpected type '{builder.TypeFullyQualifiedName}'.", DiagnosticSeverity.Warning, type);
+					$"Type marked as dummy builder has unexpected type '{builder.TypeFullMetadataName}'.", DiagnosticSeverity.Warning, type);
 				continue;
 			}
 
@@ -143,7 +201,7 @@ public class DummyBuilderGenerator : SourceGenerator
 			if (modelType is null)
 			{
 				context.ReportDiagnostic("DummyBuilderGeneratorUnexpectedModelType", "Unexpected model type",
-					$"Type marked as dummy builder has unexpected model type '{builder.ModelTypeFullyQualifiedName}'.", DiagnosticSeverity.Warning, type);
+					$"Type marked as dummy builder has unexpected model type '{builder.ModelTypeFullMetadataName}'.", DiagnosticSeverity.Warning, type);
 				continue;
 			}
 
@@ -218,55 +276,55 @@ public class DummyBuilderGenerator : SourceGenerator
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		private {param.Type.WithNullableAnnotation(NullableAnnotation.None)} {memberName} {{ get; set; }} = {param.Type.CreateDummyInstantiationExpression(param.Name == "value" ? param.ContainingType.Name : param.Name, concreteBuilderTypesByModel.Keys, type => $"new {concreteBuilderTypesByModel[type]}().Build()")};");
 
-					concreteBuilderTypesByModel.Add(modelType, builder.TypeFullyQualifiedName);
+					concreteBuilderTypesByModel.Add(modelType, builder.TypeFullMetadataName);
 				}
 
 				if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.Equals(param.Type, SymbolEqualityComparer.Default)))
 					componentBuilder.Append("// ");
 				componentBuilder.AppendLine($"		public {typeName} With{memberName}({param.Type.WithNullableAnnotation(NullableAnnotation.None)} value) => this.With(b => b.{memberName} = value);");
 
-				foreach (var primitiveType in param.Type.GetAvailableConversionsFromPrimitives(skipForSystemTypes: true))
+				foreach (var (primitiveSpecialType, primitiveType) in param.Type.EnumerateAvailableConversionsFromPrimitives(skipForSpecialTypes: true))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType(primitiveType)))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == primitiveSpecialType))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}({primitiveType} value, bool _ = false) => this.With{memberName}(({param.Type.WithNullableAnnotation(NullableAnnotation.None)})value);");
 				}
 
-				if (param.Type.IsType<DateTime>() || param.Type.IsType<DateTimeOffset>())
+				if (param.Type.SpecialType == SpecialType.System_DateTime || param.Type.IsSystemType("DateTimeOffset"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));");
 				}
-				if (param.Type.IsNullable(out var underlyingType) && (underlyingType.IsType<DateTime>() || underlyingType.IsType<DateTimeOffset>()))
+				if (param.Type.IsNullable(out var underlyingType) && (underlyingType.SpecialType == SpecialType.System_DateTime || underlyingType.IsSystemType("DateTimeOffset")))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));");
 				}
 
-				if (param.Type.IsType("DateOnly", "System"))
+				if (param.Type.IsSystemType("DateOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(DateOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}
-				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsType("DateOnly", "System"))
+				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsSystemType("DateOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : DateOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}
 
-				if (param.Type.IsType("TimeOnly", "System"))
+				if (param.Type.IsSystemType("TimeOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value) => this.With{memberName}(TimeOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}
-				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsType("TimeOnly", "System"))
+				if (param.Type.IsNullable(out underlyingType) && underlyingType.IsSystemType("TimeOnly"))
 				{
-					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.IsType<string>()))
+					if (membersByName[$"With{memberName}"].Any(member => member is IMethodSymbol method && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_String))
 						componentBuilder.Append("// ");
 					componentBuilder.AppendLine($"		public {typeName} With{memberName}(System.String value, bool _ = false) => this.With{memberName}(value is null ? null : TimeOnly.Parse(value, CultureInfo.InvariantCulture));");
 				}
@@ -276,10 +334,15 @@ public class DummyBuilderGenerator : SourceGenerator
 			var joinedComponents = String.Join($"{Environment.NewLine}", components);
 
 			var source = $@"
+// <auto-generated/>
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Runtime.CompilerServices;
+using {modelType.Name} = {modelType};
 
 #nullable disable
 
@@ -287,27 +350,28 @@ namespace {containingNamespace}
 {{
 	/// <summary>
 	/// <para>
-	/// Implements the Builder pattern to construct <see cref=""{modelType.ToString().Replace("<", "{").Replace(">", "}")}""/> objects for testing purposes.
+	/// Implements the Builder pattern to construct <see cref=""{modelType.Name.ToString().Replace("<", "{").Replace(">", "}")}""/> objects for testing purposes.
 	/// </para>
 	/// <para>
 	/// Where production code relies on the type's constructor, test code can rely on this builder.
 	/// That way, if the constructor changes, only the builder needs to be adjusted, rather than lots of test methods.
 	/// </para>
 	/// </summary>
-	/* Generated */ {type.DeclaredAccessibility.ToCodeString()} partial{(builder.IsRecord ? " record" : "")} class {typeName}
+	[CompilerGenerated] {type.DeclaredAccessibility.ToCodeString()} partial {(builder.IsRecord ? "record " : "")}class {typeName} : IDummyBuilder<{modelType.Name}>
 	{{
 {joinedComponents}
 
 		private {typeName} With(Action<{typeName}> assignment)
 		{{
-			assignment(this);
-			return this;
+			var instance = this{(builder.IsRecord ? " with { }" : "")}; // If the type is a record, a copy is made, to enable reuse per step
+			assignment(instance);
+			return instance;
 		}}
 
 		{(hasBuildMethod ? "/*" : "")}
-		public {modelType} Build()
+		public {modelType.Name} Build()
 		{{
-			var result = new {modelType}(
+			var result = new {modelType.Name}(
 				{modelCtorParams});
 			return result;
 		}}
@@ -326,6 +390,7 @@ namespace {containingNamespace}
 			return null;
 
 		var result = namedTypeSymbol.Constructors
+			.OrderBy(ctor => ctor.Parameters.All(param => param.RefKind is RefKind.None) ? 0 : 1) // Regular before by-ref (e.g. out param)
 			.OrderByDescending(ctor => ctor.DeclaredAccessibility) // Most accessible first
 			.ThenBy(ctor => ctor.Parameters.Length > 0 ? 0 : 1) // Prefer a non-default ctor
 			.ThenBy(ctor => ctor.Parameters.Length) // Shortest first (the most basic non-default option)
@@ -334,10 +399,11 @@ namespace {containingNamespace}
 		return result;
 	}
 
-	private sealed record Builder : IGeneratable
+	private sealed record Builder
 	{
-		public string TypeFullyQualifiedName { get; set; } = null!;
-		public string ModelTypeFullyQualifiedName { get; set; } = null!;
+		public string TypeFullMetadataName { get; set; } = null!;
+		public string ModelTypeFullMetadataName { get; set; } = null!;
+
 		public bool IsPartial { get; set; }
 		public bool IsRecord { get; set; }
 		public bool IsClass { get; set; }

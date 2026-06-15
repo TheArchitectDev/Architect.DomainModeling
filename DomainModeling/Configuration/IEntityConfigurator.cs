@@ -16,6 +16,7 @@ public interface IEntityConfigurator
 			in Args args)
 		where TEntity : IEntity;
 
+	[SuppressMessage("Style", "IDE0040:Remove accessibility modifiers", Justification = "We always want explicit accessibility for types")]
 	public readonly struct Args
 	{
 		public bool HasDefaultConstructor { get; init; }

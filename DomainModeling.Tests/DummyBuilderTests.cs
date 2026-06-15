@@ -20,6 +20,29 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Fact]
+		public void Build_WithReuseOfRecordTypedBuilder_ShouldReturnExpectedResult()
+		{
+			var builder = new TestEntityDummyBuilder()
+				.WithCount(5);
+
+			var result1 = builder
+				.WithCreationDate(DateOnly.FromDateTime(DateTime.UnixEpoch))
+				.Build();
+
+			var result2 = builder
+				.WithModificationDateTime(DateTime.UnixEpoch)
+				.Build();
+
+			Assert.Equal(5, result1.Count);
+			Assert.Equal(DateOnly.FromDateTime(DateTime.UnixEpoch), result1.CreationDate);
+			Assert.NotEqual(DateTime.UnixEpoch, result1.ModificationDateTime);
+
+			Assert.Equal(5, result2.Count);
+			Assert.NotEqual(DateOnly.FromDateTime(DateTime.UnixEpoch), result2.CreationDate);
+			Assert.Equal(DateTime.UnixEpoch, result2.ModificationDateTime);
+		}
+
+		[Fact]
 		public void Build_WithCustomizations_ShouldReturnExpectedResult()
 		{
 			var expectedCreationDateTime = new DateTime(3000, 01, 01, 00, 00, 00, DateTimeKind.Utc).ToLocalTime();
@@ -55,6 +78,12 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("FirstName", result.FirstName.Value); // Generated wrapper
 			Assert.Equal("LastName", result.LastName.Value); // Manual wrapper
 		}
+
+		[Fact]
+		public void Build_WithCtorParamForWhichThereIsExternalDummyBuilder_ShouldUseThatBuilder()
+		{
+			Assert.Throws<NotSupportedException>(() => new DummyBuilderRelyingOnExternalDummyBuilder().Build());
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -62,14 +91,14 @@ namespace Architect.DomainModeling.Tests
 	namespace DummyBuilderTestTypes
 	{
 		[DummyBuilder<TestEntity>]
-		public sealed partial class TestEntityDummyBuilder
+		public sealed partial record class TestEntityDummyBuilder
 		{
 			// Demonstrate that we can take priority over the generated members
 			public TestEntityDummyBuilder WithCreationDateTime(DateTime value) => this.With(b => b.CreationDateTime = value);
 		}
 
-		[Entity]
-		public sealed class TestEntity : Entity<TestEntityId, string>
+		[Entity<TestEntityId, string>]
+		public sealed class TestEntity : Entity<TestEntityId>
 		{
 			public DateTime CreationDateTime { get; }
 			public DateOnly CreationDate { get; }
@@ -113,7 +142,12 @@ namespace Architect.DomainModeling.Tests
 		[WrapperValueObject<decimal>]
 		public sealed partial class Amount
 		{
-			// The type's simplest non-default constructor should be used by the builder. It is source-generated.
+			// The type's simplest non-default constructor should be used by the builder
+
+			public Amount(decimal value)
+			{
+				this.Value = value;
+			}
 
 			[Obsolete("Just here to confirm that the generated source code is not invoking it.", error: true)]
 			public Amount(decimal value, string moreComplexConstructor)
@@ -123,8 +157,10 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[ValueObject]
-		public sealed partial class Money
+		public sealed partial class Money : ValueObject
 		{
+			protected override StringComparison StringComparison => StringComparison.Ordinal;
+
 			public string Currency { get; private init; }
 			public Amount Amount { get; private init; }
 
@@ -195,6 +231,26 @@ namespace Architect.DomainModeling.Tests
 
 		[DummyBuilder<StringWrapperTestingEntity>]
 		public sealed partial class StringWrapperTestingDummyBuilder
+		{
+		}
+
+		[DummyBuilder<Lazy<string>>]
+		public sealed partial record class GenericTestingDummyBuilder
+		{
+		}
+
+		public sealed class EntityRelyingOnExternalType
+		{
+			public IDummyBuilder Whatever { get; }
+
+			public EntityRelyingOnExternalType(IDummyBuilder whatever)
+			{
+				this.Whatever = whatever;
+			}
+		}
+
+		[DummyBuilder<EntityRelyingOnExternalType>]
+		public sealed partial record class DummyBuilderRelyingOnExternalDummyBuilder
 		{
 		}
 	}

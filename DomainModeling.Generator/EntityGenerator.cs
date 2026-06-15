@@ -30,7 +30,7 @@ public class EntityGenerator : SourceGenerator
 		if (node is TypeDeclarationSyntax tds && tds is ClassDeclarationSyntax or RecordDeclarationSyntax { ClassOrStructKeyword.ValueText: "class" })
 		{
 			// With relevant attribute
-			if (tds.HasAttributeWithPrefix("Entity"))
+			if (tds.HasAttributeWithInfix("Entity"))
 				return true;
 		}
 
@@ -39,6 +39,8 @@ public class EntityGenerator : SourceGenerator
 
 	private static Generatable? TransformSyntaxNode(GeneratorSyntaxContext context, CancellationToken cancellationToken = default)
 	{
+		cancellationToken.ThrowIfCancellationRequested();
+
 		var model = context.SemanticModel;
 		var tds = (TypeDeclarationSyntax)context.Node;
 		var type = model.GetDeclaredSymbol(tds);
@@ -47,7 +49,7 @@ public class EntityGenerator : SourceGenerator
 			return null;
 
 		// Only with the attribute
-		if (type.GetAttribute("EntityAttribute", Constants.DomainModelingNamespace, arity: 0) is null)
+		if (type.GetAttribute(attr => attr.IsOrInheritsClass("EntityAttribute", "Architect", "DomainModeling", out _)) is null)
 			return null;
 
 		// Only concrete
@@ -65,15 +67,15 @@ public class EntityGenerator : SourceGenerator
 		var result = new Generatable()
 		{
 			TypeLocation = type.Locations.FirstOrDefault(),
-			IsEntity = type.IsOrImplementsInterface(type => type.IsType(Constants.EntityInterfaceName, Constants.DomainModelingNamespace, arity: 0), out _),
+			IsEntity = type.IsOrImplementsInterface(type => type.IsType("IEntity", "Architect", "DomainModeling", arity: 0), out _),
 			TypeName = type.Name, // Non-generic by filter
 			ContainingNamespace = type.ContainingNamespace.ToString(),
 		};
 
 		var existingComponents = EntityTypeComponents.None;
 
-		existingComponents |= EntityTypeComponents.DefaultConstructor.If(type.Constructors.Any(ctor =>
-			!ctor.IsStatic && ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
+		existingComponents |= EntityTypeComponents.DefaultConstructor.If(type.InstanceConstructors.Any(ctor =>
+			ctor.Parameters.Length == 0 /*&& ctor.DeclaringSyntaxReferences.Length > 0*/));
 
 		result.ExistingComponents = existingComponents;
 
@@ -87,21 +89,21 @@ public class EntityGenerator : SourceGenerator
 		// Require the expected inheritance
 		if (!generatable.IsEntity)
 		{
-			context.ReportDiagnostic("EntityGeneratorUnexpectedInheritance", "Unexpected inheritance",
-				"Type marked as entity lacks IEntity interface.", DiagnosticSeverity.Warning, generatable.TypeLocation);
+			context.ReportDiagnostic("EntityGeneratorMissingInterface", "Missing IEntity interface",
+				"Type marked as entity lacks IEntity interface.", DiagnosticSeverity.Error, generatable.TypeLocation);
 			return;
 		}
 	}
 
 	[Flags]
-	internal enum EntityTypeComponents : ulong
+	internal enum EntityTypeComponents : byte
 	{
 		None = 0,
 
 		DefaultConstructor = 1 << 1,
 	}
 
-	internal sealed record Generatable : IGeneratable
+	internal sealed record Generatable
 	{
 		public bool IsEntity { get; set; }
 		public string TypeName { get; set; } = null!;

@@ -504,7 +504,7 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void StringComparison_WithNonStringType_ShouldThrow()
 		{
-			var instance = new IntValue(default, default);
+			var instance = new DecimalValue(default, default);
 
 			Assert.Throws<NotSupportedException>(() => instance.GetStringComparison());
 		}
@@ -549,11 +549,11 @@ namespace Architect.DomainModeling.Tests
 		[Fact]
 		public void GetHashCode_WithImmutableArray_ShouldReturnExpectedResult()
 		{
-			var one = new ImmutableArrayValueObject(new[] { "A" }).GetHashCode();
-			var two = new ImmutableArrayValueObject(new[] { "A" }).GetHashCode();
+			var one = new ImmutableArrayValueObject(["A"]).GetHashCode();
+			var two = new ImmutableArrayValueObject(["A"]).GetHashCode();
 			Assert.Equal(one, two);
 
-			var three = new ImmutableArrayValueObject(new[] { "a" }).GetHashCode();
+			var three = new ImmutableArrayValueObject(["a"]).GetHashCode();
 			Assert.NotEqual(one, three); // Note that the collection elements define their own GetHashCode() and do not care about the parent ValueObject's StringComparison value, by design
 		}
 
@@ -565,8 +565,8 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "B", true)] // Custom collection's hash code always returns 1
 		public void GetHashCode_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
-			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
-			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
+			var left = new CustomCollectionValueObject(one is null ? null : new CustomCollectionValueObject.CustomCollection(one));
+			var right = new CustomCollectionValueObject(two is null ? null : new CustomCollectionValueObject.CustomCollection(two));
 
 			var leftHashCode = left.GetHashCode();
 			var rightHashCode = right.GetHashCode();
@@ -628,8 +628,8 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "B", false)]
 		public void Equals_WithImmutableArray_ShouldReturnExpectedResult(string one, string two, bool expectedResult)
 		{
-			var left = new ImmutableArrayValueObject(new[] { one });
-			var right = new ImmutableArrayValueObject(new[] { two });
+			var left = new ImmutableArrayValueObject([one]);
+			var right = new ImmutableArrayValueObject([two]);
 			Assert.Equal(expectedResult, left.Equals(right));
 			Assert.Equal(expectedResult, right.Equals(left));
 		}
@@ -642,8 +642,8 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("A", "B", true)] // Custom collection's equality always returns true
 		public void Equals_WithCustomEquatableCollection_ShouldHonorItsOverride(string? one, string? two, bool expectedResult)
 		{
-			var left = new CustomCollectionValueObject() { Values = one is null ? null : new CustomCollectionValueObject.CustomCollection(one) };
-			var right = new CustomCollectionValueObject() { Values = two is null ? null : new CustomCollectionValueObject.CustomCollection(two) };
+			var left = new CustomCollectionValueObject(one is null ? null : new CustomCollectionValueObject.CustomCollection(one));
+			var right = new CustomCollectionValueObject(two is null ? null : new CustomCollectionValueObject.CustomCollection(two));
 			Assert.Equal(expectedResult, left.Equals(right));
 		}
 
@@ -754,9 +754,6 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -764,25 +761,22 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = one is null ? null : new StringValue(one, "7");
-			var right = two is null ? null : new StringValue(two, "7");
+			var left = new StringValue(one, "7");
+			var right = new StringValue(two, "7");
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
 
-			left = one is null ? null : new StringValue("7", one);
-			right = two is null ? null : new StringValue("7", two);
+			left = new StringValue("7", one);
+			right = new StringValue("7", two);
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -790,16 +784,16 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = one is null ? null : new StringValue(one, "7");
-			var right = two is null ? null : new StringValue(two, "7");
+			var left = new StringValue(one, "7");
+			var right = new StringValue(two, "7");
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
 
-			left = one is null ? null : new StringValue("7", one);
-			right = two is null ? null : new StringValue("7", two);
+			left = new StringValue("7", one);
+			right = new StringValue("7", two);
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
@@ -810,20 +804,14 @@ namespace Architect.DomainModeling.Tests
 		{
 			var nullValued = new DefaultComparingStringValue(value: null);
 
+#pragma warning disable IDE0079 // Remove unnecessary suppressions -- The suppression below is often wrongfully flagged as unnecessary
 #pragma warning disable xUnit2024 // Do not use boolean asserts for simple equality tests -- We are testing overloaded operators
 			Assert.False(null == nullValued);
 			Assert.True(null != nullValued);
 			Assert.False(nullValued == null);
 			Assert.True(nullValued != null);
-			Assert.True(null < nullValued);
-			Assert.True(null <= nullValued);
-			Assert.False(null >= nullValued);
-			Assert.False(null >= nullValued);
-			Assert.False(nullValued < null);
-			Assert.False(nullValued <= null);
-			Assert.True(nullValued > null);
-			Assert.True(nullValued >= null);
 #pragma warning restore xUnit2024 // Do not use boolean asserts for simple equality tests
+#pragma warning restore IDE0079 // Remove unnecessary suppressions
 		}
 
 		[Theory]
@@ -1002,8 +990,181 @@ namespace Architect.DomainModeling.Tests
 				Assert.Equal(value.Value, result.Two);
 			}
 		}
+	}
 
-		private sealed class ManualValueObject : ValueObject
+	// Use a namespace, since our source generators dislike nested types
+	namespace ValueObjectTestTypes
+	{
+		[ValueObject]
+		public sealed partial class ValueObjectWithIIdentity : IIdentity<int>
+		{
+		}
+
+		/// <summary>
+		/// This once caused build errors, before a bug fix handled properties of fully source-generated types.
+		/// </summary>
+		[ValueObject]
+		public sealed partial class ValueObjectWithGeneratedIdentity // Unfortunately we cannot get IComparable<T>, since the source generator will only implement it if all properties are KNOWN to be IComparable<T> to themselves
+		{
+			/// <summary>
+			/// This type is only fleshed out AFTER source generators have run.
+			/// During source generation, its properties are unknown, and thus our own source generator cannot know whether it is a value type or a reference type.
+			/// </summary>
+			public FullyGeneratedId SomeValue { get; private init; }
+
+			public ValueObjectWithGeneratedIdentity(FullyGeneratedId someValue)
+			{
+				this.SomeValue = someValue;
+			}
+
+			[Entity<FullyGeneratedId, ulong>]
+			public sealed class Entity : Entity<FullyGeneratedId>
+			{
+				public Entity()
+					: base(default)
+				{
+				}
+			}
+		}
+
+		[ValueObject]
+		public sealed partial record class IntValue
+		{
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
+			public int One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
+			public int Two { get; private init; }
+
+			public string CalculatedProperty => $"{this.One}-{this.Two}";
+
+			public IntValue(int one, int two, object? _ = null)
+			{
+				this.One = one;
+				this.Two = two;
+			}
+		}
+
+		[ValueObject]
+		public sealed partial class StringValue : ValueObject, IComparable<StringValue>
+		{
+			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
+
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
+			public string One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
+			public string Two { get; private init; }
+
+			public StringValue(string one, string two, object? _ = null)
+			{
+				this.One = one ?? throw new ArgumentNullException(nameof(one));
+				this.Two = two ?? throw new ArgumentNullException(nameof(two));
+			}
+
+			public StringComparison GetStringComparison() => this.StringComparison;
+		}
+
+		[ValueObject]
+		public sealed partial class DecimalValue : ValueObject
+		{
+			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
+			public decimal One { get; private init; }
+			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
+			public decimal Two { get; private init; }
+
+			public DecimalValue(decimal one, decimal two, object? _ = null)
+			{
+				this.One = one;
+				this.Two = two;
+			}
+
+			public StringComparison GetStringComparison() => this.StringComparison;
+		}
+
+		[ValueObject]
+		public sealed partial class DefaultComparingStringValue : IComparable<DefaultComparingStringValue>
+		{
+			private StringComparison StringComparison => StringComparison.Ordinal;
+
+			public string? Value { get; private init; }
+
+			public DefaultComparingStringValue(string? value)
+			{
+				this.Value = value;
+			}
+
+			public StringComparison GetStringComparison() => this.StringComparison;
+		}
+
+		[ValueObject]
+		public sealed partial class ImmutableArrayValueObject : ValueObject
+		{
+			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
+
+			public ImmutableArray<string> Values { get; private init; }
+			public ImmutableArray<string>? ValuesNullable { get; private init; }
+
+			public ImmutableArrayValueObject(IEnumerable<string> values)
+			{
+				this.Values = values.ToImmutableArray();
+				this.ValuesNullable = this.Values;
+			}
+		}
+
+		/// <summary>
+		/// Should merely compile.
+		/// </summary>
+		[Obsolete("Should merely compile.", error: true)]
+		[ValueObject]
+		public sealed partial class ArrayValueObject
+		{
+			public string?[]? StringValues { get; private init; }
+			public int?[] IntValues { get; private init; }
+
+			public ArrayValueObject(string?[]? stringValues, int?[] intValues)
+			{
+				this.StringValues = stringValues;
+				this.IntValues = intValues;
+			}
+		}
+
+		[ValueObject]
+		public readonly partial record struct CustomCollectionValueObject
+		{
+			public CustomCollection? Values { get; private init; }
+
+			public CustomCollectionValueObject(CustomCollection? values)
+			{
+				this.Values = values;
+			}
+
+			public class CustomCollection : IReadOnlyCollection<int>
+			{
+				public override int GetHashCode() => 1;
+				public override bool Equals(object? other) => true;
+				public int Count => throw new NotSupportedException();
+				public IEnumerator<int> GetEnumerator() => throw new NotSupportedException();
+				IEnumerator IEnumerable.GetEnumerator() => throw new NotSupportedException();
+
+				public string Value { get; }
+
+				public CustomCollection(string value)
+				{
+					this.Value = value ?? throw new ArgumentNullException(nameof(value));
+				}
+			}
+		}
+
+		/// <summary>
+		/// Should merely compile.
+		/// </summary>
+		[Obsolete("Should merely compile.", error: true)]
+		[ValueObject]
+		internal sealed partial class EmptyValueObject
+		{
+			public override string ToString() => throw new NotSupportedException();
+		}
+
+		public sealed class ManualValueObject : ValueObject
 		{
 			public override string ToString() => this.Id.ToString();
 
@@ -1053,173 +1214,6 @@ namespace Architect.DomainModeling.Tests
 			{
 				return ValueObject.ContainsWhitespaceOrNonPrintableCharacters(text);
 			}
-		}
-	}
-
-	// Use a namespace, since our source generators dislike nested types
-	namespace ValueObjectTestTypes
-	{
-		[ValueObject]
-		public sealed partial class ValueObjectWithIIdentity : IIdentity<int>
-		{
-		}
-
-		/// <summary>
-		/// This once caused build errors, before a bug fix handled properties of fully source-generated types.
-		/// </summary>
-		[ValueObject]
-		public sealed partial class ValueObjectWithGeneratedIdentity // Unfortunately we cannot get IComparable<T>, since the source generator will only implement it if all properties are KNOWN to be IComparable<T> to themselves
-		{
-			/// <summary>
-			/// This type is only fleshed out AFTER source generators have run.
-			/// During source generation, its properties are unknown, and thus our own source generator cannot know whether it is a value type or a reference type.
-			/// </summary>
-			public FullyGeneratedId SomeValue { get; private init; }
-
-			public ValueObjectWithGeneratedIdentity(FullyGeneratedId someValue)
-			{
-				this.SomeValue = someValue;
-			}
-
-			public sealed class Entity : Entity<FullyGeneratedId, ulong>
-			{
-				public Entity()
-					: base(default)
-				{
-				}
-			}
-		}
-
-		[ValueObject]
-		public sealed partial class IntValue
-		{
-			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
-			public int One { get; private init; }
-			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
-			public int Two { get; private init; }
-
-			public string CalculatedProperty => $"{this.One}-{this.Two}";
-
-			public IntValue(int one, int two, object? _ = null)
-			{
-				this.One = one;
-				this.Two = two;
-			}
-
-			public StringComparison GetStringComparison() => this.StringComparison;
-		}
-
-		[ValueObject]
-		public sealed partial class StringValue : IComparable<StringValue>
-		{
-			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
-
-			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
-			public string One { get; private init; }
-			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
-			public string Two { get; private init; }
-
-			public StringValue(string one, string two, object? _ = null)
-			{
-				this.One = one ?? throw new ArgumentNullException(nameof(one));
-				this.Two = two ?? throw new ArgumentNullException(nameof(two));
-			}
-
-			public StringComparison GetStringComparison() => this.StringComparison;
-		}
-
-		[ValueObject]
-		public sealed partial class DecimalValue : ValueObject
-		{
-			[JsonInclude, JsonPropertyName("One"), Newtonsoft.Json.JsonProperty]
-			public decimal One { get; private init; }
-			[JsonInclude, JsonPropertyName("Two"), Newtonsoft.Json.JsonProperty]
-			public decimal Two { get; private init; }
-
-			public DecimalValue(decimal one, decimal two, object? _ = null)
-			{
-				this.One = one;
-				this.Two = two;
-			}
-		}
-
-		[ValueObject]
-		public sealed partial class DefaultComparingStringValue : IComparable<DefaultComparingStringValue>
-		{
-			public string? Value { get; private init; }
-
-			public DefaultComparingStringValue(string? value)
-			{
-				this.Value = value;
-			}
-
-			public StringComparison GetStringComparison() => this.StringComparison;
-		}
-
-		[ValueObject]
-		public sealed partial class ImmutableArrayValueObject
-		{
-			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
-
-			public ImmutableArray<string> Values { get; private init; }
-			public ImmutableArray<string>? ValuesNullable { get; private init; }
-
-			public ImmutableArrayValueObject(IEnumerable<string> values)
-			{
-				this.Values = values.ToImmutableArray();
-				this.ValuesNullable = this.Values;
-			}
-		}
-
-		/// <summary>
-		/// Should merely compile.
-		/// </summary>
-		[Obsolete("Should merely compile.", error: true)]
-		[ValueObject]
-		public sealed partial class ArrayValueObject
-		{
-			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
-
-			public string?[]? StringValues { get; private init; }
-			public int?[] IntValues { get; private init; }
-
-			public ArrayValueObject(string?[]? stringValues, int?[] intValues)
-			{
-				this.StringValues = stringValues;
-				this.IntValues = intValues;
-			}
-		}
-
-		[ValueObject]
-		public sealed partial class CustomCollectionValueObject
-		{
-			public CustomCollection? Values { get; set; }
-
-			public class CustomCollection : IReadOnlyCollection<int>
-			{
-				public override int GetHashCode() => 1;
-				public override bool Equals(object? other) => true;
-				public int Count => throw new NotSupportedException();
-				public IEnumerator<int> GetEnumerator() => throw new NotSupportedException();
-				IEnumerator IEnumerable.GetEnumerator() => throw new NotSupportedException();
-
-				public string Value { get; }
-
-				public CustomCollection(string value)
-				{
-					this.Value = value ?? throw new ArgumentNullException(nameof(value));
-				}
-			}
-		}
-
-		/// <summary>
-		/// Should merely compile.
-		/// </summary>
-		[Obsolete("Should merely compile.", error: true)]
-		[ValueObject]
-		internal sealed partial class EmptyValueObject
-		{
-			public override string ToString() => throw new NotSupportedException();
 		}
 
 		/// <summary>

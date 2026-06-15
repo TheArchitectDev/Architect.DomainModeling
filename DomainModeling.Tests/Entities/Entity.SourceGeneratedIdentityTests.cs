@@ -241,10 +241,12 @@ public class SourceGeneratedIdentityTests
 	{
 		IntId? instance = value is null ? null : new IntId(value.Value);
 
+#pragma warning disable IDE0221 // Add explicit cast -- This technically casts to (IntId) and then to (int), but we want to show what happens if you skip the intermediate step
 		if (expectedResult is null)
 			Assert.Throws<InvalidOperationException>(() => (int)instance!);
 		else
 			Assert.Equal(expectedResult, (int)instance!);
+#pragma warning restore IDE0221 // Add explicit cast
 	}
 
 	[Theory]
@@ -427,7 +429,8 @@ public class SourceGeneratedIdentityTests
 		return 0;
 	}
 
-	private sealed class StringBasedEntity : Entity<StringId, string>
+	[Entity<StringId, string>]
+	private sealed class StringBasedEntity : Entity<StringId>
 	{
 		public StringBasedEntity(StringId id)
 			: base(id)
@@ -435,7 +438,8 @@ public class SourceGeneratedIdentityTests
 		}
 	}
 
-	private sealed class IntBasedEntity : Entity<IntId, int>
+	[Entity<IntId, int>]
+	private sealed class IntBasedEntity : Entity<IntId>
 	{
 		public IntBasedEntity(IntId id)
 			: base(id)
@@ -443,7 +447,8 @@ public class SourceGeneratedIdentityTests
 		}
 	}
 
-	private sealed class DecimalBasedEntity : Entity<DecimalId, decimal>
+	[Entity<DecimalId, decimal>]
+	private sealed class DecimalBasedEntity : Entity<DecimalId>
 	{
 		public DecimalBasedEntity(DecimalId id)
 			: base(id)
@@ -451,7 +456,8 @@ public class SourceGeneratedIdentityTests
 		}
 	}
 
-	public sealed class ObjectBasedEntity : Entity<ObjectId, ComparableObject>
+	[Entity<ObjectId, ComparableObject>]
+	public sealed class ObjectBasedEntity : Entity<ObjectId>
 	{
 		public ObjectBasedEntity(ObjectId id)
 			: base(id)

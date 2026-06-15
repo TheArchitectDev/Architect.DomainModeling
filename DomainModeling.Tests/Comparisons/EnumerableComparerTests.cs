@@ -25,11 +25,13 @@ namespace Architect.DomainModeling.Tests.Comparisons
 
 		public sealed class CustomListComparerTests : EnumerableComparerTests
 		{
+#pragma warning disable IDE0028 // Simplify collection initialization -- Want to use custom type
 			protected override IEnumerable<T> CreateCollectionCore<T>(IEnumerable<T> elements) => new CustomList<T>(elements.ToList());
+#pragma warning restore IDE0028 // Simplify collection initialization
 
 			private sealed class CustomList<T> : IList<T>
 			{
-				private IList<T> WrappedList { get; } = new List<T>();
+				private IList<T> WrappedList { get; } = [];
 				public T this[int index]
 				{
 					get => this.WrappedList[index];
@@ -88,7 +90,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 
 			private sealed class CustomReadOnlyCollection<T> : IReadOnlyCollection<T>
 			{
-				private IList<T> WrappedList { get; } = new List<T>();
+				private IList<T> WrappedList { get; } = [];
 				public int Count => this.WrappedList.Count;
 				public IEnumerator<T> GetEnumerator() => this.WrappedList.GetEnumerator();
 				IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
@@ -106,7 +108,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 
 			private sealed class CustomEnumerable<T> : IEnumerable<T>
 			{
-				private IList<T> WrappedList { get; } = new List<T>();
+				private IList<T> WrappedList { get; } = [];
 				public IEnumerator<T> GetEnumerator() => this.WrappedList.GetEnumerator();
 				IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
@@ -124,7 +126,7 @@ namespace Architect.DomainModeling.Tests.Comparisons
 
 		protected IEnumerable<T> CreateCollection<T>(T singleElement)
 		{
-			return this.CreateCollectionCore(new[] { singleElement });
+			return this.CreateCollectionCore([singleElement]);
 		}
 
 		protected virtual IEnumerable<T>? CreateCollectionWithEqualityComparer<T>(IEnumerable<T> elements, IComparer<T> comparer)
@@ -258,8 +260,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[InlineData("A", "AA", false)]
 		public void EnumerableEquals_WithStringsAndIgnoreCaseComparer_ShouldReturnExpectedResult(string? one, string? two, bool expectedResult)
 		{
-			var left = this.CreateCollectionWithEqualityComparer(new[] { one }, StringComparer.OrdinalIgnoreCase);
-			var right = this.CreateCollectionWithEqualityComparer(new[] { two }, StringComparer.OrdinalIgnoreCase);
+			var left = this.CreateCollectionWithEqualityComparer([one], StringComparer.OrdinalIgnoreCase);
+			var right = this.CreateCollectionWithEqualityComparer([two], StringComparer.OrdinalIgnoreCase);
 
 			if (left is null || right is null)
 				return; // Implementation does not support custom comparer
@@ -274,8 +276,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[Fact]
 		public void EnumerableEquals_WithoutTwoWayEquality_ShouldReturnExpectedResult()
 		{
-			var left = this.CreateCollectionWithEqualityComparer(new[] { "A", "a", }, StringComparer.Ordinal);
-			var right = this.CreateCollectionWithEqualityComparer(new[] { "A", }, StringComparer.Ordinal);
+			var left = this.CreateCollectionWithEqualityComparer(["A", "a",], StringComparer.Ordinal);
+			var right = this.CreateCollectionWithEqualityComparer(["A",], StringComparer.Ordinal);
 
 			if (left is null || right is null)
 				return; // Implementation does not support custom comparer
@@ -290,8 +292,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[Fact]
 		public void EnumerableEquals_WithIgnoreCaseWithTwoWayEquality_ShouldReturnExpectedResult()
 		{
-			var left = this.CreateCollectionWithEqualityComparer(new[] { "A", "a", }, StringComparer.OrdinalIgnoreCase);
-			var right = this.CreateCollectionWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+			var left = this.CreateCollectionWithEqualityComparer(["A", "a",], StringComparer.OrdinalIgnoreCase);
+			var right = this.CreateCollectionWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 			if (left is null || right is null)
 				return; // Implementation does not support custom comparer
@@ -304,8 +306,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[Fact]
 		public void EnumerableEquals_WithDifferentCaseComparersWithoutTwoWayEquality_ShouldReturnExpectedResult()
 		{
-			var left = this.CreateCollectionWithEqualityComparer(new[] { "a", }, StringComparer.Ordinal);
-			var right = this.CreateCollectionWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+			var left = this.CreateCollectionWithEqualityComparer(["a",], StringComparer.Ordinal);
+			var right = this.CreateCollectionWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 			if (left is null || right is null)
 				return; // Implementation does not support custom comparer
@@ -320,8 +322,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 		[Fact]
 		public void EnumerableEquals_WithDifferentCaseComparersWithTwoWayEquality_ShouldReturnExpectedResult()
 		{
-			var left = this.CreateCollectionWithEqualityComparer(new[] { "A", "a", }, StringComparer.Ordinal);
-			var right = this.CreateCollectionWithEqualityComparer(new[] { "A", }, StringComparer.OrdinalIgnoreCase);
+			var left = this.CreateCollectionWithEqualityComparer(["A", "a",], StringComparer.Ordinal);
+			var right = this.CreateCollectionWithEqualityComparer(["A",], StringComparer.OrdinalIgnoreCase);
 
 			if (left is null || right is null)
 				return; // Implementation does not support custom comparer
@@ -390,7 +392,8 @@ namespace Architect.DomainModeling.Tests.Comparisons
 			Assert.Equal(expectedResult, leftHashCode == rightHashCode);
 		}
 
-		private sealed class StringIdEntity : Entity<SomeStringId, string>
+		[Entity<SomeStringId, string>]
+		private sealed class StringIdEntity : Entity<SomeStringId>
 		{
 			public StringIdEntity(SomeStringId id)
 				: base(id)
@@ -403,14 +406,14 @@ namespace Architect.DomainModeling.Tests.Comparisons
 	namespace EnumerableComparerTestTypes
 	{
 		[WrapperValueObject<string>]
-		public sealed partial class StringWrapperValueObject : IComparable<StringWrapperValueObject>
+		public sealed partial class StringWrapperValueObject : WrapperValueObject<string>, IComparable<StringWrapperValueObject>
 		{
 			protected sealed override StringComparison StringComparison { get; }
 
-			public StringWrapperValueObject(string value, StringComparison stringComparison)
+			public StringWrapperValueObject(string value, StringComparison stringComparison = default)
 			{
 				this.Value = value ?? throw new ArgumentNullException(nameof(value));
-				this.StringComparison = stringComparison;
+				this.StringComparison = stringComparison.AsDefined();
 			}
 		}
 	}

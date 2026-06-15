@@ -1,5 +1,7 @@
 using System.Collections;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace Architect.DomainModeling.Comparisons;
 
@@ -23,6 +25,20 @@ public static class EnumerableComparer
 		// Otherwise, we have no efficient (allocation-free, full-enumeration-free) hash code
 		else
 			return -1;
+	}
+
+	/// <summary>
+	/// <para>
+	/// Returns a hash code over some of the content of the given <see cref="ImmutableArray{T}"/>.
+	/// </para>
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static int GetEnumerableHashCode<TElement>([AllowNull] ImmutableArray<TElement>? enumerable)
+	{
+		if (enumerable is not {} value) return 0;
+		var span = value.AsSpan();
+		if (span.Length == 0) return 1;
+		return HashCode.Combine(span.Length, span[0], span[^1]);
 	}
 
 	/// <summary>
@@ -68,6 +84,59 @@ public static class EnumerableComparer
 
 	/// <summary>
 	/// <para>
+	/// Compares the given <see cref="IEnumerable"/> objects for equality by comparing their elements.
+	/// </para>
+	/// <para>
+	/// This method performs equality checks on the <see cref="IEnumerable"/>'s elements.
+	/// It is not recursive. To support nested collections, use custom collections that override their equality checks accordingly.
+	/// </para>
+	/// <para>
+	/// <strong>This non-generic overload should be avoided if possible.</strong>
+	/// It lacks the ability to special-case generic types, which may lead to unexpected results.
+	/// For example, two <see cref="HashSet{T}"/> instances with an ignore-case comparer may consider each other equal despite having different-cased contents.
+	/// However, the current method has no knowledge of their comparers or their order-agnosticism, and may return a different result.
+	/// </para>
+	/// <para>
+	/// Unlike <see cref="EnumerableEquals{TElement}(IEnumerable{TElement}, IEnumerable{TElement})"/>, this method may cause boxing of elements that are of a value type.
+	/// </para>
+	/// </summary>
+	public static bool EnumerableEquals([AllowNull] IEnumerable left, [AllowNull] IEnumerable right)
+	{
+		if (ReferenceEquals(left, right)) return true;
+		if (left is null || right is null) return false; // Double nulls are already handled above
+
+		var rightEnumerator = right.GetEnumerator();
+		using (rightEnumerator as IDisposable)
+		{
+			foreach (var leftElement in left)
+				if (!rightEnumerator.MoveNext() || !Equals(leftElement, rightEnumerator.Current))
+					return false;
+			if (rightEnumerator.MoveNext()) return false;
+		}
+
+		return true;
+	}
+
+	/// <summary>
+	/// <para>
+	/// Compares the given <see cref="ImmutableArray{T}"/> objects for equality by comparing their elements.
+	/// </para>
+	/// <para>
+	/// This method performs equality checks on the <see cref="ImmutableArray{T}"/>'s elements.
+	/// It is not recursive. To support nested collections, use custom collections that override their equality checks accordingly.
+	/// </para>
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool EnumerableEquals<TElement>([AllowNull] ImmutableArray<TElement>? left, [AllowNull] ImmutableArray<TElement>? right)
+	{
+		if (left is not ImmutableArray<TElement> leftValue || right is not ImmutableArray<TElement> rightValue)
+			return left is null & right is null;
+
+		return MemoryExtensions.SequenceEqual(leftValue.AsSpan(), rightValue.AsSpan());
+	}
+
+	/// <summary>
+	/// <para>
 	/// Compares the given <see cref="IEnumerable{T}"/> objects for equality by comparing their elements.
 	/// </para>
 	/// <para>
@@ -89,7 +158,7 @@ public static class EnumerableComparer
 			return MemoryExtensions.SequenceEqual(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(leftList), System.Runtime.InteropServices.CollectionsMarshal.AsSpan(rightList));
 		if (left is TElement[] leftArray && right is TElement[] rightArray)
 			return MemoryExtensions.SequenceEqual(leftArray.AsSpan(), rightArray.AsSpan());
-		if (left is System.Collections.Immutable.ImmutableArray<TElement> leftImmutableArray && right is System.Collections.Immutable.ImmutableArray<TElement> rightImmutableArray)
+		if (left is ImmutableArray<TElement> leftImmutableArray && right is ImmutableArray<TElement> rightImmutableArray)
 			return MemoryExtensions.SequenceEqual(leftImmutableArray.AsSpan(), rightImmutableArray.AsSpan());
 
 		// Prefer to index directly, to avoid allocation of an enumerator
@@ -151,47 +220,13 @@ public static class EnumerableComparer
 
 	/// <summary>
 	/// <para>
-	/// Compares the given <see cref="IEnumerable"/> objects for equality by comparing their elements.
-	/// </para>
-	/// <para>
-	/// This method performs equality checks on the <see cref="IEnumerable{T}"/>'s elements.
-	/// It is not recursive. To support nested collections, use custom collections that override their equality checks accordingly.
-	/// </para>
-	/// <para>
-	/// <strong>This non-generic overload should be avoided if possible.</strong>
-	/// It lacks the ability to special-case generic types, which may lead to unexpected results.
-	/// For example, two <see cref="HashSet{T}"/> instances with an ignore-case comparer may consider each other equal despite having different-cased contents.
-	/// However, the current method has no knowledge of their comparers or their order-agnosticism, and may return a different result.
-	/// </para>
-	/// <para>
-	/// Unlike <see cref="EnumerableEquals{TElement}"/>, this method may cause boxing of elements that are of a value type.
-	/// </para>
-	/// </summary>
-	public static bool EnumerableEquals([AllowNull] IEnumerable left, [AllowNull] IEnumerable right)
-	{
-		if (ReferenceEquals(left, right)) return true;
-		if (left is null || right is null) return false; // Double nulls are already handled above
-
-		var rightEnumerator = right.GetEnumerator();
-		using (rightEnumerator as IDisposable)
-		{
-			foreach (var leftElement in left)
-				if (!rightEnumerator.MoveNext() || !Equals(leftElement, rightEnumerator.Current))
-					return false;
-			if (rightEnumerator.MoveNext()) return false;
-		}
-
-		return true;
-	}
-
-	/// <summary>
-	/// <para>
 	/// Returns a hash code over some of the content of the given <see cref="Memory{T}"/> wrapped in a <see cref="Nullable{T}"/>.
 	/// </para>
 	/// <para>
 	/// For a corresponding equality check, use <see cref="MemoryExtensions.SequenceEqual{T}(ReadOnlySpan{T}, ReadOnlySpan{T})"/>.
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMemoryHashCode<TElement>(Memory<TElement>? memory)
 	{
 		return GetMemoryHashCode((ReadOnlyMemory<TElement>?)memory);
@@ -205,6 +240,7 @@ public static class EnumerableComparer
 	/// For a corresponding equality check, use <see cref="MemoryExtensions.SequenceEqual{T}(ReadOnlySpan{T}, ReadOnlySpan{T})"/>.
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMemoryHashCode<TElement>(ReadOnlyMemory<TElement>? memory)
 	{
 		if (memory is null) return 0;
@@ -219,6 +255,7 @@ public static class EnumerableComparer
 	/// For a corresponding equality check, use <see cref="MemoryExtensions.SequenceEqual{T}(ReadOnlySpan{T}, ReadOnlySpan{T})"/>.
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMemoryHashCode<TElement>(Memory<TElement> memory)
 	{
 		return GetMemoryHashCode((ReadOnlyMemory<TElement>)memory);
@@ -232,6 +269,7 @@ public static class EnumerableComparer
 	/// For a corresponding equality check, use <see cref="MemoryExtensions.SequenceEqual{T}(ReadOnlySpan{T}, ReadOnlySpan{T})"/>.
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMemoryHashCode<TElement>(ReadOnlyMemory<TElement> memory)
 	{
 		return GetSpanHashCode(memory.Span);
@@ -245,6 +283,7 @@ public static class EnumerableComparer
 	/// For a corresponding equality check, use <see cref="MemoryExtensions.SequenceEqual{T}(ReadOnlySpan{T}, ReadOnlySpan{T})"/>.
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetSpanHashCode<TElement>(Span<TElement> span)
 	{
 		return GetSpanHashCode((ReadOnlySpan<TElement>)span);
@@ -258,6 +297,7 @@ public static class EnumerableComparer
 	/// For a corresponding equality check, use <see cref="MemoryExtensions.SequenceEqual{T}(ReadOnlySpan{T}, ReadOnlySpan{T})"/>.
 	/// </para>
 	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetSpanHashCode<TElement>(ReadOnlySpan<TElement> span)
 	{
 		// Note that we do not distinguish between a default span and a regular empty span

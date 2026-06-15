@@ -45,6 +45,44 @@ public class EntityTests
 	}
 
 	[Theory]
+	[InlineData(null, false)]
+	[InlineData(0, false)]
+	[InlineData(1, true)]
+	[InlineData(-1, true)]
+	public void EqualityOperator_WithClassId_ShouldEquateAsExpected(int? value, bool expectedResult)
+	{
+		var one = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable CS1718 // Comparison made to same variable -- Still need to test the operator
+		Assert.True(one == one);
+		Assert.True(two == two);
+		Assert.Equal(expectedResult, one == two);
+#pragma warning restore CS1718 // Comparison made to same variable
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+	}
+
+	[Theory]
+	[InlineData(null, false)]
+	[InlineData(0, false)]
+	[InlineData(1, true)]
+	[InlineData(-1, true)]
+	public void InequalityOperator_WithClassId_ShouldEquateAsExpected(int? value, bool expectedResult)
+	{
+		var one = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+		var two = new ClassIdEntity(value is null ? null! : new ConcreteId() { Value = value.Value, });
+
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable CS1718 // Comparison made to same variable -- Still need to test the operator
+		Assert.False(one != one);
+		Assert.False(two != two);
+		Assert.NotEqual(expectedResult, one != two);
+#pragma warning restore CS1718 // Comparison made to same variable
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+	}
+
+	[Theory]
 	[InlineData(null, true)]
 	[InlineData(0UL, true)]
 	[InlineData(1UL, false)]
@@ -79,6 +117,42 @@ public class EntityTests
 		Assert.Equal(one, one);
 		Assert.Equal(two, two);
 		Assert.Equal(expectedResult, one.Equals(two));
+	}
+
+	[Theory]
+	[InlineData(null, false)]
+	[InlineData(0UL, false)]
+	[InlineData(1UL, true)]
+	public void EqualityOperator_WithStructId_ShouldEquateAsExpected(ulong? value, bool expectedResult)
+	{
+		var one = new StructIdEntity(value is null ? default : new UlongId(value.Value));
+		var two = new StructIdEntity(value is null ? default : new UlongId(value.Value));
+
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable CS1718 // Comparison made to same variable -- Still need to test the operator
+		Assert.True(one == one);
+		Assert.True(two == two);
+		Assert.Equal(expectedResult, one == two);
+#pragma warning restore CS1718 // Comparison made to same variable
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+	}
+
+	[Theory]
+	[InlineData(null, false)]
+	[InlineData(0UL, false)]
+	[InlineData(1UL, true)]
+	public void InequalityOperator_WithStructId_ShouldEquateAsExpected(ulong? value, bool expectedResult)
+	{
+		var one = new StructIdEntity(value is null ? default : new UlongId(value.Value));
+		var two = new StructIdEntity(value is null ? default : new UlongId(value.Value));
+
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable CS1718 // Comparison made to same variable -- Still need to test the operator
+		Assert.False(one != one);
+		Assert.False(two != two);
+		Assert.NotEqual(expectedResult, one != two);
+#pragma warning restore CS1718 // Comparison made to same variable
+#pragma warning restore IDE0079 // Remove unnecessary suppression
 	}
 
 	[Theory]
@@ -244,7 +318,8 @@ public class EntityTests
 		Assert.Equal(expectedResult, one.Equals(two));
 	}
 
-	private sealed class StructIdEntity : Entity<UlongId, ulong>
+	[Entity<UlongId, ulong>]
+	private sealed class StructIdEntity : Entity<UlongId>
 	{
 		public StructIdEntity(ulong id)
 			: base(new UlongId(id))
@@ -282,7 +357,8 @@ public class EntityTests
 		}
 	}
 
-	private sealed class StringWrappingIdEntity : Entity<StringBasedId, string>
+	[Entity<StringBasedId, string>]
+	private sealed class StringWrappingIdEntity : Entity<StringBasedId>
 	{
 		public StringWrappingIdEntity(StringBasedId id)
 			: base(id)

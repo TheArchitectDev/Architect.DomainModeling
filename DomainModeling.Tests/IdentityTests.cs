@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling.Conversions;
 using Architect.DomainModeling.Tests.IdentityTestTypes;
+using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 using Xunit;
 
 namespace Architect.DomainModeling.Tests
@@ -161,6 +162,48 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(left.Equals(right), left == right);
 		}
 
+		[Fact]
+		public void EqualityOperator_WithNullables_ShouldReturnExpectedResult()
+		{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable IDE0004 // Deliberate casts to test specific operators
+#pragma warning disable CS8073 // Deliberate casts to test specific operators
+			Assert.True((StringId?)null == (StringId?)null);
+			Assert.True((IntId?)null == (IntId?)null);
+
+			Assert.False((StringId?)null == (StringId?)"");
+			Assert.False((IntId?)null == (IntId?)0);
+			Assert.False((StringId?)"" == (StringId?)null);
+			Assert.False((IntId?)0 == (IntId?)null);
+
+			Assert.True((StringId?)"" == (StringId?)"");
+			Assert.True((IntId?)0 == (IntId?)0);
+#pragma warning restore CS8073
+#pragma warning restore IDE0004
+#pragma warning restore IDE0079
+		}
+
+		[Fact]
+		public void InequalityOperator_WithNullables_ShouldReturnExpectedResult()
+		{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable IDE0004 // Deliberate casts to test specific operators
+#pragma warning disable CS8073 // Deliberate casts to test specific operators
+			Assert.False((StringId?)null != (StringId?)null);
+			Assert.False((IntId?)null != (IntId?)null);
+
+			Assert.True((StringId?)null != (StringId?)"");
+			Assert.True((IntId?)null != (IntId?)0);
+			Assert.True((StringId?)"" != (StringId?)null);
+			Assert.True((IntId?)0 != (IntId?)null);
+
+			Assert.False((StringId?)"" != (StringId?)"");
+			Assert.False((IntId?)0 != (IntId?)0);
+#pragma warning restore CS8073
+#pragma warning restore IDE0004
+#pragma warning restore IDE0079
+		}
+
 		[Theory]
 		[InlineData("", "")]
 		[InlineData("A", "A")]
@@ -266,9 +309,6 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", 0)]
-		[InlineData("", null, 0)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -286,9 +326,6 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", 0)]
-		[InlineData("", null, 0)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -296,10 +333,36 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", +1)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void LessThan_WithString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
 			var left = (StringId)one;
 			var right = (StringId)two;
+
+			Assert.Equal(expectedResult < 0, left < right);
+			Assert.Equal(expectedResult >= 0, left >= right);
+		}
+
+		[Theory]
+		[InlineData(1, 1, 0)]
+		[InlineData(1, 2, -1)]
+		[InlineData(2, 1, +1)]
+		public void GreaterThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
+		{
+			var left = (DecimalId)one;
+			var right = (DecimalId)two;
+
+			Assert.Equal(expectedResult > 0, left > right);
+			Assert.Equal(expectedResult <= 0, left <= right);
+		}
+
+		[Theory]
+		[InlineData(1, 1, 0)]
+		[InlineData(1, 2, -1)]
+		[InlineData(2, 1, +1)]
+		public void LessThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
+		{
+			var left = (DecimalId)one;
+			var right = (DecimalId)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
@@ -313,10 +376,12 @@ namespace Architect.DomainModeling.Tests
 		{
 			var instance = value is null ? (IntId?)null : new IntId(value.Value);
 
+#pragma warning disable IDE0221 // Add explicit cast -- This technically casts to (IntId) and then to (int), but we want to show what happens if you skip the intermediate step
 			if (expectedResult is null)
 				Assert.Throws<InvalidOperationException>(() => (int)instance!);
 			else
 				Assert.Equal(expectedResult, (int)instance!);
+#pragma warning restore IDE0221 // Add explicit cast
 		}
 
 		[Theory]
@@ -349,6 +414,137 @@ namespace Architect.DomainModeling.Tests
 			var result = (IntId?)value;
 
 			Assert.Equal(expectedResult, result?.Value);
+		}
+
+		[Theory]
+		[InlineData(null, "")] // String identities specialize null to ""
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastToCoreType_Regularly_ShouldReturnExpectedResult(string? value, string? expectedResult)
+		{
+			var instance = new NestedStringId(new StringId(value));
+
+			Assert.Equal(expectedResult, (string)instance);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastToNullableCoreType_Regularly_ShouldReturnExpectedResult(string? value, string? expectedResult)
+		{
+			var instance = value is null ? (NestedStringId?)null : new NestedStringId(new StringId(value));
+
+			Assert.Equal(expectedResult, (string?)instance);
+		}
+
+		[Theory]
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastFromCoreType_Regularly_ShouldReturnExpectedResult(string value, string expectedResult)
+		{
+			Assert.Equal(new NestedStringId(new StringId(expectedResult)), (NestedStringId)value);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData("0", "0")]
+		[InlineData("1", "1")]
+		public void CastFromNullableCoreType_Regularly_ShouldReturnExpectedResult(string? value, string? expectedResult)
+		{
+			Assert.Equal(expectedResult is null ? (NestedStringId?)null : new NestedStringId(new StringId(expectedResult)), (NestedStringId?)value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Value_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			ICoreValueWrapper<FormatAndParseTestingIntId, int> intInstance =
+				new FormatAndParseTestingIntId(value);
+			Assert.IsType<int>(intInstance.Value);
+			Assert.Equal(value, intInstance.Value);
+
+			ICoreValueWrapper<FormatAndParseTestingStringId, string> stringInstance =
+				new FormatAndParseTestingStringId(new StringValue(value.ToString()));
+			Assert.IsType<string>(stringInstance.Value);
+			Assert.Equal(value.ToString(), stringInstance.Value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromDirectUnderlyingValue<TWrapper, TValue>(TValue value)
+			where TWrapper : IDirectValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromCoreValue<TWrapper, TValue>(TValue value)
+			where TWrapper : ICoreValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaDirectUnderlyingValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<FormatAndParseTestingIntId>(CreateFromDirectUnderlyingValue<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance));
+			Assert.Equal(value, CreateFromDirectUnderlyingValue<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance).Value?.Value.Value);
+
+			var stringInstance = new StringValue(value.ToString());
+			Assert.IsType<FormatAndParseTestingStringId>(CreateFromDirectUnderlyingValue<FormatAndParseTestingStringId, StringValue>(stringInstance));
+			Assert.Equal(value.ToString(), CreateFromDirectUnderlyingValue<FormatAndParseTestingStringId, StringValue>(stringInstance).Value.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntId>(CreateFromCoreValue<FormatAndParseTestingIntId, int>(value));
+			Assert.Equal(value, CreateFromCoreValue<FormatAndParseTestingIntId, int>(value).Value?.Value.Value);
+
+			Assert.IsType<FormatAndParseTestingStringId>(CreateFromCoreValue<FormatAndParseTestingStringId, string>(value.ToString()));
+			Assert.Equal(value.ToString(), CreateFromCoreValue<FormatAndParseTestingStringId, string>(value.ToString()).Value.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper> intInstance =
+				new FormatAndParseTestingIntId(value);
+			Assert.IsType<FormatAndParseTestingIntWrapper>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize()?.Value.Value);
+
+			IValueWrapper<FormatAndParseTestingStringId, StringValue> stringInstance =
+				new FormatAndParseTestingStringId(new StringValue(value.ToString()));
+			Assert.IsType<StringValue>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize().Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToCoreType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntId, int> intInstance =
+				new FormatAndParseTestingIntId(value);
+			Assert.IsType<int>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize());
+
+			IValueWrapper<FormatAndParseTestingStringId, string> stringInstance =
+				new FormatAndParseTestingStringId(new StringValue(value.ToString()));
+			Assert.IsType<string>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize());
 		}
 
 		[Theory]
@@ -419,6 +615,41 @@ namespace Architect.DomainModeling.Tests
 
 			Assert.Equal($@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject((DecimalId)value));
 			Assert.Equal($@"""{value}""", Newtonsoft.Json.JsonConvert.SerializeObject((DecimalId?)value));
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper Deserialize<TWrapper, TValue>(TValue value)
+			where TWrapper : IValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Deserialize(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<FormatAndParseTestingIntId>(Deserialize<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntId, FormatAndParseTestingIntWrapper>(intInstance).Value?.Value.Value);
+
+			var stringInstance = new StringValue(value.ToString());
+			Assert.IsType<FormatAndParseTestingStringId>(Deserialize<FormatAndParseTestingStringId, StringValue>(stringInstance));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, StringValue>(stringInstance).Value.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromCoreType_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntId>(Deserialize<FormatAndParseTestingIntId, int>(value));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntId, int>(value).Value?.Value.Value);
+
+			Assert.IsType<FormatAndParseTestingStringId>(Deserialize<FormatAndParseTestingStringId, string>(value.ToString()));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringId, string>(value.ToString()).Value.Value);
 		}
 
 		[Theory]
@@ -537,7 +768,8 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("5", new FullySelfImplementedIdentity(5).ToString(format: null, formatProvider: null));
 			Assert.Equal("5", new FormatAndParseTestingIntId(5).ToString(format: null, formatProvider: null));
 
-			Assert.Equal("", ((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).ToString(format: null, formatProvider: null));
+			// Cannot be helped - see comments in IFormattableWrapper
+			Assert.Null(((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).ToString(format: null, formatProvider: null));
 		}
 
 		[Fact]
@@ -561,6 +793,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, charsWritten);
 			Assert.Equal("5".AsSpan(), result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).TryFormat(result, out charsWritten, format: null, provider: null));
 			Assert.Equal(0, charsWritten);
 		}
@@ -586,6 +819,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, bytesWritten);
 			Assert.Equal("5"u8, result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((FormatAndParseTestingIntId)RuntimeHelpers.GetUninitializedObject(typeof(FormatAndParseTestingIntId))).TryFormat(result, out bytesWritten, format: null, provider: null));
 			Assert.Equal(0, bytesWritten);
 		}
@@ -655,6 +889,26 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(5, result4.Value?.Value.Value);
 			Assert.Equal(result4, FormatAndParseTestingIntId.Parse(input, provider: null));
 		}
+
+		[Fact]
+		public void ParsabilityAndFormattability_InAllScenarios_ShouldBeGeneratedAccordingToTransitiveAvailability()
+		{
+			var interfaces = typeof(FormatAndParseTestingUriWrapperId).GetInterfaces();
+			Assert.Contains(interfaces, interf => interf.Name == "ISpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable`1");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable`1");
+		}
+
+		/// <summary>
+		/// A multi-param ctor with the 2nd and further parameters optional should prevent the single-param ctor from being generated.
+		/// </summary>
+		[Fact]
+		public void Construct_WithManualConstructorWithSecondParamOptional_ShouldUseThat()
+		{
+			var result = new ManualCtorIntId(1);
+			Assert.Equal(Int32.MinValue, result.Value); // Hand-written ctor should have been used
+		}
 	}
 
 	// Use a namespace, since our source generators dislike nested types
@@ -672,15 +926,28 @@ namespace Architect.DomainModeling.Tests
 		[IdentityValueObject<string>]
 		internal partial record struct StringId;
 
+		[IdentityValueObject<FullySelfImplementedWrapperValueObject>]
+		internal partial record struct WrapperId;
+
 		[IdentityValueObject<string>]
 		internal partial struct IgnoreCaseStringId
 		{
 			internal StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 		}
 
+		[IdentityValueObject<StringId>]
+		internal partial struct NestedStringId
+		{
+		}
+
 		[IdentityValueObject<FormatAndParseTestingIntWrapper>]
 		internal readonly partial struct FormatAndParseTestingIntId
 		{
+			public FormatAndParseTestingIntId(FormatAndParseTestingIntWrapper? value)
+			{
+				this.Value = value;
+			}
+
 			public FormatAndParseTestingIntId(int value)
 			{
 				this.Value = new FormatAndParseTestingIntWrapper(value);
@@ -694,11 +961,15 @@ namespace Architect.DomainModeling.Tests
 				this.Value = new IntId(value);
 			}
 		}
+		[IdentityValueObject<FormatAndParseTestingUriWrapper>]
+		internal partial struct FormatAndParseTestingUriWrapperId
+		{
+		}
 
 		[IdentityValueObject<JsonTestingIntWrapper>]
 		internal readonly partial struct JsonTestingIntId
 		{
-			public JsonTestingIntId(FormatAndParseTestingIntWrapper _)
+			public JsonTestingIntId(JsonTestingIntWrapper? _)
 			{
 				throw new Exception("This constructor should not be used. This lets tests confirm that concerns such as deserialization correctly avoid constructors.");
 			}
@@ -743,26 +1014,32 @@ namespace Architect.DomainModeling.Tests
 				throw new Exception("Serialization should have delegated to the wrapped value.");
 			}
 		}
+		[IdentityValueObject<int>]
+		internal partial struct ManualCtorIntId
+		{
+			public ManualCtorIntId(int value, string? paramName = null)
+			{
+				this.Value = value is Int32.MinValue ? value : Int32.MinValue;
+				_ = paramName;
+			}
+		}
 
 		/// <summary>
 		/// Should merely compile.
 		/// </summary>
 		[IdentityValueObject<int>]
-		[System.Text.Json.Serialization.JsonConverter(typeof(JsonConverter))]
-		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftJsonConverter))]
+		[System.Text.Json.Serialization.JsonConverter(typeof(ValueWrapperJsonConverter<FullySelfImplementedIdentity, int>))]
+		[Newtonsoft.Json.JsonConverter(typeof(ValueWrapperNewtonsoftJsonConverter<FullySelfImplementedIdentity, int>))]
 		internal readonly partial struct FullySelfImplementedIdentity
 			: IIdentity<int>,
 			IEquatable<FullySelfImplementedIdentity>,
 			IComparable<FullySelfImplementedIdentity>,
-#if NET7_0_OR_GREATER
 			ISpanFormattable,
 			ISpanParsable<FullySelfImplementedIdentity>,
-#endif
-#if NET8_0_OR_GREATER
 			IUtf8SpanFormattable,
 			IUtf8SpanParsable<FullySelfImplementedIdentity>,
-#endif
-			ISerializableDomainObject<FullySelfImplementedIdentity, int>
+			IDirectValueWrapper<FullySelfImplementedIdentity, int>,
+			ICoreValueWrapper<FullySelfImplementedIdentity, int>
 		{
 			public int Value { get; private init; }
 
@@ -796,27 +1073,11 @@ namespace Architect.DomainModeling.Tests
 				return this.Value.ToString("0.#");
 			}
 
-			/// <summary>
-			/// Serializes a domain object as a plain value.
-			/// </summary>
-			int ISerializableDomainObject<FullySelfImplementedIdentity, int>.Serialize()
-			{
-				return this.Value;
-			}
-
-			/// <summary>
-			/// Deserializes a plain value back into a domain object without any validation.
-			/// </summary>
-			static FullySelfImplementedIdentity ISerializableDomainObject<FullySelfImplementedIdentity, int>.Deserialize(int value)
-			{
-				return new FullySelfImplementedIdentity() { Value = value };
-			}
-
 			public static bool operator ==(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.Equals(right);
 			public static bool operator !=(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => !(left == right);
 
-			public static bool operator >(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) > 0;
-			public static bool operator <(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) < 0;
+			public static bool operator >(FullySelfImplementedIdentity? left, FullySelfImplementedIdentity? right) => left is { } one && !(right is { } two && one.CompareTo(two) <= 0);
+			public static bool operator <(FullySelfImplementedIdentity? left, FullySelfImplementedIdentity? right) => right is { } two && !(left is { } one && one.CompareTo(two) >= 0);
 			public static bool operator >=(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) >= 0;
 			public static bool operator <=(FullySelfImplementedIdentity left, FullySelfImplementedIdentity right) => left.CompareTo(right) <= 0;
 
@@ -828,9 +1089,34 @@ namespace Architect.DomainModeling.Tests
 			[return: NotNullIfNotNull(nameof(id))]
 			public static implicit operator int?(FullySelfImplementedIdentity? id) => id?.Value;
 
+			#region Wrapping & Serialization
+
+			public static FullySelfImplementedIdentity Create(int value)
+			{
+				return new FullySelfImplementedIdentity(value);
+			}
+
+			/// <summary>
+			/// Serializes a domain object as a plain value.
+			/// </summary>
+			int IValueWrapper<int>.Serialize()
+			{
+				return this.Value;
+			}
+
+			/// <summary>
+			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+			/// </summary>
+			static FullySelfImplementedIdentity IValueWrapper<FullySelfImplementedIdentity, int>.Deserialize(int value)
+			{
+				return new FullySelfImplementedIdentity() { Value = value };
+			}
+
+			#endregion
+
 			#region Formatting & Parsing
 
-#if NET7_0_OR_GREATER
+#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
 
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -854,10 +1140,6 @@ namespace Architect.DomainModeling.Tests
 			public static FullySelfImplementedIdentity Parse(ReadOnlySpan<char> s, IFormatProvider? provider) =>
 				(FullySelfImplementedIdentity)ParsingHelper.Parse<int>(s, provider);
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
 				FormattingHelper.TryFormat(this.Value, utf8Destination, out bytesWritten, format, provider);
 
@@ -872,38 +1154,6 @@ namespace Architect.DomainModeling.Tests
 #endif
 
 			#endregion
-
-			private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<FullySelfImplementedIdentity>
-			{
-				public override FullySelfImplementedIdentity Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
-					DomainObjectSerializer.Deserialize<FullySelfImplementedIdentity, int>(System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options)!);
-
-				public override void Write(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedIdentity value, System.Text.Json.JsonSerializerOptions options) =>
-					System.Text.Json.JsonSerializer.Serialize(writer, DomainObjectSerializer.Serialize<FullySelfImplementedIdentity, int>(value), options);
-
-				public override FullySelfImplementedIdentity ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
-					DomainObjectSerializer.Deserialize<FullySelfImplementedIdentity, int>(
-						((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).ReadAsPropertyName(ref reader, typeToConvert, options));
-
-				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedIdentity value, System.Text.Json.JsonSerializerOptions options) =>
-					((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).WriteAsPropertyName(
-						writer,
-						DomainObjectSerializer.Serialize<FullySelfImplementedIdentity, int>(value)!, options);
-			}
-
-			private sealed class NewtonsoftJsonConverter : Newtonsoft.Json.JsonConverter
-			{
-				public override bool CanConvert(Type objectType) =>
-					objectType == typeof(FullySelfImplementedIdentity) || objectType == typeof(FullySelfImplementedIdentity?);
-
-				public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer) =>
-					reader.Value is null && (!typeof(FullySelfImplementedIdentity).IsValueType || objectType != typeof(FullySelfImplementedIdentity)) // Null data for a reference type or nullable value type
-						? (FullySelfImplementedIdentity?)null
-						: DomainObjectSerializer.Deserialize<FullySelfImplementedIdentity, int>(serializer.Deserialize<int>(reader)!);
-
-				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer) =>
-					serializer.Serialize(writer, value is not FullySelfImplementedIdentity instance ? (object?)null : DomainObjectSerializer.Serialize<FullySelfImplementedIdentity, int>(instance));
-			}
 		}
 	}
 }

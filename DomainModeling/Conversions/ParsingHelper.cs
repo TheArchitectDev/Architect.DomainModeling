@@ -14,10 +14,11 @@ namespace Architect.DomainModeling.Conversions;
 /// This type is intended for use by source-generated code, to avoid compiler errors in situations where the presence of the required interfaces is extremely likely but cannot be guaranteed.
 /// </para>
 /// </summary>
+#if NET10_0_OR_GREATER
+[Obsolete("New default interface implementations and extension members alleviate the need for this helper.")]
+#endif
 public static class ParsingHelper
 {
-#if NET7_0_OR_GREATER
-
 	/// <summary>
 	/// This overload throws because <see cref="IParsable{TSelf}"/> is unavailable.
 	/// Implement the interface to have overload resolution pick the functional overload.
@@ -98,10 +99,6 @@ public static class ParsingHelper
 		return T.Parse(s, provider);
 	}
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 #pragma warning disable IDE0060 // Remove unused parameter -- Required to let generated code make use of overload resolution
 	/// <summary>
 	/// <para>
@@ -170,6 +167,4 @@ public static class ParsingHelper
 	{
 		return T.Parse(utf8Text, provider);
 	}
-
-#endif
 }

@@ -34,7 +34,7 @@ public abstract class Entity<
 	public override bool Equals(Entity<TId>? other)
 	{
 		// Since the ID type is specifically generated for our entity type, any subtype will belong to the same sequence of IDs
-		// This lets us avoid an exact type match, which lets us consider a Fruit equal a Banana if their IDs match
+		// This lets us avoid an exact type match, which lets us consider a Fruit equal to a Banana if their IDs match
 
 		if (other is not Entity<TId, TIdPrimitive>)
 			return false;
@@ -51,7 +51,8 @@ public abstract class Entity<
 /// An entity is a data model that is defined by its identity and a thread of continuity. It may be mutated during its life cycle.
 /// </para>
 /// <para>
-/// <see cref="Entity{TId}"/> automatically declares an ID property of type <typeparamref name="TId"/>, as well as overriding certain behavior to make use of it.
+/// <see cref="Entity{TId}"/> automatically declares an ID property of type <typeparamref name="TId"/>.
+/// It overrides equality and <see cref="Object.ToString"/> to be based on the ID and entity type, and provides equality operators.
 /// </para>
 /// </summary>
 [Serializable]
@@ -81,7 +82,7 @@ public abstract class Entity<
 	/// <summary>
 	/// The entity's unique identity.
 	/// </summary>
-	public TId Id { get; }
+	public virtual TId Id { get; }
 
 	/// <param name="id">The unique identity for the entity.</param>
 	protected Entity(TId id)
@@ -89,6 +90,9 @@ public abstract class Entity<
 		this.Id = id;
 	}
 
+	/// <summary>
+	/// Returns an ID-based hash code for the current entity.
+	/// </summary>
 	public override int GetHashCode()
 	{
 		// With a null or default-valued ID, use a reference-based hash code, to match Equals()
@@ -97,11 +101,17 @@ public abstract class Entity<
 			: this.Id.GetHashCode();
 	}
 
+	/// <summary>
+	/// Compares the current entity to the <paramref name="other"/> by type and ID.
+	/// </summary>
 	public override bool Equals(object? other)
 	{
 		return other is Entity<TId> otherId && this.Equals(otherId);
 	}
 
+	/// <summary>
+	/// Compares the current entity to the <paramref name="other"/> by type and ID.
+	/// </summary>
 	public virtual bool Equals(Entity<TId>? other)
 	{
 		if (other is null)
@@ -114,6 +124,15 @@ public abstract class Entity<
 		return ReferenceEquals(this, other) ||
 			(this.Id is not null && !this.Id.Equals(DefaultId) && this.Id.Equals(other.Id) && this.GetType() == other.GetType());
 	}
+
+	/// <summary>
+	/// Compares the <paramref name="left"/> entity to the <paramref name="right"/> by type and ID.
+	/// </summary>
+	public static bool operator ==(Entity<TId> left, Entity<TId> right) => left?.Equals(right) ?? right is null;
+	/// <summary>
+	/// Compares the <paramref name="left"/> entity to the <paramref name="right"/> by type and ID.
+	/// </summary>
+	public static bool operator !=(Entity<TId> left, Entity<TId> right) => !(left == right);
 }
 
 /// <summary>

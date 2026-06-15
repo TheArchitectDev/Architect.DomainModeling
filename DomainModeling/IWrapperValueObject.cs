@@ -7,11 +7,20 @@ namespace Architect.DomainModeling;
 /// <para>
 /// Value objects are identified and compared by their values.
 /// </para>
+/// </summary>
+public interface IWrapperValueObject<TValue> : IWrapperValueObject
+	where TValue : notnull
+{
+}
+
+/// <summary>
 /// <para>
-/// Struct value objects should implement this interface, as they cannot inherit from <see cref="WrapperValueObject{TValue}"/>.
+/// An <see cref="IValueObject"/> wrapping a single value, i.e. an immutable data model representing a single value.
+/// </para>
+/// <para>
+/// Value objects are identified and compared by their values.
 /// </para>
 /// </summary>
-public interface IWrapperValueObject<TValue> : IValueObject
-	where TValue : notnull
+public interface IWrapperValueObject : IValueObject
 {
 }

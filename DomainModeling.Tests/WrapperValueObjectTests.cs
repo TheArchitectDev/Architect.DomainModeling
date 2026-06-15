@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using Architect.DomainModeling.Conversions;
+using Architect.DomainModeling.Tests.IdentityTestTypes;
 using Architect.DomainModeling.Tests.WrapperValueObjectTestTypes;
 using Xunit;
 
@@ -27,9 +28,15 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[Fact]
-		public void Construct_WithNull_ShouldThrow()
+		public void Construct_WithNullReferenceType_ShouldThrow()
 		{
 			Assert.Throws<ArgumentNullException>(() => new StringValue(null!));
+		}
+
+		[Fact]
+		public void Construct_WithNullValueType_ShouldThrow()
+		{
+			Assert.Throws<ArgumentNullException>(() => new IntValue(null!));
 		}
 
 		[Fact]
@@ -153,6 +160,48 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(left.Equals(right), left == right);
 		}
 
+		[Fact]
+		public void EqualityOperator_WithNullables_ShouldReturnExpectedResult()
+		{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable IDE0004 // Deliberate casts to test specific operators
+#pragma warning disable CS8073 // Deliberate casts to test specific operators
+			Assert.True((StringValue?)null == (StringValue?)null);
+			Assert.True((DecimalValue?)null == (DecimalValue?)null);
+
+			Assert.False((StringValue?)null == (StringValue?)"");
+			Assert.False((DecimalValue?)null == (DecimalValue?)0);
+			Assert.False((StringValue?)"" == (StringValue?)null);
+			Assert.False((DecimalValue?)0 == (DecimalValue?)null);
+
+			Assert.True((StringValue?)"" == (StringValue?)"");
+			Assert.True((DecimalValue?)0 == (DecimalValue?)0);
+#pragma warning restore CS8073
+#pragma warning restore IDE0004
+#pragma warning restore IDE0079
+		}
+
+		[Fact]
+		public void InequalityOperator_WithNullables_ShouldReturnExpectedResult()
+		{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable IDE0004 // Deliberate casts to test specific operators
+#pragma warning disable CS8073 // Deliberate casts to test specific operators
+			Assert.False((StringValue?)null != (StringValue?)null);
+			Assert.False((DecimalValue?)null != (DecimalValue?)null);
+
+			Assert.True((StringValue?)null != (StringValue?)"");
+			Assert.True((DecimalValue?)null != (DecimalValue?)0);
+			Assert.True((StringValue?)"" != (StringValue?)null);
+			Assert.True((DecimalValue?)0 != (DecimalValue?)null);
+
+			Assert.False((StringValue?)"" != (StringValue?)"");
+			Assert.False((DecimalValue?)0 != (DecimalValue?)0);
+#pragma warning restore CS8073
+#pragma warning restore IDE0004
+#pragma warning restore IDE0079
+		}
+
 		[Theory]
 		[InlineData("", "")]
 		[InlineData("A", "A")]
@@ -201,14 +250,11 @@ namespace Architect.DomainModeling.Tests
 			var left = (StringValue?)one;
 			var right = (StringValue?)two;
 
-			Assert.Equal(expectedResult, Comparer<StringValue>.Default.Compare(left, right));
-			Assert.Equal(-expectedResult, Comparer<StringValue>.Default.Compare(right, left));
+			Assert.Equal(expectedResult, Comparer<StringValue?>.Default.Compare(left, right));
+			Assert.Equal(-expectedResult, Comparer<StringValue?>.Default.Compare(right, left));
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -216,19 +262,16 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void GreaterThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = (StringValue?)one;
-			var right = (StringValue?)two;
+			var left = (StringValue)one;
+			var right = (StringValue)two;
 
 			Assert.Equal(expectedResult > 0, left > right);
 			Assert.Equal(expectedResult <= 0, left <= right);
 		}
 
 		[Theory]
-		[InlineData(null, null, 0)]
-		[InlineData(null, "", -1)]
-		[InlineData("", null, +1)]
 		[InlineData("", "", 0)]
 		[InlineData("", "A", -1)]
 		[InlineData("A", "", +1)]
@@ -236,10 +279,36 @@ namespace Architect.DomainModeling.Tests
 		[InlineData("a", "A", 0)]
 		[InlineData("A", "B", -1)]
 		[InlineData("AA", "A", +1)]
-		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string? one, string? two, int expectedResult)
+		public void LessThan_WithIgnoreCaseString_ShouldReturnExpectedResult(string one, string two, int expectedResult)
 		{
-			var left = (StringValue?)one;
-			var right = (StringValue?)two;
+			var left = (StringValue)one;
+			var right = (StringValue)two;
+
+			Assert.Equal(expectedResult < 0, left < right);
+			Assert.Equal(expectedResult >= 0, left >= right);
+		}
+
+		[Theory]
+		[InlineData(1, 1, 0)]
+		[InlineData(1, 2, -1)]
+		[InlineData(2, 1, +1)]
+		public void GreaterThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
+		{
+			var left = (DecimalValue)one;
+			var right = (DecimalValue)two;
+
+			Assert.Equal(expectedResult > 0, left > right);
+			Assert.Equal(expectedResult <= 0, left <= right);
+		}
+
+		[Theory]
+		[InlineData(1, 1, 0)]
+		[InlineData(1, 2, -1)]
+		[InlineData(2, 1, +1)]
+		public void LessThan_Regularly_ShouldReturnExpectedResult(int one, int two, int expectedResult)
+		{
+			var left = (DecimalValue)one;
+			var right = (DecimalValue)two;
 
 			Assert.Equal(expectedResult < 0, left < right);
 			Assert.Equal(expectedResult >= 0, left >= right);
@@ -289,6 +358,146 @@ namespace Architect.DomainModeling.Tests
 			var result = (IntValue?)value;
 
 			Assert.Equal(expectedResult, result?.Value);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData(0, 0)]
+		[InlineData(1, 1)]
+		public void CastToCoreType_Regularly_ShouldReturnExpectedResult(int? value, int? expectedResult)
+		{
+			var intInstance = new NestedIntValue(new IntValue(value ?? 0));
+			Assert.Equal(expectedResult ?? 0, (int)intInstance);
+
+			var decimalInstance = value is null ? null : new NestedDecimalValue(new DecimalValue(value.Value));
+			if (expectedResult is null)
+				Assert.Throws<NullReferenceException>(() => (decimal)decimalInstance!);
+			else
+				Assert.Equal((decimal)expectedResult, (decimal)decimalInstance!);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData(0, 0)]
+		[InlineData(1, 1)]
+		public void CastToNullableCoreType_Regularly_ShouldReturnExpectedResult(int? value, int? expectedResult)
+		{
+			var intInstance = value is null ? (NestedIntValue?)null : new NestedIntValue(new IntValue(value.Value));
+			Assert.Equal(expectedResult, (int?)intInstance);
+
+			var decimalInstance = value is null ? null : new NestedDecimalValue(new DecimalValue(value.Value));
+			Assert.Equal(expectedResult, (decimal?)decimalInstance);
+		}
+
+		[Theory]
+		[InlineData(0, 0)]
+		[InlineData(1, 1)]
+		public void CastFromCoreType_Regularly_ShouldReturnExpectedResult(int value, int expectedResult)
+		{
+			Assert.Equal(new NestedIntValue(new IntValue(expectedResult)), (NestedIntValue)value);
+			Assert.Equal(new NestedDecimalValue(new DecimalValue(expectedResult)), (NestedDecimalValue)value);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData(0, 0)]
+		[InlineData(1, 1)]
+		public void CastFromNullableCoreType_Regularly_ShouldReturnExpectedResult(int? value, int? expectedResult)
+		{
+			Assert.Equal(expectedResult is null ? null : new NestedIntValue(new IntValue(expectedResult)), (NestedIntValue?)value);
+			Assert.Equal(expectedResult is null ? null : new NestedDecimalValue(new DecimalValue(expectedResult)), (NestedDecimalValue?)value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Value_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			ICoreValueWrapper<FormatAndParseTestingIntWrapper, int> intInstance =
+				new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<int>(intInstance.Value);
+			Assert.Equal(value, intInstance.Serialize());
+
+			ICoreValueWrapper<FormatAndParseTestingStringWrapper, string> stringInstance =
+				new FormatAndParseTestingStringWrapper(new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString()))));
+			Assert.IsType<string>(stringInstance.Value);
+			Assert.Equal(value.ToString(), stringInstance.Value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromDirectUnderlyingValue<TWrapper, TValue>(TValue value)
+			where TWrapper : IDirectValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper CreateFromCoreValue<TWrapper, TValue>(TValue value)
+			where TWrapper : ICoreValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Create(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaDirectUnderlyingValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new IntId(value);
+			Assert.IsType<FormatAndParseTestingIntWrapper>(CreateFromDirectUnderlyingValue<FormatAndParseTestingIntWrapper, IntId>(intInstance));
+			Assert.Equal(value, CreateFromDirectUnderlyingValue<FormatAndParseTestingIntWrapper, IntId>(intInstance).Value.Value);
+
+			var stringInstance = new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString())));
+			Assert.IsType<FormatAndParseTestingStringWrapper>(CreateFromDirectUnderlyingValue<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance));
+			Assert.Equal(value.ToString(), CreateFromDirectUnderlyingValue<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance).Value.Value.Value.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Create_ViaCoreValueInterface_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntWrapper>(CreateFromCoreValue<FormatAndParseTestingIntWrapper, int>(value));
+			Assert.Equal(value, CreateFromCoreValue<FormatAndParseTestingIntWrapper, int>(value).Value.Value);
+
+			Assert.IsType<FormatAndParseTestingStringWrapper>(CreateFromCoreValue<FormatAndParseTestingStringWrapper, string>(value.ToString()));
+			Assert.Equal(value.ToString(), CreateFromCoreValue<FormatAndParseTestingStringWrapper, string>(value.ToString()).Value.Value.Value.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntWrapper, IntId> intInstance =
+				new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<IntId>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize().Value);
+
+			IValueWrapper<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper> stringInstance =
+				new FormatAndParseTestingStringWrapper(new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString()))));
+			Assert.IsType<FormatAndParseTestingNestedStringWrapper>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize()?.Value.Value.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Serialize_ToCoreType_ShouldReturnExpectedResult(int value)
+		{
+			IValueWrapper<FormatAndParseTestingIntWrapper, int> intInstance =
+				new FormatAndParseTestingIntWrapper(value);
+			Assert.IsType<int>(intInstance.Serialize());
+			Assert.Equal(value, intInstance.Serialize());
+
+			IValueWrapper<FormatAndParseTestingStringWrapper, string> stringInstance =
+				new FormatAndParseTestingStringWrapper(new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString()))));
+			Assert.IsType<string>(stringInstance.Serialize());
+			Assert.Equal(value.ToString(), stringInstance.Serialize());
 		}
 
 		[Theory]
@@ -362,6 +571,41 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(value is null ? "null" : $"{value}.0", Newtonsoft.Json.JsonConvert.SerializeObject(instance));
 		}
 
+		/// <summary>
+		/// Helper to access abstract statics.
+		/// </summary>
+		private static TWrapper Deserialize<TWrapper, TValue>(TValue value)
+			where TWrapper : IValueWrapper<TWrapper, TValue>
+		{
+			return TWrapper.Deserialize(value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromImmediateUnderlyingType_ShouldReturnExpectedResult(int value)
+		{
+			var intInstance = new IntId(value);
+			Assert.IsType<FormatAndParseTestingIntWrapper>(Deserialize<FormatAndParseTestingIntWrapper, IntId>(intInstance));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntWrapper, IntId>(intInstance).Value.Value);
+
+			var stringInstance = new FormatAndParseTestingNestedStringWrapper(new FormatAndParseTestingStringId(new StringValue(value.ToString())));
+			Assert.IsType<FormatAndParseTestingStringWrapper>(Deserialize<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringWrapper, FormatAndParseTestingNestedStringWrapper>(stringInstance).Value.Value.Value.Value);
+		}
+
+		[Theory]
+		[InlineData(0)]
+		[InlineData(1)]
+		public void Deserialize_FromCoreType_ShouldReturnExpectedResult(int value)
+		{
+			Assert.IsType<FormatAndParseTestingIntWrapper>(Deserialize<FormatAndParseTestingIntWrapper, int>(value));
+			Assert.Equal(value, Deserialize<FormatAndParseTestingIntWrapper, int>(value).Value.Value);
+
+			Assert.IsType<FormatAndParseTestingStringWrapper>(Deserialize<FormatAndParseTestingStringWrapper, string>(value.ToString()));
+			Assert.Equal(value.ToString(), Deserialize<FormatAndParseTestingStringWrapper, string>(value.ToString()).Value.Value.Value.Value);
+		}
+
 		[Theory]
 		[InlineData("null", null)]
 		[InlineData("0", 0)]
@@ -371,10 +615,10 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(value, System.Text.Json.JsonSerializer.Deserialize<IntValue>(json)?.Value);
 
 			json = json == "null" ? json : $@"""{json}""";
-			Assert.Equal(value?.ToString(), System.Text.Json.JsonSerializer.Deserialize<StringValue>(json)?.Value);
+			Assert.Equal(value?.ToString(), System.Text.Json.JsonSerializer.Deserialize<StringValue>(json).Value);
 
 			// Even with nested identity and/or wrapper value objects, no constructors should be hit
-			Assert.Equal(value?.ToString(), json == "null" ? null : System.Text.Json.JsonSerializer.Deserialize<JsonTestingNestedStringWrapper>(json)?.Value.Value?.Value);
+			Assert.Equal(value?.ToString(), json == "null" ? null : System.Text.Json.JsonSerializer.Deserialize<JsonTestingNestedStringWrapper>(json)?.Value.Value.Value);
 		}
 
 		[Theory]
@@ -386,10 +630,10 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<IntValue>(json)?.Value);
 
 			json = json == "null" ? json : $@"""{json}""";
-			Assert.Equal(value?.ToString(), Newtonsoft.Json.JsonConvert.DeserializeObject<StringValue>(json)?.Value);
+			Assert.Equal(value?.ToString(), Newtonsoft.Json.JsonConvert.DeserializeObject<StringValue?>(json)?.Value);
 
 			// Even with nested identity and/or wrapper value objects, no constructors should be hit
-			Assert.Equal(value?.ToString(), json == "null" ? null : Newtonsoft.Json.JsonConvert.DeserializeObject<JsonTestingNestedStringWrapper>(json)?.Value.Value?.Value);
+			Assert.Equal(value?.ToString(), json == "null" ? null : Newtonsoft.Json.JsonConvert.DeserializeObject<JsonTestingNestedStringWrapper>(json)?.Value.Value.Value);
 		}
 
 		/// <summary>
@@ -405,7 +649,7 @@ namespace Architect.DomainModeling.Tests
 			// Attempt to mess with the deserialization, which should have no effect
 			CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
 
-			Assert.Equal(value, System.Text.Json.JsonSerializer.Deserialize<DecimalValue>(json)?.Value);
+			Assert.Equal(value, System.Text.Json.JsonSerializer.Deserialize<DecimalValue?>(json)?.Value);
 		}
 
 		/// <summary>
@@ -421,7 +665,7 @@ namespace Architect.DomainModeling.Tests
 			// Attempt to mess with the deserialization, which should have no effect
 			CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
 
-			Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalValue>(json)?.Value);
+			Assert.Equal(value, Newtonsoft.Json.JsonConvert.DeserializeObject<DecimalValue?>(json)?.Value);
 		}
 
 		[Theory]
@@ -466,7 +710,8 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal("5", new FullySelfImplementedWrapperValueObject(5).ToString(format: null, formatProvider: null));
 			Assert.Equal("5", new FormatAndParseTestingStringWrapper("5").ToString(format: null, formatProvider: null));
 
-			Assert.Equal("", ((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).ToString(format: null, formatProvider: null));
+			// Cannot be helped - see comments in IFormattableWrapper
+			Assert.Null(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).ToString(format: null, formatProvider: null));
 		}
 
 		[Fact]
@@ -490,6 +735,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, charsWritten);
 			Assert.Equal("5".AsSpan(), result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).TryFormat(result, out charsWritten, format: null, provider: null));
 			Assert.Equal(0, charsWritten);
 		}
@@ -515,6 +761,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(1, bytesWritten);
 			Assert.Equal("5"u8, result);
 
+			// We succeeded at doing all we must - false is only for insufficient space
 			Assert.True(((StringValue)RuntimeHelpers.GetUninitializedObject(typeof(StringValue))).TryFormat(result, out bytesWritten, format: null, provider: null));
 			Assert.Equal(0, bytesWritten);
 		}
@@ -537,7 +784,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(result3, FullySelfImplementedWrapperValueObject.Parse(input, provider: null));
 
 			Assert.True(FormatAndParseTestingStringWrapper.TryParse(input, provider: null, out var result4));
-			Assert.Equal("5", result4.Value?.Value.Value?.Value);
+			Assert.Equal("5", result4.Value?.Value.Value.Value);
 			Assert.Equal(result4, FormatAndParseTestingStringWrapper.Parse(input, provider: null));
 		}
 
@@ -559,7 +806,7 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(result3, FullySelfImplementedWrapperValueObject.Parse(input, provider: null));
 
 			Assert.True(FormatAndParseTestingStringWrapper.TryParse(input, provider: null, out var result4));
-			Assert.Equal("5", result4.Value?.Value.Value?.Value);
+			Assert.Equal("5", result4.Value?.Value.Value.Value);
 			Assert.Equal(result4, FormatAndParseTestingStringWrapper.Parse(input, provider: null));
 		}
 
@@ -581,8 +828,28 @@ namespace Architect.DomainModeling.Tests
 			Assert.Equal(result3, FullySelfImplementedWrapperValueObject.Parse(input, provider: null));
 
 			Assert.True(FormatAndParseTestingStringWrapper.TryParse(input, provider: null, out var result4));
-			Assert.Equal("5", result4.Value?.Value.Value?.Value);
+			Assert.Equal("5", result4.Value?.Value.Value.Value);
 			Assert.Equal(result4, FormatAndParseTestingStringWrapper.Parse(input, provider: null));
+		}
+
+		[Fact]
+		public void ParsabilityAndFormattability_InAllScenarios_ShouldBeGeneratedAccordingToTransitiveAvailability()
+		{
+			var interfaces = typeof(FormatAndParseTestingUriWrapper).GetInterfaces();
+			Assert.Contains(interfaces, interf => interf.Name == "ISpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "ISpanParsable`1");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanFormattable");
+			Assert.DoesNotContain(interfaces, interf => interf.Name == "IUtf8SpanParsable`1");
+		}
+
+		/// <summary>
+		/// A multi-param ctor with the 2nd and further parameters optional should prevent the single-param ctor from being generated.
+		/// </summary>
+		[Fact]
+		public void Construct_WithManualConstructorWithSecondParamOptional_ShouldUseThat()
+		{
+			var result = new ManualCtorIntWrapper(1);
+			Assert.Equal(Int32.MinValue, result.Value); // Hand-written ctor should have been used
 		}
 	}
 
@@ -601,18 +868,19 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		// Should compile in spite of already consisting of multiple partials, both with and without the attribute
-		public partial class AlreadyPartial
+		public partial class AlreadyPartial(int value)
 		{
+			public int Value { get; private init; } = value;
 		}
 
-		// Should be recognized in spite of the attribute and the base class to be defined on different partials
+		// Should be recognized in spite of the attribute and the interface being defined on different partials
 		[WrapperValueObject<int>]
-		public sealed partial class OtherAlreadyPartial
+		public readonly partial struct OtherAlreadyPartial
 		{
 		}
 
-		// Should be recognized in spite of the attribute and the base class to be defined on different partials
-		public sealed partial class OtherAlreadyPartial : WrapperValueObject<int>
+		// Should be recognized in spite of the attribute and the interface being defined on different partials
+		public readonly partial struct OtherAlreadyPartial : IWrapperValueObject<int>
 		{
 		}
 
@@ -630,15 +898,17 @@ namespace Architect.DomainModeling.Tests
 		}
 
 		[WrapperValueObject<string>]
-		public sealed partial class StringValue : IComparable<StringValue>
+		public readonly partial struct StringValue(string value) : IComparable<StringValue>
 		{
-			protected override StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
+			private StringComparison StringComparison => StringComparison.OrdinalIgnoreCase;
 
 			public StringComparison GetStringComparison() => this.StringComparison;
+
+			public string Value { get; private init; } = value ?? throw new ArgumentNullException(nameof(value));
 		}
 
 		[WrapperValueObject<decimal>]
-		public sealed partial class DecimalValue
+		public readonly partial record struct DecimalValue : IComparable<DecimalValue>
 		{
 		}
 
@@ -666,7 +936,7 @@ namespace Architect.DomainModeling.Tests
 		/// Should merely compile.
 		/// </summary>
 		[WrapperValueObject<string[]>]
-		public sealed partial class StringArrayValue
+		public partial record struct StringArrayValue
 		{
 		}
 
@@ -675,6 +945,16 @@ namespace Architect.DomainModeling.Tests
 		/// </summary>
 		[WrapperValueObject<decimal?[]>]
 		public sealed partial class DecimalArrayValue : WrapperValueObject<decimal?[]>
+		{
+		}
+
+		[WrapperValueObject<IntValue>]
+		public partial record struct NestedIntValue
+		{
+		}
+
+		[WrapperValueObject<DecimalValue>]
+		public partial record class NestedDecimalValue
 		{
 		}
 
@@ -693,6 +973,14 @@ namespace Architect.DomainModeling.Tests
 		[IdentityValueObject<StringValue>]
 		internal partial struct FormatAndParseTestingStringId : IComparable<FormatAndParseTestingStringId>
 		{
+		}
+		[WrapperValueObject<Uri>]
+		internal partial class FormatAndParseTestingUriWrapper : IComparable<FormatAndParseTestingUriWrapper>
+		{
+			public int CompareTo(FormatAndParseTestingUriWrapper? other)
+			{
+				throw new NotImplementedException("This exists only to allow an identity type based on this type.");
+			}
 		}
 
 		[WrapperValueObject<JsonTestingNestedStringWrapper>]
@@ -767,33 +1055,47 @@ namespace Architect.DomainModeling.Tests
 				throw new Exception("Serialization should have delegated to the wrapped value.");
 			}
 		}
+		[WrapperValueObject<int>]
+		internal partial struct ManualCtorIntWrapper
+		{
+			public ManualCtorIntWrapper(int value, string? paramName = null)
+			{
+				this.Value = value is Int32.MinValue ? value : Int32.MinValue;
+				_ = paramName;
+			}
+		}
 
 		/// <summary>
 		/// Should merely compile.
 		/// </summary>
 		[WrapperValueObject<int>]
-		[System.Text.Json.Serialization.JsonConverter(typeof(JsonConverter))]
-		[Newtonsoft.Json.JsonConverter(typeof(NewtonsoftJsonConverter))]
-		internal sealed partial class FullySelfImplementedWrapperValueObject
-			: WrapperValueObject<int>,
+		[System.Text.Json.Serialization.JsonConverter(typeof(ValueWrapperJsonConverter<FullySelfImplementedIdentity, int>))]
+		[Newtonsoft.Json.JsonConverter(typeof(ValueWrapperNewtonsoftJsonConverter<FullySelfImplementedIdentity, int>))]
+		internal sealed partial class FullySelfImplementedWrapperValueObject :
+			IWrapperValueObject<int>,
+			IEquatable<FullySelfImplementedWrapperValueObject>,
 			IComparable<FullySelfImplementedWrapperValueObject>,
-#if NET7_0_OR_GREATER
 			ISpanFormattable,
 			ISpanParsable<FullySelfImplementedWrapperValueObject>,
-#endif
-#if NET8_0_OR_GREATER
 			IUtf8SpanFormattable,
 			IUtf8SpanParsable<FullySelfImplementedWrapperValueObject>,
-#endif
-			ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>
+			IDirectValueWrapper<FullySelfImplementedWrapperValueObject, int>,
+			ICoreValueWrapper<FullySelfImplementedWrapperValueObject, long>
 		{
-			protected sealed override StringComparison StringComparison => throw new NotSupportedException("This operation applies to string-based value objects only.");
-
 			public int Value { get; private init; }
 
 			public FullySelfImplementedWrapperValueObject(int value)
 			{
 				this.Value = value;
+			}
+
+			/// <summary>
+			/// Accepts a nullable parameter, but throws for null values.
+			/// For example, this is useful for a mandatory request input where omission must lead to rejection.
+			/// </summary>
+			public FullySelfImplementedWrapperValueObject(int? value)
+				: this(value ?? throw new ArgumentNullException(nameof(value)))
+			{
 			}
 
 			[Obsolete("This constructor exists for deserialization purposes only.")]
@@ -828,24 +1130,6 @@ namespace Architect.DomainModeling.Tests
 				return this.Value.ToString();
 			}
 
-			/// <summary>
-			/// Serializes a domain object as a plain value.
-			/// </summary>
-			int ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Serialize()
-			{
-				return this.Value;
-			}
-
-			/// <summary>
-			/// Deserializes a plain value back into a domain object without any validation.
-			/// </summary>
-			static FullySelfImplementedWrapperValueObject ISerializableDomainObject<FullySelfImplementedWrapperValueObject, int>.Deserialize(int value)
-			{
-#pragma warning disable CS0618 // Obsolete constructor is intended for us
-				return new FullySelfImplementedWrapperValueObject() { Value = value };
-#pragma warning restore CS0618
-			}
-
 			public static bool operator ==(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => left is null ? right is null : left.Equals(right);
 			public static bool operator !=(FullySelfImplementedWrapperValueObject? left, FullySelfImplementedWrapperValueObject? right) => !(left == right);
 
@@ -862,9 +1146,44 @@ namespace Architect.DomainModeling.Tests
 			[return: NotNullIfNotNull(nameof(instance))]
 			public static implicit operator int?(FullySelfImplementedWrapperValueObject? instance) => instance?.Value;
 
+			#region Wrapping & Serialization
+
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, int>.Create(int value)
+			{
+				return new FullySelfImplementedWrapperValueObject(value);
+			}
+
+			/// <summary>
+			/// Serializes a domain object as a plain value.
+			/// </summary>
+			int IValueWrapper<int>.Serialize()
+			{
+				return this.Value;
+			}
+
+			/// <summary>
+			/// Deserializes a plain value back into a domain object, without using a parameterized constructor.
+			/// </summary>
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, int>.Deserialize(int value)
+			{
+#pragma warning disable IDE0079 // Remove unnecessary suppression -- Suppression below is falsely flagged as unnecessary
+#pragma warning disable CS0618 // Obsolete constructor is intended for us
+				return new FullySelfImplementedWrapperValueObject() { Value = value };
+#pragma warning restore CS0618
+#pragma warning restore IDE0079
+			}
+
+			// Manual interface implementation to support custom core value
+			long IValueWrapper<long>.Value => (long)this.Value;
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Create(long value) => new FullySelfImplementedWrapperValueObject((int)value);
+			long IValueWrapper<long>.Serialize() => (long)this.Value;
+			static FullySelfImplementedWrapperValueObject IValueWrapper<FullySelfImplementedWrapperValueObject, long>.Deserialize(long value) => DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>((int)value);
+
+			#endregion
+
 			#region Formatting & Parsing
 
-#if NET7_0_OR_GREATER
+#if !NET10_0_OR_GREATER // Starting from .NET 10, these operations are provided by default implementations and extension methods
 
 			public string ToString(string? format, IFormatProvider? formatProvider) =>
 				FormattingHelper.ToString(this.Value, format, formatProvider);
@@ -888,10 +1207,6 @@ namespace Architect.DomainModeling.Tests
 			public static FullySelfImplementedWrapperValueObject Parse(ReadOnlySpan<char> s, IFormatProvider? provider) =>
 				(FullySelfImplementedWrapperValueObject)ParsingHelper.Parse<int>(s, provider);
 
-#endif
-
-#if NET8_0_OR_GREATER
-
 			public bool TryFormat(Span<byte> utf8Destination, out int bytesWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
 				FormattingHelper.TryFormat(this.Value, utf8Destination, out bytesWritten, format, provider);
 
@@ -906,38 +1221,6 @@ namespace Architect.DomainModeling.Tests
 #endif
 
 			#endregion
-
-			private sealed class JsonConverter : System.Text.Json.Serialization.JsonConverter<FullySelfImplementedWrapperValueObject>
-			{
-				public override FullySelfImplementedWrapperValueObject Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
-					DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(System.Text.Json.JsonSerializer.Deserialize<int>(ref reader, options)!);
-
-				public override void Write(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options) =>
-					System.Text.Json.JsonSerializer.Serialize(writer, DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(value), options);
-
-				public override FullySelfImplementedWrapperValueObject ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options) =>
-					DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(
-						((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).ReadAsPropertyName(ref reader, typeToConvert, options));
-
-				public override void WriteAsPropertyName(System.Text.Json.Utf8JsonWriter writer, FullySelfImplementedWrapperValueObject value, System.Text.Json.JsonSerializerOptions options) =>
-					((System.Text.Json.Serialization.JsonConverter<int>)options.GetConverter(typeof(int))).WriteAsPropertyName(
-						writer,
-						DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(value)!, options);
-			}
-
-			private sealed class NewtonsoftJsonConverter : Newtonsoft.Json.JsonConverter
-			{
-				public override bool CanConvert(Type objectType) =>
-					objectType == typeof(FullySelfImplementedWrapperValueObject);
-
-				public override object? ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer) =>
-					reader.Value is null && (!typeof(FullySelfImplementedWrapperValueObject).IsValueType || objectType != typeof(FullySelfImplementedWrapperValueObject)) // Null data for a reference type or nullable value type
-						? (FullySelfImplementedWrapperValueObject?)null
-						: DomainObjectSerializer.Deserialize<FullySelfImplementedWrapperValueObject, int>(serializer.Deserialize<int>(reader)!);
-
-				public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer) =>
-					serializer.Serialize(writer, value is not FullySelfImplementedWrapperValueObject instance ? (object?)null : DomainObjectSerializer.Serialize<FullySelfImplementedWrapperValueObject, int>(instance));
-			}
 		}
 	}
 }

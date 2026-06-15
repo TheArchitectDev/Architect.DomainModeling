@@ -7,6 +7,28 @@ pool:
 
 steps:
 
+# Runtimes needed because of test multi-targeting
+- task: UseDotNet@2
+  displayName: 'Install .NET 8 runtime (multi-target support)'
+  inputs:
+    packageType: 'runtime'
+    version: '8.0.x'
+    performMultiLevelLookup: true
+- task: UseDotNet@2
+  displayName: 'Install .NET 9 runtime (multi-target support)'
+  inputs:
+    packageType: 'runtime'
+    version: '9.0.x'
+    performMultiLevelLookup: true
+
+# Can remove this once Microsoft updates the VM image to include .NET 10
+- task: UseDotNet@2
+  displayName: 'Install .NET 10 SDK (until image is updated)'
+  inputs:
+    packageType: 'sdk'
+    version: '10.0.x'
+    performMultiLevelLookup: true
+
 # Explicit restore helps avoid the issue described here:
 # https://developercommunity.visualstudio.com/content/problem/983843/dotnet-build-task-does-not-use-nugetorg-for-one-pr.html
 - task: DotNetCoreCLI@2

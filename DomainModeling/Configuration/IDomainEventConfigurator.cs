@@ -16,6 +16,7 @@ public interface IDomainEventConfigurator
 			in Args args)
 		where TDomainEvent : IDomainObject;
 
+	[SuppressMessage("Style", "IDE0040:Remove accessibility modifiers", Justification = "We always want explicit accessibility for types")]
 	public readonly struct Args
 	{
 		public readonly bool HasDefaultConstructor { get; init; }

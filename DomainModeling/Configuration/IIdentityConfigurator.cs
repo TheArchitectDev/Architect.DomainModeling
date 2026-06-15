@@ -13,11 +13,13 @@ public interface IIdentityConfigurator
 	/// </summary>
 	void ConfigureIdentity<
 		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] TIdentity,
-		TUnderlying>(
+		TUnderlying,
+		TCore>(
 			in Args args)
-		where TIdentity : IIdentity<TUnderlying>, ISerializableDomainObject<TIdentity, TUnderlying>
+		where TIdentity : IIdentity<TUnderlying>, IDirectValueWrapper<TIdentity, TUnderlying>, ICoreValueWrapper<TIdentity, TCore>
 		where TUnderlying : notnull, IEquatable<TUnderlying>, IComparable<TUnderlying>;
 
+	[SuppressMessage("Style", "IDE0040:Remove accessibility modifiers", Justification = "We always want explicit accessibility for types")]
 	public readonly struct Args
 	{
 	}

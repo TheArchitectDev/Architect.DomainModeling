@@ -9,7 +9,6 @@ namespace Architect.DomainModeling.Conversions;
 /// </summary>
 public static class Utf8JsonReaderExtensions
 {
-#if NET7_0_OR_GREATER
 	/// <summary>
 	/// Reads the next string JSON token from the source and parses it as <typeparamref name="T"/>, which must implement <see cref="ISpanParsable{TSelf}"/>.
 	/// </summary>
@@ -20,7 +19,9 @@ public static class Utf8JsonReaderExtensions
 		[CallerLineNumber] int callerLineNumber = -1)
 		where T : ISpanParsable<T>
 	{
+#pragma warning disable IDE0302 // Simplify collection initialization -- Analyzer fails to see that that does not work here
 		ReadOnlySpan<char> chars = stackalloc char[0];
+#pragma warning restore IDE0302 // Simplify collection initialization
 
 		var maxCharLength = reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length;
 		if (maxCharLength > 2048) // Avoid oversized stack allocations
@@ -37,9 +38,7 @@ public static class Utf8JsonReaderExtensions
 		var result = T.Parse(chars, provider);
 		return result;
 	}
-#endif
 
-#if NET8_0_OR_GREATER
 	/// <summary>
 	/// Reads the next string JSON token from the source and parses it as <typeparamref name="T"/>, which must implement <see cref="IUtf8SpanParsable{TSelf}"/>.
 	/// </summary>
@@ -48,9 +47,11 @@ public static class Utf8JsonReaderExtensions
 	public static T GetParsedString<T>(this Utf8JsonReader reader, IFormatProvider? provider)
 		where T : IUtf8SpanParsable<T>
 	{
-		ReadOnlySpan<byte> chars = reader.HasValueSequence
+#pragma warning disable IDE0302 // Simplify collection initialization -- Analyzer fails to see that that does not work here
+		var chars = reader.HasValueSequence
 			? stackalloc byte[0]
 			: reader.ValueSpan;
+#pragma warning restore IDE0302 // Simplify collection initialization
 
 		if (reader.HasValueSequence)
 		{
@@ -69,5 +70,4 @@ public static class Utf8JsonReaderExtensions
 		var result = T.Parse(chars, provider);
 		return result;
 	}
-#endif
 }

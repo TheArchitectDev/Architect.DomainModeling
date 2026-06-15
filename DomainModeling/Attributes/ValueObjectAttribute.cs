@@ -1,3 +1,4 @@
+#pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace Architect.DomainModeling;
 
 /// <summary>
@@ -10,6 +11,9 @@ namespace Architect.DomainModeling;
 /// <para>
 /// This attribute should only be applied to concrete types.
 /// For example, if Address is a concrete value object type inheriting from abstract type PersonalDetail, then only Address should have the attribute.
+/// </para>
+/// <para>
+/// Subclasses of this attribute are also honored, provided that they contain "ValueObject" in their name.
 /// </para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]

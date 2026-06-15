@@ -23,7 +23,8 @@ public partial struct FileScopedId
 {
 }
 
-public partial class FileScopedNamespaceEntity : Entity<FileScopedNamespaceEntityId, ulong>
+[Entity<FileScopedNamespaceEntityId, ulong>]
+public partial class FileScopedNamespaceEntity : Entity<FileScopedNamespaceEntityId>
 {
 	public FileScopedNamespaceEntity()
 		: base(default)

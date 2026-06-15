@@ -5,7 +5,6 @@ namespace Architect.DomainModeling.Conversions;
 /// </summary>
 public static class FormattingExtensions
 {
-#if NET7_0_OR_GREATER
 	/// <summary>
 	/// <para>
 	/// Formats the <paramref name="value"/> into the provided <paramref name="buffer"/>, returning the segment that was written to.
@@ -22,9 +21,8 @@ public static class FormattingExtensions
 		where T : notnull, ISpanFormattable
 	{
 		if (!value.TryFormat(buffer, out var charCount, format, provider))
-			return value.ToString().AsSpan();
+			return value.ToString(format.IsEmpty ? null : format.ToString(), provider).AsSpan();
 
 		return buffer[..charCount];
 	}
-#endif
 }

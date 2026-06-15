@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
@@ -6,7 +6,7 @@
 		<RootNamespace>Architect.DomainModeling.Generator</RootNamespace>
 		<Nullable>Enable</Nullable>
 		<ImplicitUsings>Enable</ImplicitUsings>
-		<LangVersion>12</LangVersion>
+		<LangVersion>14</LangVersion>
 		<IsPackable>False</IsPackable>
 		<DevelopmentDependency>True</DevelopmentDependency>
 		<EnforceExtendedAnalyzerRules>True</EnforceExtendedAnalyzerRules>
@@ -22,11 +22,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0">
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-			<PrivateAssets>all</PrivateAssets>
-		</PackageReference>
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" PrivateAssets="All" />
 	</ItemGroup>
 
 </Project>
